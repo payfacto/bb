@@ -78,3 +78,31 @@ func (r *PRResource) Decline(ctx context.Context, prID int) error {
 	_, err := r.client.do(ctx, "POST", r.prPath(prID)+"/decline", nil, nil)
 	return err
 }
+
+// Activity returns the full activity timeline for a pull request.
+func (r *PRResource) Activity(ctx context.Context, prID int) ([]Activity, error) {
+	path := fmt.Sprintf("%s/activity", r.prPath(prID))
+	data, err := r.client.do(ctx, "GET", path, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	page, err := decode[paged[Activity]](data)
+	if err != nil {
+		return nil, err
+	}
+	return page.Values, nil
+}
+
+// Statuses returns the build statuses associated with the pull request's source commit.
+func (r *PRResource) Statuses(ctx context.Context, prID int) ([]PRStatus, error) {
+	path := fmt.Sprintf("%s/statuses", r.prPath(prID))
+	data, err := r.client.do(ctx, "GET", path, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	page, err := decode[paged[PRStatus]](data)
+	if err != nil {
+		return nil, err
+	}
+	return page.Values, nil
+}

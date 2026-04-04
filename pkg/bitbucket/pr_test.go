@@ -136,3 +136,45 @@ func TestPRs_HTTPError(t *testing.T) {
 		t.Fatal("expected error for HTTP 404, got nil")
 	}
 }
+
+func TestPRs_Activity(t *testing.T) {
+	activities := []bitbucket.Activity{
+		{Approval: &bitbucket.Approval{User: bitbucket.Actor{DisplayName: "Jane"}, Date: "2024-01-15T10:00:00+00:00"}},
+		{Comment: &bitbucket.Comment{ID: 1, Content: bitbucket.Content{Raw: "LGTM"}, User: bitbucket.Actor{DisplayName: "Bob"}}},
+	}
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/repositories/testws/testrepo/pullrequests/42/activity" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		json.NewEncoder(w).Encode(map[string]any{"values": activities})
+	}))
+	got, err := client.PRs("testws", "testrepo").Activity(context.Background(), 42)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("expected 2 activities, got %d", len(got))
+	}
+	if got[0].Approval == nil || got[0].Approval.User.DisplayName != "Jane" {
+		t.Errorf("unexpected activity[0]: %+v", got[0])
+	}
+}
+
+func TestPRs_Statuses(t *testing.T) {
+	statuses := []bitbucket.PRStatus{
+		{State: "SUCCESSFUL", Key: "bitbucket-pipelines", Name: "Build", Description: "Pipeline passed"},
+	}
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/repositories/testws/testrepo/pullrequests/42/statuses" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		json.NewEncoder(w).Encode(map[string]any{"values": statuses})
+	}))
+	got, err := client.PRs("testws", "testrepo").Statuses(context.Background(), 42)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].State != "SUCCESSFUL" {
+		t.Errorf("unexpected statuses: %+v", got)
+	}
+}
