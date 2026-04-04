@@ -107,6 +107,11 @@ func (c *Client) Downloads(workspace, repo string) *DownloadResource {
 	return &DownloadResource{client: c, workspace: workspace, repo: repo}
 }
 
+// DeployKeys returns a resource for deploy key operations on the given repo.
+func (c *Client) DeployKeys(workspace, repo string) *DeployKeyResource {
+	return &DeployKeyResource{client: c, workspace: workspace, repo: repo}
+}
+
 // repoPath returns the API path prefix for a repository.
 func repoPath(workspace, repo string) string {
 	return fmt.Sprintf("/repositories/%s/%s", workspace, repo)
