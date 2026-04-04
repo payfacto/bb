@@ -41,7 +41,7 @@ changelog:
 
 brews:
   - repository:
-      owner: jmadore-payfacto
+      owner: payfacto
       name: homebrew-tap
     homepage: https://github.com/payfacto/bb
     description: Bitbucket Cloud CLI — manage PRs, pipelines, branches, and more
