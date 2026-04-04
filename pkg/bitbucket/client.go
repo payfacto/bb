@@ -72,6 +72,16 @@ func (c *Client) Commits(workspace, repo string) *CommitResource {
 	return &CommitResource{client: c, workspace: workspace, repo: repo}
 }
 
+// User returns a resource for authenticated user operations.
+func (c *Client) User() *UserResource {
+	return &UserResource{client: c}
+}
+
+// Repos returns a resource for listing repositories in a workspace.
+func (c *Client) Repos(workspace string) *RepoResource {
+	return &RepoResource{client: c, workspace: workspace}
+}
+
 // repoPath returns the API path prefix for a repository.
 func repoPath(workspace, repo string) string {
 	return fmt.Sprintf("/repositories/%s/%s", workspace, repo)
