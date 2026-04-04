@@ -290,3 +290,10 @@ type DeployableCommit struct {
 type DeployablePipeline struct {
 	UUID string `json:"uuid"`
 }
+
+// WorkspaceMember type
+
+type WorkspaceMember struct {
+	User  User  `json:"user"`
+	Links Links `json:"links"`
+}
