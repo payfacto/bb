@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/payfactopay/bb/internal/config"
-	"github.com/payfactopay/bb/pkg/bitbucket"
+	"github.com/payfacto/bb/internal/config"
+	"github.com/payfacto/bb/pkg/bitbucket"
 	"github.com/spf13/cobra"
 )
 

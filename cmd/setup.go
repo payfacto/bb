@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	"github.com/payfactopay/bb/internal/config"
+	"github.com/payfacto/bb/internal/config"
 )
 
 var setupCmd = &cobra.Command{

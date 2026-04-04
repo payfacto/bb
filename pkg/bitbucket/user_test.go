@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/payfactopay/bb/pkg/bitbucket"
+	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
 func TestUser_Me(t *testing.T) {

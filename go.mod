@@ -1,4 +1,4 @@
-module github.com/payfactopay/bb
+module github.com/payfacto/bb
 
 go 1.25.0
 

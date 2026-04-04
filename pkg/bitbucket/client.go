@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/payfactopay/bb/internal/config"
+	"github.com/payfacto/bb/internal/config"
 )
 
 const (

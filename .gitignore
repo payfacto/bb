@@ -1,1 +1,35 @@
+# Binary
 bb
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# Build cache
+/dist/
+
+# Environment / config
+.env
+.env.*
+*.local
+~/.bbcloud.yaml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# AI / Claude 
+docs/
+.claude/

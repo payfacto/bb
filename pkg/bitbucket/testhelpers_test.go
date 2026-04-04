@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/payfactopay/bb/internal/config"
-	"github.com/payfactopay/bb/pkg/bitbucket"
+	"github.com/payfacto/bb/internal/config"
+	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
 // newTestClient creates a Client pointed at a test HTTP server.

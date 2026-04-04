@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/payfactopay/bb/pkg/bitbucket"
+	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
 func TestBranches_List(t *testing.T) {

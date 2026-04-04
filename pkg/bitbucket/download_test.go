@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/payfactopay/bb/pkg/bitbucket"
+	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
 func TestDownloads_List(t *testing.T) {

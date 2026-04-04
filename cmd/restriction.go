@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/payfactopay/bb/pkg/bitbucket"
+	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
 var restrictionCmd = &cobra.Command{

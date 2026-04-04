@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/payfactopay/bb/pkg/bitbucket"
+	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
 func TestPRs_List(t *testing.T) {
