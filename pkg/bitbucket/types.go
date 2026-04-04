@@ -224,3 +224,16 @@ type PRStatus struct {
 	URL         string `json:"url"`
 	CreatedOn   string `json:"created_on"`
 }
+
+// Tag types
+
+type Tag struct {
+	Name   string       `json:"name"`
+	Target BranchTarget `json:"target"`
+	Links  Links        `json:"links"`
+}
+
+type CreateTagInput struct {
+	Name   string       `json:"name"`
+	Target BranchTarget `json:"target"`
+}
