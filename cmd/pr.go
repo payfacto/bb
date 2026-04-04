@@ -177,6 +177,9 @@ var prMergeCmd = &cobra.Command{
 
 var prDeclineID int
 
+var prActivityID int
+var prStatusesID int
+
 var prDeclineCmd = &cobra.Command{
 	Use:   "decline",
 	Short: "Decline a pull request",
@@ -194,9 +197,80 @@ var prDeclineCmd = &cobra.Command{
 	},
 }
 
+// --- bb pr activity ---
+
+var prActivityCmd = &cobra.Command{
+	Use:   "activity",
+	Short: "Show the activity timeline for a pull request",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, r, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		activities, err := client.PRs(ws, r).Activity(context.Background(), prActivityID)
+		if err != nil {
+			return err
+		}
+		return printOutput(activities, func() {
+			if len(activities) == 0 {
+				fmt.Println("No activity found.")
+				return
+			}
+			for _, a := range activities {
+				switch {
+				case a.Approval != nil:
+					date := a.Approval.Date
+					if len(date) >= 10 {
+						date = date[:10]
+					}
+					fmt.Printf("[approval]  %s approved  (%s)\n",
+						a.Approval.User.DisplayName, date)
+				case a.Comment != nil:
+					fmt.Printf("[comment]   %s: %s\n",
+						a.Comment.User.DisplayName, truncate(a.Comment.Content.Raw, 80))
+				case a.Update != nil:
+					date := a.Update.Date
+					if len(date) >= 10 {
+						date = date[:10]
+					}
+					fmt.Printf("[update]    %s → %s  (%s)\n",
+						a.Update.Author.DisplayName, a.Update.State, date)
+				}
+			}
+		})
+	},
+}
+
+// --- bb pr statuses ---
+
+var prStatusesCmd = &cobra.Command{
+	Use:   "statuses",
+	Short: "Show build statuses for a pull request",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, r, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		statuses, err := client.PRs(ws, r).Statuses(context.Background(), prStatusesID)
+		if err != nil {
+			return err
+		}
+		return printOutput(statuses, func() {
+			if len(statuses) == 0 {
+				fmt.Println("No statuses found.")
+				return
+			}
+			for _, s := range statuses {
+				fmt.Printf("%-12s  %-30s  %s\n",
+					s.State, truncate(s.Name, 30), s.Description)
+			}
+		})
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(prCmd)
-	prCmd.AddCommand(prListCmd, prGetCmd, prCreateCmd, prDiffCmd, prApproveCmd, prMergeCmd, prDeclineCmd)
+	prCmd.AddCommand(prListCmd, prGetCmd, prCreateCmd, prDiffCmd, prApproveCmd, prMergeCmd, prDeclineCmd, prActivityCmd, prStatusesCmd)
 
 	prListCmd.Flags().StringVar(&prListState, "state", "OPEN",
 		"filter by state: OPEN, MERGED, DECLINED, SUPERSEDED")
@@ -227,4 +301,10 @@ func init() {
 
 	prDeclineCmd.Flags().IntVar(&prDeclineID, "pr-id", 0, "pull request ID")
 	prDeclineCmd.MarkFlagRequired("pr-id")
+
+	prActivityCmd.Flags().IntVar(&prActivityID, "pr-id", 0, "pull request ID")
+	prActivityCmd.MarkFlagRequired("pr-id")
+
+	prStatusesCmd.Flags().IntVar(&prStatusesID, "pr-id", 0, "pull request ID")
+	prStatusesCmd.MarkFlagRequired("pr-id")
 }
