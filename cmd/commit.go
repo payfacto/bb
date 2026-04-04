@@ -65,7 +65,7 @@ var commitGetCmd = &cobra.Command{
 		return printOutput(c, func() {
 			parents := make([]string, len(c.Parents))
 			for i, p := range c.Parents {
-				parents[i] = truncate(p.Hash, 8)
+				parents[i] = truncate(p.Hash, shortHashLen)
 			}
 			fmt.Printf("Hash:    %s\nDate:    %s\nAuthor:  %s\nMessage: %s\nParents: %s\n",
 				c.Hash, c.Date, c.Author.Raw, c.Message, strings.Join(parents, ", "))

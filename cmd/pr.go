@@ -180,6 +180,8 @@ var prDeclineCmd = &cobra.Command{
 	},
 }
 
+var prActivityID int
+
 var prActivityCmd = &cobra.Command{
 	Use:   "activity",
 	Short: "Show the activity timeline for a pull request",
@@ -221,6 +223,8 @@ var prActivityCmd = &cobra.Command{
 		})
 	},
 }
+
+var prStatusesID int
 
 var prStatusesCmd = &cobra.Command{
 	Use:   "statuses",

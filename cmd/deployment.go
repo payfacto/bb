@@ -35,7 +35,7 @@ var deploymentListCmd = &cobra.Command{
 					status += "/" + d.State.Status.Name
 				}
 				commit := ""
-				if d.Deployable.Commit != nil && len(d.Deployable.Commit.Hash) >= 8 {
+				if d.Deployable.Commit != nil && len(d.Deployable.Commit.Hash) >= shortHashLen {
 					commit = d.Deployable.Commit.Hash[:shortHashLen]
 				}
 				date := ""
