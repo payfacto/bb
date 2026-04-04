@@ -3,6 +3,7 @@ package bitbucket
 import (
 	"context"
 	"fmt"
+	"net/url"
 )
 
 // CommitResource provides operations on commits and file contents within a repository.
@@ -15,7 +16,8 @@ type CommitResource struct {
 // List returns commits on a branch, newest first.
 func (r *CommitResource) List(ctx context.Context, branch string) ([]Commit, error) {
 	path := fmt.Sprintf("%s/commits/%s", repoPath(r.workspace, r.repo), branch)
-	data, err := r.client.do(ctx, "GET", path, nil, nil)
+	q := url.Values{"pagelen": {"25"}}
+	data, err := r.client.do(ctx, "GET", path, nil, q)
 	if err != nil {
 		return nil, err
 	}

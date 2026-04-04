@@ -72,8 +72,9 @@ var branchDeleteCmd = &cobra.Command{
 		if err := client.Branches(ws, repo).Delete(context.Background(), branchDeleteName); err != nil {
 			return err
 		}
-		fmt.Printf("Branch '%s' deleted.\n", branchDeleteName)
-		return nil
+		return printOutput(map[string]string{"result": "deleted", "name": branchDeleteName}, func() {
+			fmt.Printf("Branch '%s' deleted.\n", branchDeleteName)
+		})
 	},
 }
 

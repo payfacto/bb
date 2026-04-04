@@ -20,6 +20,9 @@ func TestCommits_List(t *testing.T) {
 		if r.URL.Path != "/repositories/testws/testrepo/commits/main" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
+		if r.URL.Query().Get("pagelen") != "25" {
+			t.Errorf("expected pagelen=25, got %s", r.URL.Query().Get("pagelen"))
+		}
 		json.NewEncoder(w).Encode(map[string]any{"values": commits})
 	}))
 	got, err := client.Commits("testws", "testrepo").List(context.Background(), "main")

@@ -109,8 +109,9 @@ var pipelineStopCmd = &cobra.Command{
 		if err := client.Pipelines(ws, repo).Stop(context.Background(), pipelineStopUUID); err != nil {
 			return err
 		}
-		fmt.Printf("Pipeline %s stopped.\n", pipelineStopUUID)
-		return nil
+		return printOutput(map[string]string{"result": "stopped", "uuid": pipelineStopUUID}, func() {
+			fmt.Printf("Pipeline %s stopped.\n", pipelineStopUUID)
+		})
 	},
 }
 
