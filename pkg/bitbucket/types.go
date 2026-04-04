@@ -195,6 +195,25 @@ type Repo struct {
 	Links       Links  `json:"links"`
 }
 
+// Webhook types
+
+type Webhook struct {
+	UUID        string   `json:"uuid"`
+	Description string   `json:"description"`
+	URL         string   `json:"url"`
+	Active      bool     `json:"active"`
+	Events      []string `json:"events"`
+	CreatedAt   string   `json:"created_at"`
+	Links       Links    `json:"links"`
+}
+
+type CreateWebhookInput struct {
+	Description string   `json:"description,omitempty"`
+	URL         string   `json:"url"`
+	Active      bool     `json:"active"`
+	Events      []string `json:"events"`
+}
+
 // PR Activity types
 
 type Activity struct {
