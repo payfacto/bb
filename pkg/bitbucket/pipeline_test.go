@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/payfactopay/bb/pkg/bitbucket"
@@ -23,6 +24,12 @@ func TestPipelines_List(t *testing.T) {
 		if r.Method != http.MethodGet {
 			t.Errorf("expected GET, got %s", r.Method)
 		}
+		if r.URL.Query().Get("sort") != "-created_on" {
+			t.Errorf("expected sort=-created_on, got %s", r.URL.Query().Get("sort"))
+		}
+		if r.URL.Query().Get("pagelen") != "25" {
+			t.Errorf("expected pagelen=25, got %s", r.URL.Query().Get("pagelen"))
+		}
 		json.NewEncoder(w).Encode(map[string]any{"values": pipelines})
 	}))
 	got, err := client.Pipelines("testws", "testrepo").List(context.Background())
@@ -39,6 +46,9 @@ func TestPipelines_Get(t *testing.T) {
 	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if !strings.Contains(r.URL.Path, "{abc-123}") {
+			t.Errorf("expected UUID in path, got %s", r.URL.Path)
 		}
 		json.NewEncoder(w).Encode(pipeline)
 	}))
@@ -63,6 +73,12 @@ func TestPipelines_Trigger(t *testing.T) {
 		if target["ref_name"] != "main" {
 			t.Errorf("expected ref_name=main, got %v", target["ref_name"])
 		}
+		if target["ref_type"] != "branch" {
+			t.Errorf("expected ref_type=branch, got %v", target["ref_type"])
+		}
+		if target["type"] != "pipeline_ref_target" {
+			t.Errorf("expected type=pipeline_ref_target, got %v", target["type"])
+		}
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(pipeline)
 	}))
@@ -81,6 +97,9 @@ func TestPipelines_Stop(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
+		if !strings.HasSuffix(r.URL.Path, "/stopPipeline") {
+			t.Errorf("expected path to end with /stopPipeline, got %s", r.URL.Path)
+		}
 		stopped = true
 		w.WriteHeader(http.StatusNoContent)
 	}))
@@ -98,6 +117,12 @@ func TestPipelines_Steps(t *testing.T) {
 		{UUID: "{step-1}", Name: "build", State: bitbucket.PipelineState{Name: "COMPLETED", Result: &bitbucket.PipelineResult{Name: "SUCCESSFUL"}}},
 	}
 	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if !strings.HasSuffix(r.URL.Path, "/steps/") {
+			t.Errorf("expected path to end with /steps/, got %s", r.URL.Path)
+		}
 		json.NewEncoder(w).Encode(map[string]any{"values": steps})
 	}))
 	got, err := client.Pipelines("testws", "testrepo").Steps(context.Background(), "{abc-123}")
@@ -112,6 +137,9 @@ func TestPipelines_Steps(t *testing.T) {
 func TestPipelines_Log(t *testing.T) {
 	logText := "Step 1: Building...\nStep 2: Done.\n"
 	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "/log") {
+			t.Errorf("expected path to end with /log, got %s", r.URL.Path)
+		}
 		w.Header().Set("Content-Type", "text/plain")
 		w.Write([]byte(logText))
 	}))
