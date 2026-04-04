@@ -305,3 +305,18 @@ type Download struct {
 	Size  int64  `json:"size"`
 	Links Links  `json:"links"`
 }
+
+// DeployKey types
+
+type DeployKey struct {
+	ID        int    `json:"id"`
+	Label     string `json:"label"`
+	Key       string `json:"key"`
+	CreatedOn string `json:"created_on"`
+	Links     Links  `json:"links"`
+}
+
+type AddDeployKeyInput struct {
+	Label string `json:"label"`
+	Key   string `json:"key"`
+}
