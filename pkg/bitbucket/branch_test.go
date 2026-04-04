@@ -39,6 +39,9 @@ func TestBranches_Create(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
+		if r.URL.Path != "/repositories/testws/testrepo/refs/branches" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
 		var body map[string]any
 		json.NewDecoder(r.Body).Decode(&body)
 		if body["name"] != "feature/new" {
@@ -57,6 +60,9 @@ func TestBranches_Create(t *testing.T) {
 	}
 	if got.Name != "feature/new" {
 		t.Errorf("expected feature/new, got %s", got.Name)
+	}
+	if got.Target.Hash != "abc123" {
+		t.Errorf("expected target hash abc123, got %s", got.Target.Hash)
 	}
 }
 
