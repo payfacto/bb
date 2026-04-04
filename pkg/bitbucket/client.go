@@ -62,6 +62,11 @@ func (c *Client) Pipelines(workspace, repo string) *PipelineResource {
 	return &PipelineResource{client: c, workspace: workspace, repo: repo}
 }
 
+// Branches returns a resource for branch operations on the given repo.
+func (c *Client) Branches(workspace, repo string) *BranchResource {
+	return &BranchResource{client: c, workspace: workspace, repo: repo}
+}
+
 // repoPath returns the API path prefix for a repository.
 func repoPath(workspace, repo string) string {
 	return fmt.Sprintf("/repositories/%s/%s", workspace, repo)
