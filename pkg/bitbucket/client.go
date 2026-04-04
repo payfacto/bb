@@ -117,6 +117,11 @@ func (c *Client) Issues(workspace, repo string) *IssueResource {
 	return &IssueResource{client: c, workspace: workspace, repo: repo}
 }
 
+// Restrictions returns a resource for branch restriction operations on the given repo.
+func (c *Client) Restrictions(workspace, repo string) *BranchRestrictionResource {
+	return &BranchRestrictionResource{client: c, workspace: workspace, repo: repo}
+}
+
 // repoPath returns the API path prefix for a repository.
 func repoPath(workspace, repo string) string {
 	return fmt.Sprintf("/repositories/%s/%s", workspace, repo)
