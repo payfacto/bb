@@ -67,6 +67,11 @@ func (c *Client) Branches(workspace, repo string) *BranchResource {
 	return &BranchResource{client: c, workspace: workspace, repo: repo}
 }
 
+// Commits returns a resource for commit history and file access on the given repo.
+func (c *Client) Commits(workspace, repo string) *CommitResource {
+	return &CommitResource{client: c, workspace: workspace, repo: repo}
+}
+
 // repoPath returns the API path prefix for a repository.
 func repoPath(workspace, repo string) string {
 	return fmt.Sprintf("/repositories/%s/%s", workspace, repo)
