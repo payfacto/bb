@@ -97,6 +97,11 @@ func (c *Client) Repos(workspace string) *RepoResource {
 	return &RepoResource{client: c, workspace: workspace}
 }
 
+// Members returns a resource for workspace member operations.
+func (c *Client) Members(workspace string) *MemberResource {
+	return &MemberResource{client: c, workspace: workspace}
+}
+
 // repoPath returns the API path prefix for a repository.
 func repoPath(workspace, repo string) string {
 	return fmt.Sprintf("/repositories/%s/%s", workspace, repo)
