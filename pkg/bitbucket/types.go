@@ -90,3 +90,137 @@ type AddCommentInput struct {
 type paged[T any] struct {
 	Values []T `json:"values"`
 }
+
+// Pipeline types
+
+type Pipeline struct {
+	UUID        string         `json:"uuid"`
+	BuildNumber int            `json:"build_number"`
+	State       PipelineState  `json:"state"`
+	Target      PipelineTarget `json:"target"`
+	CreatedOn   string         `json:"created_on"`
+	CompletedOn string         `json:"completed_on"`
+}
+
+type PipelineState struct {
+	Name   string          `json:"name"`
+	Result *PipelineResult `json:"result,omitempty"`
+}
+
+type PipelineResult struct {
+	Name string `json:"name"`
+}
+
+type PipelineTarget struct {
+	RefType string          `json:"ref_type"`
+	RefName string          `json:"ref_name"`
+	Commit  *PipelineCommit `json:"commit,omitempty"`
+}
+
+type PipelineCommit struct {
+	Hash string `json:"hash"`
+}
+
+type PipelineStep struct {
+	UUID        string        `json:"uuid"`
+	Name        string        `json:"name"`
+	State       PipelineState `json:"state"`
+	StartedOn   string        `json:"started_on"`
+	CompletedOn string        `json:"completed_on"`
+}
+
+type TriggerPipelineInput struct {
+	Target TriggerTarget `json:"target"`
+}
+
+type TriggerTarget struct {
+	RefType string `json:"ref_type"`
+	Type    string `json:"type"`
+	RefName string `json:"ref_name"`
+}
+
+// Branch types
+
+type Branch struct {
+	Name   string       `json:"name"`
+	Target BranchTarget `json:"target"`
+	Links  Links        `json:"links"`
+}
+
+type BranchTarget struct {
+	Hash string `json:"hash"`
+}
+
+type CreateBranchInput struct {
+	Name   string       `json:"name"`
+	Target BranchTarget `json:"target"`
+}
+
+// Commit types
+
+type Commit struct {
+	Hash    string         `json:"hash"`
+	Date    string         `json:"date"`
+	Message string         `json:"message"`
+	Author  CommitAuthor   `json:"author"`
+	Parents []CommitParent `json:"parents"`
+}
+
+type CommitAuthor struct {
+	Raw  string `json:"raw"`
+	User *Actor `json:"user,omitempty"`
+}
+
+type CommitParent struct {
+	Hash string `json:"hash"`
+}
+
+// User type
+
+type User struct {
+	AccountID   string `json:"account_id"`
+	DisplayName string `json:"display_name"`
+	Nickname    string `json:"nickname"`
+	Links       Links  `json:"links"`
+}
+
+// Repo type
+
+type Repo struct {
+	Slug        string `json:"slug"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	IsPrivate   bool   `json:"is_private"`
+	FullName    string `json:"full_name"`
+	Links       Links  `json:"links"`
+}
+
+// PR Activity types
+
+type Activity struct {
+	Comment  *Comment  `json:"comment,omitempty"`
+	Approval *Approval `json:"approval,omitempty"`
+	Update   *PRUpdate `json:"update,omitempty"`
+}
+
+type Approval struct {
+	User Actor  `json:"user"`
+	Date string `json:"date"`
+}
+
+type PRUpdate struct {
+	State  string `json:"state"`
+	Author Actor  `json:"author"`
+	Date   string `json:"date"`
+}
+
+// PRStatus type
+
+type PRStatus struct {
+	State       string `json:"state"`
+	Key         string `json:"key"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	URL         string `json:"url"`
+	CreatedOn   string `json:"created_on"`
+}
