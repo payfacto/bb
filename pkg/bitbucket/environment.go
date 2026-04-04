@@ -19,7 +19,7 @@ func (r *EnvironmentResource) basePath() string {
 
 // List returns all deployment environments in the repository.
 func (r *EnvironmentResource) List(ctx context.Context) ([]Environment, error) {
-	q := url.Values{"pagelen": {"50"}}
+	q := url.Values{"pagelen": {pagelenDefault}}
 	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
 	if err != nil {
 		return nil, err

@@ -13,7 +13,12 @@ import (
 	"github.com/payfactopay/bb/internal/config"
 )
 
-const defaultAPIBase = "https://api.bitbucket.org/2.0"
+const (
+	defaultAPIBase = "https://api.bitbucket.org/2.0"
+	pagelenDefault = "50"  // standard page size for most list endpoints
+	pagelenSmall   = "25"  // reduced page size for heavy payloads (pipelines, commits, repos)
+	pagelenLarge   = "100" // larger page size for lightweight items (comments, tasks)
+)
 
 // Client is the Bitbucket Cloud HTTP client.
 type Client struct {

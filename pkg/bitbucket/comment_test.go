@@ -18,7 +18,7 @@ func TestComments_List(t *testing.T) {
 		if r.URL.Query().Get("pagelen") != "100" {
 			t.Errorf("expected pagelen=100, got %s", r.URL.Query().Get("pagelen"))
 		}
-		json.NewEncoder(w).Encode(map[string]any{"values": want})
+		mustEncodeJSON(t, w, map[string]any{"values": want})
 	}))
 	got, err := c.Comments("ws", "repo", 42).List(context.Background())
 	if err != nil {
@@ -35,8 +35,10 @@ func TestComments_Add(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
-		json.NewDecoder(r.Body).Decode(&receivedBody)
-		json.NewEncoder(w).Encode(bitbucket.Comment{ID: 55})
+		if err := json.NewDecoder(r.Body).Decode(&receivedBody); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		mustEncodeJSON(t, w, bitbucket.Comment{ID: 55})
 	}))
 	input := bitbucket.AddCommentInput{
 		Content: bitbucket.Content{Raw: "Great work!"},
@@ -57,8 +59,10 @@ func TestComments_Add(t *testing.T) {
 func TestComments_AddInline(t *testing.T) {
 	var receivedBody map[string]any
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewDecoder(r.Body).Decode(&receivedBody)
-		json.NewEncoder(w).Encode(bitbucket.Comment{ID: 56})
+		if err := json.NewDecoder(r.Body).Decode(&receivedBody); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		mustEncodeJSON(t, w, bitbucket.Comment{ID: 56})
 	}))
 	input := bitbucket.AddCommentInput{
 		Content: bitbucket.Content{Raw: "Fix this line"},
@@ -83,8 +87,10 @@ func TestComments_AddInline(t *testing.T) {
 func TestComments_Reply(t *testing.T) {
 	var receivedBody map[string]any
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewDecoder(r.Body).Decode(&receivedBody)
-		json.NewEncoder(w).Encode(bitbucket.Comment{ID: 57})
+		if err := json.NewDecoder(r.Body).Decode(&receivedBody); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		mustEncodeJSON(t, w, bitbucket.Comment{ID: 57})
 	}))
 	got, err := c.Comments("ws", "repo", 42).Reply(context.Background(), 55, "Fixed!")
 	if err != nil {

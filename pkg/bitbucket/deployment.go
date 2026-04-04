@@ -19,7 +19,7 @@ func (r *DeploymentResource) basePath() string {
 
 // List returns the most recent deployments, newest first.
 func (r *DeploymentResource) List(ctx context.Context) ([]Deployment, error) {
-	q := url.Values{"sort": {"-last_update_time"}, "pagelen": {"25"}}
+	q := url.Values{"sort": {"-last_update_time"}, "pagelen": {pagelenSmall}}
 	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
 	if err != nil {
 		return nil, err

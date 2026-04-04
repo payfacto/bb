@@ -36,11 +36,11 @@ var deploymentListCmd = &cobra.Command{
 				}
 				commit := ""
 				if d.Deployable.Commit != nil && len(d.Deployable.Commit.Hash) >= 8 {
-					commit = d.Deployable.Commit.Hash[:8]
+					commit = d.Deployable.Commit.Hash[:shortHashLen]
 				}
 				date := ""
-				if len(d.LastUpdateTime) >= 10 {
-					date = d.LastUpdateTime[:10]
+				if len(d.LastUpdateTime) >= datePrefixLen {
+					date = d.LastUpdateTime[:datePrefixLen]
 				}
 				envUUID := truncate(d.Environment.UUID, 38)
 				fmt.Printf("%-38s  %-30s  %-8s  %s\n",

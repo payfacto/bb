@@ -16,9 +16,13 @@ type Config struct {
 	Token     string `yaml:"token"`
 }
 
-// DefaultPath returns ~/.bbcloud.yaml.
+// DefaultPath returns ~/.bbcloud.yaml, or .bbcloud.yaml in the current directory
+// if the home directory cannot be determined.
 func DefaultPath() string {
-	home, _ := os.UserHomeDir()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ".bbcloud.yaml"
+	}
 	return filepath.Join(home, ".bbcloud.yaml")
 }
 

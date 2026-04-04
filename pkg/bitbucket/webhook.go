@@ -19,7 +19,7 @@ func (r *WebhookResource) basePath() string {
 
 // List returns all webhooks for the repository.
 func (r *WebhookResource) List(ctx context.Context) ([]Webhook, error) {
-	q := url.Values{"pagelen": {"50"}}
+	q := url.Values{"pagelen": {pagelenDefault}}
 	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
 	if err != nil {
 		return nil, err

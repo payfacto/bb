@@ -25,7 +25,7 @@ func TestBranchRestrictions_List(t *testing.T) {
 		if r.URL.Query().Get("pagelen") != "50" {
 			t.Errorf("expected pagelen=50, got %s", r.URL.Query().Get("pagelen"))
 		}
-		json.NewEncoder(w).Encode(map[string]any{"values": restrictions})
+		mustEncodeJSON(t, w, map[string]any{"values": restrictions})
 	}))
 	got, err := client.Restrictions("testws", "testrepo").List(context.Background())
 	if err != nil {
@@ -74,7 +74,7 @@ func TestBranchRestrictions_Create(t *testing.T) {
 			t.Errorf("expected value=3, got %v", body["value"])
 		}
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(bitbucket.BranchRestriction{
+		mustEncodeJSON(t, w, bitbucket.BranchRestriction{
 			ID:              10,
 			Kind:            "require_approvals_to_merge",
 			BranchMatchKind: "glob",
@@ -110,7 +110,7 @@ func TestBranchRestrictions_CreateNoValue(t *testing.T) {
 			t.Errorf("expected no 'value' field in body, got %v", body["value"])
 		}
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(bitbucket.BranchRestriction{
+		mustEncodeJSON(t, w, bitbucket.BranchRestriction{
 			ID:              11,
 			Kind:            "force",
 			BranchMatchKind: "glob",

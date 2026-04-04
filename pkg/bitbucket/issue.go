@@ -19,7 +19,7 @@ func (r *IssueResource) basePath() string {
 
 // List returns all issues in the repository.
 func (r *IssueResource) List(ctx context.Context) ([]Issue, error) {
-	q := url.Values{"pagelen": {"50"}}
+	q := url.Values{"pagelen": {pagelenDefault}}
 	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
 	if err != nil {
 		return nil, err

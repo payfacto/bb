@@ -24,7 +24,7 @@ func TestDeployKeys_List(t *testing.T) {
 		if r.URL.Query().Get("pagelen") != "50" {
 			t.Errorf("expected pagelen=50, got %s", r.URL.Query().Get("pagelen"))
 		}
-		json.NewEncoder(w).Encode(map[string]any{"values": keys})
+		mustEncodeJSON(t, w, map[string]any{"values": keys})
 	}))
 	got, err := client.DeployKeys("testws", "testrepo").List(context.Background())
 	if err != nil {
@@ -57,7 +57,7 @@ func TestDeployKeys_Add(t *testing.T) {
 			t.Errorf("unexpected key: %s", body["key"])
 		}
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(bitbucket.DeployKey{
+		mustEncodeJSON(t, w, bitbucket.DeployKey{
 			ID:    42,
 			Label: "My Key",
 			Key:   "ssh-rsa AAAAB3NzaC1yc2E test@example.com",

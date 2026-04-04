@@ -11,6 +11,11 @@ import (
 	"github.com/payfactopay/bb/pkg/bitbucket"
 )
 
+const (
+	shortHashLen  = 8  // characters to show for a commit hash abbreviation
+	datePrefixLen = 10 // characters in the date portion of an ISO-8601 timestamp
+)
+
 var (
 	cfgFile   string
 	workspace string

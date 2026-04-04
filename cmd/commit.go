@@ -34,15 +34,15 @@ var commitListCmd = &cobra.Command{
 			}
 			for _, c := range commits {
 				date := c.Date
-				if len(date) >= 10 {
-					date = date[:10]
+				if len(date) >= datePrefixLen {
+					date = date[:datePrefixLen]
 				}
 				msg := c.Message
 				if idx := strings.IndexByte(msg, '\n'); idx >= 0 {
 					msg = msg[:idx]
 				}
 				fmt.Printf("%s  %s  %-30s  %s\n",
-					c.Hash[:8], date, truncate(c.Author.Raw, 30), truncate(msg, 72))
+					c.Hash[:shortHashLen], date, truncate(c.Author.Raw, 30), truncate(msg, 72))
 			}
 		})
 	},

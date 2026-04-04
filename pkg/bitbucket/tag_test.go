@@ -25,7 +25,7 @@ func TestTags_List(t *testing.T) {
 		if r.URL.Query().Get("pagelen") != "50" {
 			t.Errorf("expected pagelen=50, got %s", r.URL.Query().Get("pagelen"))
 		}
-		json.NewEncoder(w).Encode(map[string]any{"values": tags})
+		mustEncodeJSON(t, w, map[string]any{"values": tags})
 	}))
 	got, err := client.Tags("testws", "testrepo").List(context.Background())
 	if err != nil {
@@ -46,7 +46,9 @@ func TestTags_Create(t *testing.T) {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		var body map[string]any
-		json.NewDecoder(r.Body).Decode(&body)
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
 		if body["name"] != "v2.0.0" {
 			t.Errorf("expected name=v2.0.0, got %v", body["name"])
 		}
@@ -55,7 +57,7 @@ func TestTags_Create(t *testing.T) {
 			t.Errorf("expected target.hash=abc123, got %v", target["hash"])
 		}
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(created)
+		mustEncodeJSON(t, w, created)
 	}))
 	got, err := client.Tags("testws", "testrepo").Create(context.Background(), "v2.0.0", "abc123")
 	if err != nil {

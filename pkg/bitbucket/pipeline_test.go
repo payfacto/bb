@@ -30,7 +30,7 @@ func TestPipelines_List(t *testing.T) {
 		if r.URL.Query().Get("pagelen") != "25" {
 			t.Errorf("expected pagelen=25, got %s", r.URL.Query().Get("pagelen"))
 		}
-		json.NewEncoder(w).Encode(map[string]any{"values": pipelines})
+		mustEncodeJSON(t, w, map[string]any{"values": pipelines})
 	}))
 	got, err := client.Pipelines("testws", "testrepo").List(context.Background())
 	if err != nil {
@@ -50,7 +50,7 @@ func TestPipelines_Get(t *testing.T) {
 		if !strings.Contains(r.URL.Path, "{abc-123}") {
 			t.Errorf("expected UUID in path, got %s", r.URL.Path)
 		}
-		json.NewEncoder(w).Encode(pipeline)
+		mustEncodeJSON(t, w, pipeline)
 	}))
 	got, err := client.Pipelines("testws", "testrepo").Get(context.Background(), "{abc-123}")
 	if err != nil {
@@ -68,7 +68,9 @@ func TestPipelines_Trigger(t *testing.T) {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
 		var body map[string]any
-		json.NewDecoder(r.Body).Decode(&body)
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
 		target, _ := body["target"].(map[string]any)
 		if target["ref_name"] != "main" {
 			t.Errorf("expected ref_name=main, got %v", target["ref_name"])
@@ -80,7 +82,7 @@ func TestPipelines_Trigger(t *testing.T) {
 			t.Errorf("expected type=pipeline_ref_target, got %v", target["type"])
 		}
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(pipeline)
+		mustEncodeJSON(t, w, pipeline)
 	}))
 	got, err := client.Pipelines("testws", "testrepo").Trigger(context.Background(), "main")
 	if err != nil {
@@ -123,7 +125,7 @@ func TestPipelines_Steps(t *testing.T) {
 		if !strings.HasSuffix(r.URL.Path, "/steps/") {
 			t.Errorf("expected path to end with /steps/, got %s", r.URL.Path)
 		}
-		json.NewEncoder(w).Encode(map[string]any{"values": steps})
+		mustEncodeJSON(t, w, map[string]any{"values": steps})
 	}))
 	got, err := client.Pipelines("testws", "testrepo").Steps(context.Background(), "{abc-123}")
 	if err != nil {
@@ -141,7 +143,9 @@ func TestPipelines_Log(t *testing.T) {
 			t.Errorf("expected path to end with /log, got %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "text/plain")
-		w.Write([]byte(logText))
+		if _, err := w.Write([]byte(logText)); err != nil {
+			t.Fatal(err)
+		}
 	}))
 	got, err := client.Pipelines("testws", "testrepo").Log(context.Background(), "{abc-123}", "{step-1}")
 	if err != nil {

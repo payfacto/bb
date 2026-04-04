@@ -19,7 +19,7 @@ func (r *PRResource) prPath(prID int) string {
 
 // List returns pull requests filtered by state (e.g. "OPEN", "MERGED").
 func (r *PRResource) List(ctx context.Context, state string) ([]PR, error) {
-	q := url.Values{"state": {state}, "pagelen": {"50"}}
+	q := url.Values{"state": {state}, "pagelen": {pagelenDefault}}
 	data, err := r.client.do(ctx, "GET", repoPath(r.workspace, r.repo)+"/pullrequests", nil, q)
 	if err != nil {
 		return nil, err

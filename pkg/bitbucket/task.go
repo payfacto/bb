@@ -21,7 +21,7 @@ func (r *TaskResource) basePath() string {
 
 // List returns all tasks on the pull request.
 func (r *TaskResource) List(ctx context.Context) ([]Task, error) {
-	q := url.Values{"pagelen": {"100"}}
+	q := url.Values{"pagelen": {pagelenLarge}}
 	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
 	if err != nil {
 		return nil, err

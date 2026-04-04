@@ -22,7 +22,7 @@ func (r *DownloadResource) basePath() string {
 
 // List returns all downloads attached to the repository.
 func (r *DownloadResource) List(ctx context.Context) ([]Download, error) {
-	q := url.Values{"pagelen": {"50"}}
+	q := url.Values{"pagelen": {pagelenDefault}}
 	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
 	if err != nil {
 		return nil, err
@@ -47,7 +47,9 @@ func (r *DownloadResource) Upload(ctx context.Context, name string, content io.R
 	if _, err := io.Copy(fw, content); err != nil {
 		return err
 	}
-	w.Close()
+	if err := w.Close(); err != nil {
+		return err
+	}
 	_, err = r.client.doMultipart(ctx, r.basePath(), &buf, w.FormDataContentType())
 	return err
 }

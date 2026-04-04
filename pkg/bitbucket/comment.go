@@ -21,7 +21,7 @@ func (r *CommentResource) basePath() string {
 
 // List returns all comments on the pull request.
 func (r *CommentResource) List(ctx context.Context) ([]Comment, error) {
-	q := url.Values{"pagelen": {"100"}}
+	q := url.Values{"pagelen": {pagelenLarge}}
 	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
 	if err != nil {
 		return nil, err

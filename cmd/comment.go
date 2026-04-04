@@ -14,8 +14,6 @@ var commentCmd = &cobra.Command{
 	Short: "Manage pull request comments",
 }
 
-// --- bb pr comment list ---
-
 var commentListPRID int
 
 var commentListCmd = &cobra.Command{
@@ -41,8 +39,6 @@ var commentListCmd = &cobra.Command{
 		})
 	},
 }
-
-// --- bb pr comment add ---
 
 var (
 	commentAddPRID int
@@ -77,8 +73,6 @@ var commentAddCmd = &cobra.Command{
 		})
 	},
 }
-
-// --- bb pr comment reply ---
 
 var (
 	commentReplyPRID      int

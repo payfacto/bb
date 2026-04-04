@@ -19,7 +19,7 @@ func (r *PipelineResource) basePath() string {
 
 // List returns the most recent pipelines, newest first.
 func (r *PipelineResource) List(ctx context.Context) ([]Pipeline, error) {
-	q := url.Values{"sort": {"-created_on"}, "pagelen": {"25"}}
+	q := url.Values{"sort": {"-created_on"}, "pagelen": {pagelenSmall}}
 	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
 	if err != nil {
 		return nil, err

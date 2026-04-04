@@ -2,7 +2,6 @@ package bitbucket_test
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -26,7 +25,7 @@ func TestDownloads_List(t *testing.T) {
 		if r.URL.Query().Get("pagelen") != "50" {
 			t.Errorf("expected pagelen=50, got %s", r.URL.Query().Get("pagelen"))
 		}
-		json.NewEncoder(w).Encode(map[string]any{"values": downloads})
+		mustEncodeJSON(t, w, map[string]any{"values": downloads})
 	}))
 	got, err := client.Downloads("testws", "testrepo").List(context.Background())
 	if err != nil {

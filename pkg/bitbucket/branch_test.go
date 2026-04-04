@@ -22,7 +22,7 @@ func TestBranches_List(t *testing.T) {
 		if r.URL.Path != "/repositories/testws/testrepo/refs/branches" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
-		json.NewEncoder(w).Encode(map[string]any{"values": branches})
+		mustEncodeJSON(t, w, map[string]any{"values": branches})
 	}))
 	got, err := client.Branches("testws", "testrepo").List(context.Background())
 	if err != nil {
@@ -43,7 +43,9 @@ func TestBranches_Create(t *testing.T) {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		var body map[string]any
-		json.NewDecoder(r.Body).Decode(&body)
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
 		if body["name"] != "feature/new" {
 			t.Errorf("expected name=feature/new, got %v", body["name"])
 		}
@@ -52,7 +54,7 @@ func TestBranches_Create(t *testing.T) {
 			t.Errorf("expected target.hash=abc123, got %v", target["hash"])
 		}
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(created)
+		mustEncodeJSON(t, w, created)
 	}))
 	got, err := client.Branches("testws", "testrepo").Create(context.Background(), "feature/new", "abc123")
 	if err != nil {

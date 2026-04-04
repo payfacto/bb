@@ -35,8 +35,8 @@ var pipelineListCmd = &cobra.Command{
 					result = "/" + p.State.Result.Name
 				}
 				date := ""
-				if len(p.CreatedOn) >= 10 {
-					date = p.CreatedOn[:10]
+				if len(p.CreatedOn) >= datePrefixLen {
+					date = p.CreatedOn[:datePrefixLen]
 				}
 				fmt.Printf("#%-4d  %-30s  %-20s  %s\n",
 					p.BuildNumber, p.State.Name+result, p.Target.RefName, date)

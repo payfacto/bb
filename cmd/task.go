@@ -12,8 +12,6 @@ var taskCmd = &cobra.Command{
 	Short: "Manage pull request tasks",
 }
 
-// --- bb pr task list ---
-
 var taskListPRID int
 
 var taskListCmd = &cobra.Command{
@@ -40,8 +38,6 @@ var taskListCmd = &cobra.Command{
 	},
 }
 
-// --- bb pr task complete ---
-
 var (
 	taskCompletePRID int
 	taskCompleteIDs  []int
@@ -66,8 +62,6 @@ var taskCompleteCmd = &cobra.Command{
 		})
 	},
 }
-
-// --- bb pr task reopen ---
 
 var (
 	taskReopenPRID int

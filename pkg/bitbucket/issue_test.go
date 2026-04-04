@@ -24,7 +24,7 @@ func TestIssues_List(t *testing.T) {
 		if r.URL.Query().Get("pagelen") != "50" {
 			t.Errorf("expected pagelen=50, got %s", r.URL.Query().Get("pagelen"))
 		}
-		json.NewEncoder(w).Encode(map[string]any{"values": issues})
+		mustEncodeJSON(t, w, map[string]any{"values": issues})
 	}))
 	got, err := client.Issues("testws", "testrepo").List(context.Background())
 	if err != nil {
@@ -54,7 +54,7 @@ func TestIssues_Get(t *testing.T) {
 		if r.URL.Path != "/repositories/testws/testrepo/issues/5" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
-		json.NewEncoder(w).Encode(issue)
+		mustEncodeJSON(t, w, issue)
 	}))
 	got, err := client.Issues("testws", "testrepo").Get(context.Background(), 5)
 	if err != nil {
@@ -87,7 +87,7 @@ func TestIssues_Create(t *testing.T) {
 			t.Errorf("expected kind=enhancement, got %v", body["kind"])
 		}
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(bitbucket.Issue{
+		mustEncodeJSON(t, w, bitbucket.Issue{
 			ID:    99,
 			Title: "New feature request",
 			State: "new",

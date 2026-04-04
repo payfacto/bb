@@ -66,7 +66,10 @@ func promptLine(r *bufio.Reader, label, current string) string {
 	} else {
 		fmt.Printf("%s: ", label)
 	}
-	input, _ := r.ReadString('\n')
+	input, err := r.ReadString('\n')
+	if err != nil {
+		return current
+	}
 	input = strings.TrimSpace(input)
 	if input == "" {
 		return current
@@ -93,7 +96,10 @@ func promptPassword(label, current string) string {
 
 	// Non-terminal fallback (pipes, CI).
 	r := bufio.NewReader(os.Stdin)
-	input, _ := r.ReadString('\n')
+	input, err := r.ReadString('\n')
+	if err != nil {
+		return current
+	}
 	input = strings.TrimSpace(input)
 	if input == "" {
 		return current

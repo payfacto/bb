@@ -18,7 +18,7 @@ func (r *MemberResource) basePath() string {
 
 // List returns all members of the workspace.
 func (r *MemberResource) List(ctx context.Context) ([]WorkspaceMember, error) {
-	q := url.Values{"pagelen": {"50"}}
+	q := url.Values{"pagelen": {pagelenDefault}}
 	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
 	if err != nil {
 		return nil, err

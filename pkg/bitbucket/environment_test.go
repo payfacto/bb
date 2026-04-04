@@ -2,7 +2,6 @@ package bitbucket_test
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -34,7 +33,7 @@ func TestEnvironments_List(t *testing.T) {
 		if r.URL.Query().Get("pagelen") != "50" {
 			t.Errorf("expected pagelen=50, got %s", r.URL.Query().Get("pagelen"))
 		}
-		json.NewEncoder(w).Encode(map[string]any{"values": envs})
+		mustEncodeJSON(t, w, map[string]any{"values": envs})
 	}))
 	got, err := client.Environments("testws", "testrepo").List(context.Background())
 	if err != nil {

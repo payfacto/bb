@@ -24,7 +24,7 @@ func TestWebhooks_List(t *testing.T) {
 		if r.URL.Query().Get("pagelen") != "50" {
 			t.Errorf("expected pagelen=50, got %s", r.URL.Query().Get("pagelen"))
 		}
-		json.NewEncoder(w).Encode(map[string]any{"values": hooks})
+		mustEncodeJSON(t, w, map[string]any{"values": hooks})
 	}))
 	got, err := client.Webhooks("testws", "testrepo").List(context.Background())
 	if err != nil {
@@ -70,7 +70,7 @@ func TestWebhooks_Create(t *testing.T) {
 			t.Errorf("expected description=My hook, got %v", body["description"])
 		}
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(bitbucket.Webhook{
+		mustEncodeJSON(t, w, bitbucket.Webhook{
 			UUID:        "{new-hook-uuid}",
 			Description: "My hook",
 			URL:         "https://example.com/hook",
@@ -103,7 +103,7 @@ func TestWebhooks_CreateNoDescription(t *testing.T) {
 			t.Errorf("expected no 'description' field in body, got %v", body["description"])
 		}
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(bitbucket.Webhook{
+		mustEncodeJSON(t, w, bitbucket.Webhook{
 			UUID:   "{minimal-hook}",
 			URL:    "https://example.com/hook",
 			Active: true,

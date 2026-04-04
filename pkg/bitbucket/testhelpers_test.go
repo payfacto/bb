@@ -1,6 +1,7 @@
 package bitbucket_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -22,4 +23,12 @@ func newTestClient(t *testing.T, handler http.Handler) *bitbucket.Client {
 		Repo:      "repo",
 	}
 	return bitbucket.NewWithBaseURL(cfg, srv.URL)
+}
+
+// mustEncodeJSON writes v as JSON to w and fails the test if encoding fails.
+func mustEncodeJSON(t *testing.T, w http.ResponseWriter, v any) {
+	t.Helper()
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		t.Fatal(err)
+	}
 }

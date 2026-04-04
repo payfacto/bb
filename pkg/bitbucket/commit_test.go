@@ -2,7 +2,6 @@ package bitbucket_test
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -23,7 +22,7 @@ func TestCommits_List(t *testing.T) {
 		if r.URL.Query().Get("pagelen") != "25" {
 			t.Errorf("expected pagelen=25, got %s", r.URL.Query().Get("pagelen"))
 		}
-		json.NewEncoder(w).Encode(map[string]any{"values": commits})
+		mustEncodeJSON(t, w, map[string]any{"values": commits})
 	}))
 	got, err := client.Commits("testws", "testrepo").List(context.Background(), "main")
 	if err != nil {
@@ -40,7 +39,7 @@ func TestCommits_Get(t *testing.T) {
 		if r.URL.Path != "/repositories/testws/testrepo/commit/abc123" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
-		json.NewEncoder(w).Encode(commit)
+		mustEncodeJSON(t, w, commit)
 	}))
 	got, err := client.Commits("testws", "testrepo").Get(context.Background(), "abc123")
 	if err != nil {
@@ -58,7 +57,9 @@ func TestCommits_File(t *testing.T) {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "text/plain")
-		w.Write([]byte(fileContent))
+		if _, err := w.Write([]byte(fileContent)); err != nil {
+			t.Fatal(err)
+		}
 	}))
 	got, err := client.Commits("testws", "testrepo").File(context.Background(), "main", "main.go")
 	if err != nil {

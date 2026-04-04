@@ -19,7 +19,7 @@ func (r *TagResource) basePath() string {
 
 // List returns all tags in the repository.
 func (r *TagResource) List(ctx context.Context) ([]Tag, error) {
-	q := url.Values{"pagelen": {"50"}}
+	q := url.Values{"pagelen": {pagelenDefault}}
 	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
 	if err != nil {
 		return nil, err

@@ -2,7 +2,6 @@ package bitbucket_test
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -22,7 +21,7 @@ func TestUser_Me(t *testing.T) {
 		if r.URL.Path != "/user" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
-		json.NewEncoder(w).Encode(user)
+		mustEncodeJSON(t, w, user)
 	}))
 	got, err := client.User().Me(context.Background())
 	if err != nil {

@@ -19,7 +19,7 @@ func (r *BranchRestrictionResource) basePath() string {
 
 // List returns all branch restrictions for the repository.
 func (r *BranchRestrictionResource) List(ctx context.Context) ([]BranchRestriction, error) {
-	q := url.Values{"pagelen": {"50"}}
+	q := url.Values{"pagelen": {pagelenDefault}}
 	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
 	if err != nil {
 		return nil, err

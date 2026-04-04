@@ -2,7 +2,6 @@ package bitbucket_test
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -12,8 +11,8 @@ import (
 func TestDeployments_List(t *testing.T) {
 	deployments := []bitbucket.Deployment{
 		{
-			UUID:  "{dep-1}",
-			State: bitbucket.DeploymentState{Name: "COMPLETED", Status: &bitbucket.DeploymentStatus{Name: "SUCCESSFUL"}},
+			UUID:        "{dep-1}",
+			State:       bitbucket.DeploymentState{Name: "COMPLETED", Status: &bitbucket.DeploymentStatus{Name: "SUCCESSFUL"}},
 			Environment: bitbucket.DeploymentEnvRef{UUID: "{env-prod}"},
 			Deployable: bitbucket.Deployable{
 				Commit:   &bitbucket.DeployableCommit{Hash: "abc123"},
@@ -22,10 +21,10 @@ func TestDeployments_List(t *testing.T) {
 			LastUpdateTime: "2024-01-15T10:00:00+00:00",
 		},
 		{
-			UUID:  "{dep-2}",
-			State: bitbucket.DeploymentState{Name: "IN_PROGRESS"},
-			Environment: bitbucket.DeploymentEnvRef{UUID: "{env-stg}"},
-			Deployable:  bitbucket.Deployable{},
+			UUID:           "{dep-2}",
+			State:          bitbucket.DeploymentState{Name: "IN_PROGRESS"},
+			Environment:    bitbucket.DeploymentEnvRef{UUID: "{env-stg}"},
+			Deployable:     bitbucket.Deployable{},
 			LastUpdateTime: "2024-01-14T09:00:00+00:00",
 		},
 	}
@@ -42,7 +41,7 @@ func TestDeployments_List(t *testing.T) {
 		if r.URL.Query().Get("pagelen") != "25" {
 			t.Errorf("expected pagelen=25, got %s", r.URL.Query().Get("pagelen"))
 		}
-		json.NewEncoder(w).Encode(map[string]any{"values": deployments})
+		mustEncodeJSON(t, w, map[string]any{"values": deployments})
 	}))
 	got, err := client.Deployments("testws", "testrepo").List(context.Background())
 	if err != nil {

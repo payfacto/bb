@@ -19,7 +19,7 @@ func (r *BranchResource) basePath() string {
 
 // List returns all branches in the repository.
 func (r *BranchResource) List(ctx context.Context) ([]Branch, error) {
-	q := url.Values{"pagelen": {"50"}}
+	q := url.Values{"pagelen": {pagelenDefault}}
 	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
 	if err != nil {
 		return nil, err

@@ -14,8 +14,6 @@ var prCmd = &cobra.Command{
 	Short: "Manage pull requests",
 }
 
-// --- bb pr list ---
-
 var prListState string
 
 var prListCmd = &cobra.Command{
@@ -44,8 +42,6 @@ var prListCmd = &cobra.Command{
 	},
 }
 
-// --- bb pr get ---
-
 var prGetID int
 
 var prGetCmd = &cobra.Command{
@@ -71,8 +67,6 @@ var prGetCmd = &cobra.Command{
 		})
 	},
 }
-
-// --- bb pr create ---
 
 var (
 	prCreateTitle       string
@@ -107,8 +101,6 @@ var prCreateCmd = &cobra.Command{
 	},
 }
 
-// --- bb pr diff ---
-
 var prDiffID int
 
 var prDiffCmd = &cobra.Command{
@@ -128,8 +120,6 @@ var prDiffCmd = &cobra.Command{
 	},
 }
 
-// --- bb pr approve ---
-
 var prApproveID int
 
 var prApproveCmd = &cobra.Command{
@@ -148,8 +138,6 @@ var prApproveCmd = &cobra.Command{
 		})
 	},
 }
-
-// --- bb pr merge ---
 
 var (
 	prMergeID       int
@@ -173,12 +161,7 @@ var prMergeCmd = &cobra.Command{
 	},
 }
 
-// --- bb pr decline ---
-
 var prDeclineID int
-
-var prActivityID int
-var prStatusesID int
 
 var prDeclineCmd = &cobra.Command{
 	Use:   "decline",
@@ -196,8 +179,6 @@ var prDeclineCmd = &cobra.Command{
 		})
 	},
 }
-
-// --- bb pr activity ---
 
 var prActivityCmd = &cobra.Command{
 	Use:   "activity",
@@ -220,8 +201,8 @@ var prActivityCmd = &cobra.Command{
 				switch {
 				case a.Approval != nil:
 					date := a.Approval.Date
-					if len(date) >= 10 {
-						date = date[:10]
+					if len(date) >= datePrefixLen {
+						date = date[:datePrefixLen]
 					}
 					fmt.Printf("[approval]  %s approved  (%s)\n",
 						a.Approval.User.DisplayName, date)
@@ -230,8 +211,8 @@ var prActivityCmd = &cobra.Command{
 						a.Comment.User.DisplayName, truncate(a.Comment.Content.Raw, 80))
 				case a.Update != nil:
 					date := a.Update.Date
-					if len(date) >= 10 {
-						date = date[:10]
+					if len(date) >= datePrefixLen {
+						date = date[:datePrefixLen]
 					}
 					fmt.Printf("[update]    %s → %s  (%s)\n",
 						a.Update.Author.DisplayName, a.Update.State, date)
@@ -240,8 +221,6 @@ var prActivityCmd = &cobra.Command{
 		})
 	},
 }
-
-// --- bb pr statuses ---
 
 var prStatusesCmd = &cobra.Command{
 	Use:   "statuses",

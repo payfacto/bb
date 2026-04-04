@@ -2,7 +2,6 @@ package bitbucket_test
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -24,7 +23,7 @@ func TestRepos_List(t *testing.T) {
 		if r.URL.Query().Get("role") != "member" {
 			t.Errorf("expected role=member, got %s", r.URL.Query().Get("role"))
 		}
-		json.NewEncoder(w).Encode(map[string]any{"values": repos})
+		mustEncodeJSON(t, w, map[string]any{"values": repos})
 	}))
 	got, err := client.Repos("testws").List(context.Background())
 	if err != nil {
