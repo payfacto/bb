@@ -237,3 +237,56 @@ type CreateTagInput struct {
 	Name   string       `json:"name"`
 	Target BranchTarget `json:"target"`
 }
+
+// Environment types
+
+type Environment struct {
+	UUID            string          `json:"uuid"`
+	Name            string          `json:"name"`
+	EnvironmentType EnvironmentType `json:"environment_type"`
+	Lock            EnvironmentLock `json:"lock"`
+}
+
+type EnvironmentType struct {
+	Name string `json:"name"` // "Production", "Staging", "Test"
+}
+
+type EnvironmentLock struct {
+	Name string `json:"name"` // "UNLOCKED", "LOCKED"
+}
+
+// Deployment types
+
+type Deployment struct {
+	UUID           string           `json:"uuid"`
+	State          DeploymentState  `json:"state"`
+	Environment    DeploymentEnvRef `json:"environment"`
+	Deployable     Deployable       `json:"deployable"`
+	LastUpdateTime string           `json:"last_update_time"`
+}
+
+type DeploymentState struct {
+	Name   string            `json:"name"`
+	Status *DeploymentStatus `json:"status,omitempty"`
+}
+
+type DeploymentStatus struct {
+	Name string `json:"name"` // "SUCCESSFUL", "FAILED"
+}
+
+type DeploymentEnvRef struct {
+	UUID string `json:"uuid"`
+}
+
+type Deployable struct {
+	Commit   *DeployableCommit   `json:"commit,omitempty"`
+	Pipeline *DeployablePipeline `json:"pipeline,omitempty"`
+}
+
+type DeployableCommit struct {
+	Hash string `json:"hash"`
+}
+
+type DeployablePipeline struct {
+	UUID string `json:"uuid"`
+}
