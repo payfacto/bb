@@ -77,6 +77,11 @@ func (c *Client) Environments(workspace, repo string) *EnvironmentResource {
 	return &EnvironmentResource{client: c, workspace: workspace, repo: repo}
 }
 
+// Deployments returns a resource for deployment operations on the given repo.
+func (c *Client) Deployments(workspace, repo string) *DeploymentResource {
+	return &DeploymentResource{client: c, workspace: workspace, repo: repo}
+}
+
 // Commits returns a resource for commit history and file access on the given repo.
 func (c *Client) Commits(workspace, repo string) *CommitResource {
 	return &CommitResource{client: c, workspace: workspace, repo: repo}
