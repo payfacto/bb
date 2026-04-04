@@ -102,6 +102,11 @@ func (c *Client) Members(workspace string) *MemberResource {
 	return &MemberResource{client: c, workspace: workspace}
 }
 
+// Downloads returns a resource for download artifact operations on the given repo.
+func (c *Client) Downloads(workspace, repo string) *DownloadResource {
+	return &DownloadResource{client: c, workspace: workspace, repo: repo}
+}
+
 // repoPath returns the API path prefix for a repository.
 func repoPath(workspace, repo string) string {
 	return fmt.Sprintf("/repositories/%s/%s", workspace, repo)
@@ -134,6 +139,36 @@ func (c *Client) do(ctx context.Context, method, path string, body any, query ur
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response body: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(data))
+	}
+
+	return data, nil
+}
+
+// doMultipart executes an authenticated POST with a raw body and explicit content-type.
+// Used for multipart/form-data uploads where JSON marshaling is not appropriate.
+func (c *Client) doMultipart(ctx context.Context, path string, body io.Reader, contentType string) ([]byte, error) {
+	u := c.baseURL + path
+	req, err := http.NewRequestWithContext(ctx, "POST", u, body)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.SetBasicAuth(c.username, c.token)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", contentType)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
