@@ -297,3 +297,11 @@ type WorkspaceMember struct {
 	User  User  `json:"user"`
 	Links Links `json:"links"`
 }
+
+// Download type
+
+type Download struct {
+	Name  string `json:"name"`
+	Size  int64  `json:"size"`
+	Links Links  `json:"links"`
+}
