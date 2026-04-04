@@ -67,6 +67,11 @@ func (c *Client) Branches(workspace, repo string) *BranchResource {
 	return &BranchResource{client: c, workspace: workspace, repo: repo}
 }
 
+// Tags returns a resource for tag operations on the given repo.
+func (c *Client) Tags(workspace, repo string) *TagResource {
+	return &TagResource{client: c, workspace: workspace, repo: repo}
+}
+
 // Commits returns a resource for commit history and file access on the given repo.
 func (c *Client) Commits(workspace, repo string) *CommitResource {
 	return &CommitResource{client: c, workspace: workspace, repo: repo}
