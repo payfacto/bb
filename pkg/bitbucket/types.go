@@ -40,11 +40,11 @@ type Links struct {
 
 // Comment represents a PR comment.
 type Comment struct {
-	ID      int      `json:"id"`
-	Content Content  `json:"content"`
-	User    Actor    `json:"user"`
-	Inline  *Inline  `json:"inline,omitempty"`
-	Parent  *Parent  `json:"parent,omitempty"`
+	ID      int     `json:"id"`
+	Content Content `json:"content"`
+	User    Actor   `json:"user"`
+	Inline  *Inline `json:"inline,omitempty"`
+	Parent  *Parent `json:"parent,omitempty"`
 }
 
 // Content holds the raw text of a comment.
@@ -342,4 +342,22 @@ type CreateIssueInput struct {
 	Content  *Content `json:"content,omitempty"`
 	Kind     string   `json:"kind,omitempty"`
 	Priority string   `json:"priority,omitempty"`
+}
+
+// BranchRestriction types
+
+type BranchRestriction struct {
+	ID              int    `json:"id"`
+	Kind            string `json:"kind"`
+	BranchMatchKind string `json:"branch_match_kind"`
+	Pattern         string `json:"pattern"`
+	Value           *int   `json:"value,omitempty"`
+	Links           Links  `json:"links"`
+}
+
+type CreateBranchRestrictionInput struct {
+	Kind            string `json:"kind"`
+	BranchMatchKind string `json:"branch_match_kind"`
+	Pattern         string `json:"pattern"`
+	Value           *int   `json:"value,omitempty"`
 }
