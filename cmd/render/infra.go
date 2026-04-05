@@ -7,6 +7,7 @@ import (
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
+// DeploymentListString returns formatted text for a list of deployments.
 func DeploymentListString(deployments []bitbucket.Deployment) string {
 	if len(deployments) == 0 {
 		return "No deployments found.\n"
@@ -43,8 +44,10 @@ func DeploymentListString(deployments []bitbucket.Deployment) string {
 	return sb.String()
 }
 
+// DeploymentList prints the formatted deployment list to stdout.
 func DeploymentList(deployments []bitbucket.Deployment) { fmt.Print(DeploymentListString(deployments)) }
 
+// EnvListString returns formatted text for a list of environments.
 func EnvListString(envs []bitbucket.Environment) string {
 	if len(envs) == 0 {
 		return "No environments found.\n"
@@ -73,8 +76,10 @@ func EnvListString(envs []bitbucket.Environment) string {
 	return sb.String()
 }
 
+// EnvList prints the formatted environment list to stdout.
 func EnvList(envs []bitbucket.Environment) { fmt.Print(EnvListString(envs)) }
 
+// WebhookListString returns formatted text for a list of webhooks.
 func WebhookListString(hooks []bitbucket.Webhook) string {
 	if len(hooks) == 0 {
 		return "No webhooks found.\n"
@@ -100,8 +105,10 @@ func WebhookListString(hooks []bitbucket.Webhook) string {
 	return sb.String()
 }
 
+// WebhookList prints the formatted webhook list to stdout.
 func WebhookList(hooks []bitbucket.Webhook) { fmt.Print(WebhookListString(hooks)) }
 
+// DeployKeyListString returns formatted text for a list of deploy keys.
 func DeployKeyListString(keys []bitbucket.DeployKey) string {
 	if len(keys) == 0 {
 		return "No deploy keys found.\n"
@@ -124,8 +131,10 @@ func DeployKeyListString(keys []bitbucket.DeployKey) string {
 	return sb.String()
 }
 
+// DeployKeyList prints the formatted deploy key list to stdout.
 func DeployKeyList(keys []bitbucket.DeployKey) { fmt.Print(DeployKeyListString(keys)) }
 
+// DownloadListString returns formatted text for a list of downloads.
 func DownloadListString(downloads []bitbucket.Download) string {
 	if len(downloads) == 0 {
 		return "No downloads found.\n"
@@ -146,8 +155,10 @@ func DownloadListString(downloads []bitbucket.Download) string {
 	return sb.String()
 }
 
+// DownloadList prints the formatted download list to stdout.
 func DownloadList(downloads []bitbucket.Download) { fmt.Print(DownloadListString(downloads)) }
 
+// RestrictionListString returns formatted text for a list of branch restrictions.
 func RestrictionListString(restrictions []bitbucket.BranchRestriction) string {
 	if len(restrictions) == 0 {
 		return "No branch restrictions found.\n"
@@ -176,10 +187,12 @@ func RestrictionListString(restrictions []bitbucket.BranchRestriction) string {
 	return sb.String()
 }
 
+// RestrictionList prints the formatted branch restriction list to stdout.
 func RestrictionList(restrictions []bitbucket.BranchRestriction) {
 	fmt.Print(RestrictionListString(restrictions))
 }
 
+// MemberListString returns formatted text for a list of workspace members.
 func MemberListString(members []bitbucket.WorkspaceMember) string {
 	if len(members) == 0 {
 		return "No members found.\n"
@@ -202,8 +215,10 @@ func MemberListString(members []bitbucket.WorkspaceMember) string {
 	return sb.String()
 }
 
+// MemberList prints the formatted member list to stdout.
 func MemberList(members []bitbucket.WorkspaceMember) { fmt.Print(MemberListString(members)) }
 
+// UserMeString returns formatted text for the authenticated user profile.
 func UserMeString(u bitbucket.User) string {
 	const labelW = 10
 	label := func(s string) string {
@@ -219,4 +234,5 @@ func UserMeString(u bitbucket.User) string {
 	return sb.String()
 }
 
+// UserMe prints the formatted user profile to stdout.
 func UserMe(u bitbucket.User) { fmt.Print(UserMeString(u)) }
