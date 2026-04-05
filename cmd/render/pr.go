@@ -107,6 +107,7 @@ func PRDetail(pr bitbucket.PR) {
 }
 
 const datePrefixLen = 10 // characters in "2026-04-01" portion of ISO-8601
+const shortHashLen = 8  // characters to show for a commit hash abbreviation
 
 // PRActivityString returns formatted text for a PR activity timeline.
 func PRActivityString(activities []bitbucket.Activity) string {

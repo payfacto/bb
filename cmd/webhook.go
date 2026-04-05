@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/spf13/cobra"
-
+	"github.com/payfacto/bb/cmd/render"
 	"github.com/payfacto/bb/pkg/bitbucket"
+	"github.com/spf13/cobra"
 )
 
 var webhookCmd = &cobra.Command{
@@ -26,15 +26,7 @@ var webhookListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(hooks, func() {
-			if len(hooks) == 0 {
-				fmt.Println("No webhooks found.")
-				return
-			}
-			for _, h := range hooks {
-				fmt.Printf("%-38s  %-8v  %s\n", h.UUID, h.Active, truncate(h.URL, 60))
-			}
-		})
+		return printOutput(hooks, func() { render.WebhookList(hooks) })
 	},
 }
 

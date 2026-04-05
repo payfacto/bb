@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/payfacto/bb/cmd/render"
 	"github.com/spf13/cobra"
 )
 
@@ -26,15 +27,7 @@ var downloadListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(downloads, func() {
-			if len(downloads) == 0 {
-				fmt.Println("No downloads found.")
-				return
-			}
-			for _, d := range downloads {
-				fmt.Printf("%-40s  %d bytes\n", truncate(d.Name, 40), d.Size)
-			}
-		})
+		return printOutput(downloads, func() { render.DownloadList(downloads) })
 	},
 }
 

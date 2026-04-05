@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/payfacto/bb/cmd/render"
 	"github.com/spf13/cobra"
 )
 
@@ -24,15 +25,7 @@ var branchListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(branches, func() {
-			if len(branches) == 0 {
-				fmt.Println("No branches found.")
-				return
-			}
-			for _, b := range branches {
-				fmt.Printf("%-40s  %s\n", b.Name, b.Target.Hash)
-			}
-		})
+		return printOutput(branches, func() { render.BranchList(branches) })
 	},
 }
 

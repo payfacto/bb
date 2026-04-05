@@ -3,8 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"strings"
 
+	"github.com/payfacto/bb/cmd/render"
 	"github.com/spf13/cobra"
 )
 
@@ -27,24 +27,7 @@ var commitListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(commits, func() {
-			if len(commits) == 0 {
-				fmt.Println("No commits found.")
-				return
-			}
-			for _, c := range commits {
-				date := c.Date
-				if len(date) >= datePrefixLen {
-					date = date[:datePrefixLen]
-				}
-				msg := c.Message
-				if idx := strings.IndexByte(msg, '\n'); idx >= 0 {
-					msg = msg[:idx]
-				}
-				fmt.Printf("%s  %s  %-30s  %s\n",
-					c.Hash[:shortHashLen], date, truncate(c.Author.Raw, 30), truncate(msg, 72))
-			}
-		})
+		return printOutput(commits, func() { render.CommitList(commits) })
 	},
 }
 
@@ -62,14 +45,7 @@ var commitGetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(c, func() {
-			parents := make([]string, len(c.Parents))
-			for i, p := range c.Parents {
-				parents[i] = truncate(p.Hash, shortHashLen)
-			}
-			fmt.Printf("Hash:    %s\nDate:    %s\nAuthor:  %s\nMessage: %s\nParents: %s\n",
-				c.Hash, c.Date, c.Author.Raw, c.Message, strings.Join(parents, ", "))
-		})
+		return printOutput(c, func() { render.CommitDetail(c) })
 	},
 }
 
