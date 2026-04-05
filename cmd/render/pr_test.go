@@ -66,3 +66,58 @@ func TestPRListString_titleTruncated(t *testing.T) {
 		t.Errorf("expected ellipsis in truncated title, got: %q", out)
 	}
 }
+
+func TestPRDetailString_fields(t *testing.T) {
+	var pr bitbucket.PR
+	pr.ID = 42
+	pr.Title = "Add OAuth support"
+	pr.State = "OPEN"
+	pr.Author = bitbucket.Actor{DisplayName: "alice"}
+	pr.Source = ep("feat/oauth")
+	pr.Destination = ep("main")
+	pr.Links.HTML.Href = "https://bitbucket.org/org/repo/pull-requests/42"
+	pr.Description = ""
+
+	out := render.PRDetailString(pr)
+	checks := []string{"#42", "Add OAuth support", "OPEN", "alice", "feat/oauth", "main", "https://bitbucket.org"}
+	for _, want := range checks {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q in PRDetail output, got:\n%s", want, out)
+		}
+	}
+}
+
+func TestPRDetailString_withDescription(t *testing.T) {
+	var pr bitbucket.PR
+	pr.ID = 1
+	pr.Title = "Test PR"
+	pr.State = "OPEN"
+	pr.Author = bitbucket.Actor{DisplayName: "bob"}
+	pr.Source = ep("branch")
+	pr.Destination = ep("main")
+	pr.Description = "## Summary\n\nSome changes here."
+
+	out := render.PRDetailString(pr)
+	if !strings.Contains(out, "Summary") {
+		t.Errorf("expected markdown heading text in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Some changes here") {
+		t.Errorf("expected description body in output, got:\n%s", out)
+	}
+}
+
+func TestPRDetailString_noDescription(t *testing.T) {
+	var pr bitbucket.PR
+	pr.ID = 1
+	pr.Title = "T"
+	pr.State = "OPEN"
+	pr.Author = bitbucket.Actor{DisplayName: "x"}
+	pr.Source = ep("a")
+	pr.Destination = ep("b")
+
+	out := render.PRDetailString(pr)
+	// Should not contain a stray separator or crash with empty description
+	if strings.Count(out, "────") > 1 {
+		t.Errorf("expected at most one separator for empty description, got:\n%s", out)
+	}
+}

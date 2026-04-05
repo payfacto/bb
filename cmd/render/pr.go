@@ -71,3 +71,37 @@ func PRListString(prs []bitbucket.PR) string {
 func PRList(prs []bitbucket.PR) {
 	fmt.Print(PRListString(prs))
 }
+
+// PRDetailString returns the formatted text for a single PR.
+func PRDetailString(pr bitbucket.PR) string {
+	const labelW = 7
+
+	label := func(s string) string {
+		return LabelStyle.Render(fmt.Sprintf("  %-*s", labelW, s))
+	}
+	sep := SepStyle.Render(strings.Repeat("─", 56))
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("%s  %s\n", label("ID"), IDStyle.Render(fmt.Sprintf("#%d", pr.ID))))
+	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Title"), pr.Title))
+	sb.WriteString(fmt.Sprintf("%s  %s\n", label("State"), StateBadge(pr.State)))
+	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Author"), pr.Author.DisplayName))
+	sb.WriteString(fmt.Sprintf("%s  %s → %s\n", label("Branch"),
+		BranchStyle.Render(pr.Source.Branch.Name),
+		BranchStyle.Render(pr.Destination.Branch.Name),
+	))
+	sb.WriteString(fmt.Sprintf("%s  %s\n", label("URL"), pr.Links.HTML.Href))
+
+	if pr.Description != "" {
+		sb.WriteString(sep + "\n")
+		sb.WriteString(RenderMarkdown(pr.Description))
+	}
+
+	return sb.String()
+}
+
+// PRDetail prints the formatted PR detail to stdout, paging if the output
+// is taller than the terminal.
+func PRDetail(pr bitbucket.PR) {
+	MaybePage(PRDetailString(pr))
+}
