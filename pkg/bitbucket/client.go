@@ -48,6 +48,16 @@ func NewWithBaseURL(cfg *config.Config, baseURL string) *Client {
 	return c
 }
 
+// NewWithBearerToken creates a Client authenticated with an OAuth Bearer token.
+// Used when no full config is available (e.g., during bb auth login).
+func NewWithBearerToken(token string) *Client {
+	return &Client{
+		baseURL:     defaultAPIBase,
+		bearerToken: token,
+		httpClient:  &http.Client{Timeout: 30 * time.Second},
+	}
+}
+
 // SetBearerToken configures the client to use OAuth Bearer token auth instead of Basic auth.
 func (c *Client) SetBearerToken(token string) {
 	c.bearerToken = token

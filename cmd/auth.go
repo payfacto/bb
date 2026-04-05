@@ -91,13 +91,11 @@ Then run: bb auth login`,
 var authLogoutCmd = &cobra.Command{
 	Use:   "logout",
 	Short: "Remove stored Bitbucket credentials",
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path := cfgFile
 		existing, _ := config.Load(path) // treat missing/unreadable config as empty
 		if existing == nil || existing.Username == "" {
-			fmt.Println("no active session found")
-			return nil
+			return fmt.Errorf("not authenticated (run 'bb auth login' or 'bb setup')")
 		}
 
 		if err := auth.DeleteToken(existing.Username); err != nil {
@@ -119,7 +117,6 @@ var authLogoutCmd = &cobra.Command{
 var authStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show current authentication status",
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path := cfgFile
 		existing, _ := config.Load(path) // treat missing/unreadable config as empty
@@ -161,7 +158,6 @@ var authStatusCmd = &cobra.Command{
 var authTokenCmd = &cobra.Command{
 	Use:   "token",
 	Short: "Print the stored authentication token",
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path := cfgFile
 		existing, _ := config.Load(path) // treat missing/unreadable config as empty
