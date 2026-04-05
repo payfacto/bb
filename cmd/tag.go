@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/payfacto/bb/cmd/render"
 	"github.com/spf13/cobra"
 )
 
@@ -24,15 +25,7 @@ var tagListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(tags, func() {
-			if len(tags) == 0 {
-				fmt.Println("No tags found.")
-				return
-			}
-			for _, t := range tags {
-				fmt.Printf("%-40s  %s\n", t.Name, t.Target.Hash)
-			}
-		})
+		return printOutput(tags, func() { render.TagList(tags) })
 	},
 }
 

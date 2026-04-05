@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/payfacto/bb/cmd/render"
 	"github.com/spf13/cobra"
 )
 
@@ -24,24 +25,7 @@ var pipelineListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(pipelines, func() {
-			if len(pipelines) == 0 {
-				fmt.Println("No pipelines found.")
-				return
-			}
-			for _, p := range pipelines {
-				result := ""
-				if p.State.Result != nil {
-					result = "/" + p.State.Result.Name
-				}
-				date := ""
-				if len(p.CreatedOn) >= datePrefixLen {
-					date = p.CreatedOn[:datePrefixLen]
-				}
-				fmt.Printf("#%-4d  %-30s  %-20s  %s\n",
-					p.BuildNumber, p.State.Name+result, p.Target.RefName, date)
-			}
-		})
+		return printOutput(pipelines, func() { render.PipelineList(pipelines) })
 	},
 }
 
@@ -59,19 +43,7 @@ var pipelineGetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(p, func() {
-			result := ""
-			if p.State.Result != nil {
-				result = " (" + p.State.Result.Name + ")"
-			}
-			commit := ""
-			if p.Target.Commit != nil {
-				commit = p.Target.Commit.Hash
-			}
-			fmt.Printf("Pipeline #%d\nUUID:      %s\nState:     %s%s\nBranch:    %s\nCommit:    %s\nCreated:   %s\nCompleted: %s\n",
-				p.BuildNumber, p.UUID, p.State.Name, result,
-				p.Target.RefName, commit, p.CreatedOn, p.CompletedOn)
-		})
+		return printOutput(p, func() { render.PipelineDetail(p) })
 	},
 }
 
@@ -129,20 +101,7 @@ var pipelineStepsCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(steps, func() {
-			if len(steps) == 0 {
-				fmt.Println("No steps found.")
-				return
-			}
-			for _, s := range steps {
-				result := ""
-				if s.State.Result != nil {
-					result = "/" + s.State.Result.Name
-				}
-				fmt.Printf("%-40s  %-20s  %s%s\n",
-					s.UUID, s.Name, s.State.Name, result)
-			}
-		})
+		return printOutput(steps, func() { render.PipelineSteps(steps) })
 	},
 }
 

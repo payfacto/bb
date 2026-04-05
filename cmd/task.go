@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
+	"github.com/payfacto/bb/cmd/render"
 )
 
 var taskCmd = &cobra.Command{
@@ -26,15 +28,7 @@ var taskListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(tasks, func() {
-			if len(tasks) == 0 {
-				fmt.Println("No tasks found.")
-				return
-			}
-			for _, t := range tasks {
-				fmt.Printf("  [%d] [%s] %s\n", t.ID, t.State, truncate(t.Description, 100))
-			}
-		})
+		return printOutput(tasks, func() { render.TaskList(tasks) })
 	},
 }
 

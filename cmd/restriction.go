@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/spf13/cobra"
-
+	"github.com/payfacto/bb/cmd/render"
 	"github.com/payfacto/bb/pkg/bitbucket"
+	"github.com/spf13/cobra"
 )
 
 var restrictionCmd = &cobra.Command{
@@ -26,19 +26,7 @@ var restrictionListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(restrictions, func() {
-			if len(restrictions) == 0 {
-				fmt.Println("No branch restrictions found.")
-				return
-			}
-			for _, r := range restrictions {
-				valueStr := ""
-				if r.Value != nil {
-					valueStr = fmt.Sprintf("%d", *r.Value)
-				}
-				fmt.Printf("%-6d  %-40s  %-6s  %s\n", r.ID, truncate(r.Kind, 40), valueStr, r.Pattern)
-			}
-		})
+		return printOutput(restrictions, func() { render.RestrictionList(restrictions) })
 	},
 }
 

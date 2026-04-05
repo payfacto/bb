@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/payfacto/bb/cmd/render"
 	"github.com/spf13/cobra"
 )
 
@@ -24,20 +24,7 @@ var envListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(envs, func() {
-			if len(envs) == 0 {
-				fmt.Println("No environments found.")
-				return
-			}
-			for _, e := range envs {
-				lock := ""
-				if e.Lock.Name == "LOCKED" {
-					lock = "  [LOCKED]"
-				}
-				fmt.Printf("%-40s  %-12s  %s%s\n",
-					e.UUID, e.EnvironmentType.Name, e.Name, lock)
-			}
-		})
+		return printOutput(envs, func() { render.EnvList(envs) })
 	},
 }
 
