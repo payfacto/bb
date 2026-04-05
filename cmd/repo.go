@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/payfacto/bb/cmd/render"
 	"github.com/spf13/cobra"
 )
 
@@ -25,19 +26,7 @@ var repoListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(repos, func() {
-			if len(repos) == 0 {
-				fmt.Println("No repositories found.")
-				return
-			}
-			for _, r := range repos {
-				privacy := "public"
-				if r.IsPrivate {
-					privacy = "private"
-				}
-				fmt.Printf("%-30s  %-40s  (%s)\n", r.Slug, truncate(r.Name, 40), privacy)
-			}
-		})
+		return printOutput(repos, func() { render.RepoList(repos) })
 	},
 }
 
