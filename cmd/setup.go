@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
+	"github.com/payfacto/bb/internal/auth"
 	"github.com/payfacto/bb/internal/config"
 )
 
@@ -23,7 +24,7 @@ var setupCmd = &cobra.Command{
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path := cfgFile
-		existing, _ := config.Load(path)
+		existing, _ := config.Load(path) // treat missing/unreadable config as empty
 		if existing == nil {
 			existing = &config.Config{}
 		}
@@ -43,10 +44,20 @@ var setupCmd = &cobra.Command{
 			Workspace: ws,
 			Repo:      defaultRepo,
 			Username:  user,
-			Token:     tok,
+			AuthType:  "apppassword",
+			// Token deliberately not set — stored in keyring below, not in YAML
 		}
 		if err := updated.Save(path); err != nil {
 			return fmt.Errorf("save config: %w", err)
+		}
+
+		if tok != "" {
+			if err := auth.SetToken(user, tok); err != nil {
+				fmt.Fprintf(os.Stderr, "\nwarning: could not store app password in OS keyring (%v)\n", err)
+				fmt.Fprintf(os.Stderr, "set BITBUCKET_TOKEN=<app-password> in your environment to authenticate\n")
+			} else {
+				fmt.Println("App password stored in OS keyring.")
+			}
 		}
 
 		fmt.Printf("\nConfig saved to %s\n", path)

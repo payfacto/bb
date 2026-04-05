@@ -10,10 +10,19 @@ import (
 
 // Config holds all configurable values for bb.
 type Config struct {
-	Workspace string `yaml:"workspace"`
-	Repo      string `yaml:"repo"`
-	Username  string `yaml:"username"`
-	Token     string `yaml:"token"`
+	Workspace     string `yaml:"workspace"`
+	Repo          string `yaml:"repo"`
+	Username      string `yaml:"username"`
+	AuthType      string `yaml:"auth_type,omitempty"`
+	OAuthClientID string `yaml:"oauth_client_id,omitempty"`
+
+	// Token is never written to disk; loaded from keyring, env var, or CLI flag at runtime.
+	Token string `yaml:"-"`
+}
+
+// HasOAuth returns true when the config is set up for OAuth authentication.
+func (cfg *Config) HasOAuth() bool {
+	return cfg.AuthType == "oauth"
 }
 
 // DefaultPath returns ~/.bbcloud.yaml, or .bbcloud.yaml in the current directory
@@ -64,18 +73,27 @@ func (cfg *Config) Apply(workspace, repo, username, token string) {
 	}
 }
 
-// Validate returns an error if required fields are missing.
+// Validate returns an error if workspace or username are missing.
+// Token is validated separately after keyring resolution via ValidateCredentials.
 func (cfg *Config) Validate() error {
-	if cfg.Username == "" || cfg.Token == "" {
-		return fmt.Errorf("no credentials found — run 'bb setup' to configure")
-	}
 	if cfg.Workspace == "" {
-		return fmt.Errorf("no workspace configured — run 'bb setup' to configure")
+		return fmt.Errorf("no workspace configured (run 'bb setup' or 'bb auth login')")
+	}
+	if cfg.Username == "" {
+		return fmt.Errorf("no username configured (run 'bb setup' or 'bb auth login')")
 	}
 	return nil
 }
 
-// Save writes cfg to path with 0600 permissions.
+// ValidateCredentials returns an error if no token is available.
+func (cfg *Config) ValidateCredentials() error {
+	if cfg.Token == "" {
+		return fmt.Errorf("no credentials found (run 'bb auth login' or set BITBUCKET_TOKEN)")
+	}
+	return nil
+}
+
+// Save writes cfg to path with 0600 permissions. Token is never written (yaml:"-").
 func (cfg *Config) Save(path string) error {
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
