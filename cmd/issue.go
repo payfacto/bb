@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/payfacto/bb/cmd/render"
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
@@ -26,16 +27,7 @@ var issueListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(issues, func() {
-			if len(issues) == 0 {
-				fmt.Println("No issues found.")
-				return
-			}
-			for _, i := range issues {
-				fmt.Printf("#%-5d  %-10s  %-12s  %s\n",
-					i.ID, i.State, i.Kind, truncate(i.Title, 50))
-			}
-		})
+		return printOutput(issues, func() { render.IssueList(issues) })
 	},
 }
 
@@ -53,15 +45,7 @@ var issueGetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(issue, func() {
-			fmt.Printf("#%d  %s\n", issue.ID, issue.Title)
-			fmt.Printf("State:    %-10s  Kind: %-12s  Priority: %s\n",
-				issue.State, issue.Kind, issue.Priority)
-			fmt.Printf("Reporter: %s\n", issue.Reporter.DisplayName)
-			if issue.Content.Raw != "" {
-				fmt.Printf("\n%s\n", issue.Content.Raw)
-			}
-		})
+		return printOutput(issue, func() { render.IssueDetail(issue) })
 	},
 }
 
