@@ -70,7 +70,10 @@ func ExchangeCode(tokenEndpoint, clientID, clientSecret, code, redirectURI strin
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read token response: %w", err)
+	}
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("token endpoint HTTP %d: %s", resp.StatusCode, string(body))
 	}
@@ -88,6 +91,10 @@ func ExchangeCode(tokenEndpoint, clientID, clientSecret, code, redirectURI strin
 //  3. Waits for the callback with the authorization code
 //  4. Exchanges the code for tokens
 func Login(clientID, clientSecret string) (*Token, error) {
+	if clientID == "" || clientSecret == "" {
+		return nil, fmt.Errorf("oauth login: clientID and clientSecret must not be empty")
+	}
+
 	state, err := GenerateState()
 	if err != nil {
 		return nil, err
@@ -107,12 +114,12 @@ func Login(clientID, clientSecret string) (*Token, error) {
 	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 		if q.Get("state") != state {
-			errCh <- fmt.Errorf("state mismatch: CSRF detected")
+			errCh <- fmt.Errorf("oauth callback: state mismatch (possible CSRF)")
 			http.Error(w, "State mismatch", http.StatusBadRequest)
 			return
 		}
 		if errParam := q.Get("error"); errParam != "" {
-			errCh <- fmt.Errorf("oauth error: %s — %s", errParam, q.Get("error_description"))
+			errCh <- fmt.Errorf("oauth callback: provider error %q: %s", errParam, q.Get("error_description"))
 			http.Error(w, "Authentication failed", http.StatusBadRequest)
 			return
 		}
@@ -132,7 +139,11 @@ func Login(clientID, clientSecret string) (*Token, error) {
 			errCh <- err
 		}
 	}()
-	defer func() { _ = srv.Shutdown(context.Background()) }()
+	defer func() {
+		shutCtx, shutCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer shutCancel()
+		_ = srv.Shutdown(shutCtx)
+	}()
 
 	authURL := BuildAuthURL(clientID, state, redirectURI)
 	fmt.Printf("Opening your browser to:\n  %s\n\n", authURL)

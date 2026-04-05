@@ -24,7 +24,7 @@ var setupCmd = &cobra.Command{
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path := cfgFile
-		existing, _ := config.Load(path)
+		existing, _ := config.Load(path) // treat missing/unreadable config as empty
 		if existing == nil {
 			existing = &config.Config{}
 		}
