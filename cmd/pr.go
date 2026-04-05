@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/payfacto/bb/cmd/render"
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
@@ -28,17 +29,7 @@ var prListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(prs, func() {
-			if len(prs) == 0 {
-				fmt.Println("No pull requests found.")
-				return
-			}
-			for _, pr := range prs {
-				fmt.Printf("  PR #%d  [%s]  %s\n", pr.ID, pr.State, pr.Title)
-				fmt.Printf("         %s → %s\n", pr.Source.Branch.Name, pr.Destination.Branch.Name)
-				fmt.Printf("         %s\n\n", pr.Links.HTML.Href)
-			}
-		})
+		return printOutput(prs, func() { render.PRList(prs) })
 	},
 }
 
@@ -56,15 +47,7 @@ var prGetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(pr, func() {
-			fmt.Printf("PR #%d: %s [%s]\n", pr.ID, pr.Title, pr.State)
-			fmt.Printf("  %s → %s\n", pr.Source.Branch.Name, pr.Destination.Branch.Name)
-			fmt.Printf("  Author: %s\n", pr.Author.DisplayName)
-			if pr.Description != "" {
-				fmt.Printf("  Description: %s\n", pr.Description)
-			}
-			fmt.Printf("  URL: %s\n", pr.Links.HTML.Href)
-		})
+		return printOutput(pr, func() { render.PRDetail(pr) })
 	},
 }
 
@@ -194,33 +177,7 @@ var prActivityCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(activities, func() {
-			if len(activities) == 0 {
-				fmt.Println("No activity found.")
-				return
-			}
-			for _, a := range activities {
-				switch {
-				case a.Approval != nil:
-					date := a.Approval.Date
-					if len(date) >= datePrefixLen {
-						date = date[:datePrefixLen]
-					}
-					fmt.Printf("[approval]  %s approved  (%s)\n",
-						a.Approval.User.DisplayName, date)
-				case a.Comment != nil:
-					fmt.Printf("[comment]   %s: %s\n",
-						a.Comment.User.DisplayName, truncate(a.Comment.Content.Raw, 80))
-				case a.Update != nil:
-					date := a.Update.Date
-					if len(date) >= datePrefixLen {
-						date = date[:datePrefixLen]
-					}
-					fmt.Printf("[update]    %s → %s  (%s)\n",
-						a.Update.Author.DisplayName, a.Update.State, date)
-				}
-			}
-		})
+		return printOutput(activities, func() { render.PRActivity(activities) })
 	},
 }
 
@@ -238,16 +195,7 @@ var prStatusesCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(statuses, func() {
-			if len(statuses) == 0 {
-				fmt.Println("No statuses found.")
-				return
-			}
-			for _, s := range statuses {
-				fmt.Printf("%-12s  %-30s  %s\n",
-					s.State, truncate(s.Name, 30), s.Description)
-			}
-		})
+		return printOutput(statuses, func() { render.PRStatuses(statuses) })
 	},
 }
 
