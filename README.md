@@ -1,6 +1,6 @@
 ![bb](assets/banner.png)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.25-blue)](go.mod)
 [![Go Report Card](https://goreportcard.com/badge/github.com/payfacto/bb)](https://goreportcard.com/report/github.com/payfacto/bb)
 
