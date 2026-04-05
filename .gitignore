@@ -30,6 +30,9 @@ Thumbs.db
 *.swp
 *.swo
 
-# AI / Claude 
+# AI / Claude
 docs/
 .claude/
+
+# Git worktrees
+.worktrees/
