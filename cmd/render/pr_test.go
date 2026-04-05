@@ -121,3 +121,74 @@ func TestPRDetailString_noDescription(t *testing.T) {
 		t.Errorf("expected at most one separator for empty description, got:\n%s", out)
 	}
 }
+
+func TestPRActivityString_empty(t *testing.T) {
+	out := render.PRActivityString(nil)
+	if !strings.Contains(out, "No activity found.") {
+		t.Errorf("expected empty message, got: %q", out)
+	}
+}
+
+func TestPRActivityString_approval(t *testing.T) {
+	act := []bitbucket.Activity{
+		{Approval: &bitbucket.Approval{User: bitbucket.Actor{DisplayName: "alice"}, Date: "2026-04-01T10:00:00Z"}},
+	}
+	out := render.PRActivityString(act)
+	if !strings.Contains(out, "alice") {
+		t.Errorf("expected approver name, got: %q", out)
+	}
+	if !strings.Contains(out, "approval") {
+		t.Errorf("expected 'approval' label, got: %q", out)
+	}
+}
+
+func TestPRActivityString_comment(t *testing.T) {
+	comment := &bitbucket.Comment{
+		User:    bitbucket.Actor{DisplayName: "bob"},
+		Content: bitbucket.Content{Raw: "Looks good to me!"},
+	}
+	act := []bitbucket.Activity{{Comment: comment}}
+	out := render.PRActivityString(act)
+	if !strings.Contains(out, "bob") {
+		t.Errorf("expected commenter name, got: %q", out)
+	}
+	if !strings.Contains(out, "Looks good") {
+		t.Errorf("expected comment snippet, got: %q", out)
+	}
+}
+
+func TestPRActivityString_update(t *testing.T) {
+	act := []bitbucket.Activity{
+		{Update: &bitbucket.PRUpdate{Author: bitbucket.Actor{DisplayName: "carol"}, State: "MERGED", Date: "2026-04-02T14:00:00Z"}},
+	}
+	out := render.PRActivityString(act)
+	if !strings.Contains(out, "carol") {
+		t.Errorf("expected updater name, got: %q", out)
+	}
+	if !strings.Contains(out, "MERGED") {
+		t.Errorf("expected state in output, got: %q", out)
+	}
+	if !strings.Contains(out, "update") {
+		t.Errorf("expected 'update' label, got: %q", out)
+	}
+}
+
+func TestPRStatusesString_empty(t *testing.T) {
+	out := render.PRStatusesString(nil)
+	if !strings.Contains(out, "No statuses found.") {
+		t.Errorf("expected empty message, got: %q", out)
+	}
+}
+
+func TestPRStatusesString_row(t *testing.T) {
+	statuses := []bitbucket.PRStatus{
+		{Name: "CI / unit-tests", State: "SUCCESSFUL", URL: "https://example.com/build/1"},
+	}
+	out := render.PRStatusesString(statuses)
+	if !strings.Contains(out, "CI / unit-tests") {
+		t.Errorf("expected pipeline name, got: %q", out)
+	}
+	if !strings.Contains(out, "SUCCESSFUL") {
+		t.Errorf("expected state, got: %q", out)
+	}
+}

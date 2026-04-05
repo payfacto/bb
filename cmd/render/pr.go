@@ -105,3 +105,86 @@ func PRDetailString(pr bitbucket.PR) string {
 func PRDetail(pr bitbucket.PR) {
 	MaybePage(PRDetailString(pr))
 }
+
+const datePrefixLen = 10 // characters in "2026-04-01" portion of ISO-8601
+
+// PRActivityString returns formatted text for a PR activity timeline.
+func PRActivityString(activities []bitbucket.Activity) string {
+	if len(activities) == 0 {
+		return "No activity found.\n"
+	}
+
+	var sb strings.Builder
+	for _, a := range activities {
+		switch {
+		case a.Approval != nil:
+			date := a.Approval.Date
+			if len(date) >= datePrefixLen {
+				date = date[:datePrefixLen]
+			}
+			sb.WriteString(fmt.Sprintf("  %s  %s approved  %s\n",
+				LabelStyle.Render("[approval]"),
+				a.Approval.User.DisplayName,
+				DimStyle.Render("("+date+")"),
+			))
+		case a.Comment != nil:
+			sb.WriteString(fmt.Sprintf("  %s  %s: %s\n",
+				LabelStyle.Render("[comment] "),
+				a.Comment.User.DisplayName,
+				truncate(a.Comment.Content.Raw, 80),
+			))
+		case a.Update != nil:
+			date := a.Update.Date
+			if len(date) >= datePrefixLen {
+				date = date[:datePrefixLen]
+			}
+			sb.WriteString(fmt.Sprintf("  %s  %s → %s  %s\n",
+				LabelStyle.Render("[update]  "),
+				a.Update.Author.DisplayName,
+				StateBadge(a.Update.State),
+				DimStyle.Render("("+date+")"),
+			))
+		}
+	}
+	return sb.String()
+}
+
+// PRActivity prints the formatted PR activity to stdout.
+func PRActivity(activities []bitbucket.Activity) {
+	fmt.Print(PRActivityString(activities))
+}
+
+// PRStatusesString returns formatted text for PR build statuses.
+func PRStatusesString(statuses []bitbucket.PRStatus) string {
+	if len(statuses) == 0 {
+		return "No statuses found.\n"
+	}
+
+	sep := SepStyle.Render(strings.Repeat("─", 24))
+	stateSep := SepStyle.Render(strings.Repeat("─", 10))
+	urlSep := SepStyle.Render(strings.Repeat("─", 30))
+
+	header := fmt.Sprintf("  %s  %s  %s\n",
+		LabelStyle.Render(fmt.Sprintf("%-24s", "NAME")),
+		LabelStyle.Render(fmt.Sprintf("%-10s", "STATE")),
+		LabelStyle.Render("URL"),
+	)
+	divider := fmt.Sprintf("  %s  %s  %s\n", sep, stateSep, urlSep)
+
+	var sb strings.Builder
+	sb.WriteString(header)
+	sb.WriteString(divider)
+	for _, s := range statuses {
+		sb.WriteString(fmt.Sprintf("  %-24s  %-10s  %s\n",
+			truncate(s.Name, 24),
+			StateBadge(s.State),
+			s.URL,
+		))
+	}
+	return sb.String()
+}
+
+// PRStatuses prints the formatted PR build statuses to stdout.
+func PRStatuses(statuses []bitbucket.PRStatus) {
+	fmt.Print(PRStatusesString(statuses))
+}
