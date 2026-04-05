@@ -9,9 +9,6 @@ var (
 	DimStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#6c7086"))
 	BranchStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#fab387"))
 	SepStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#45475a"))
-	GreenStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#a6e3a1"))
-	YellowStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#f9e2af"))
-	RedStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#f38ba8"))
 )
 
 // State badge styles
