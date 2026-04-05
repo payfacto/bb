@@ -31,20 +31,47 @@ bb pr list --format text    # human-readable output
 
 ## Authentication
 
-Create `~/.bbcloud.yaml`:
+`bb` supports two authentication methods.
 
-```yaml
-workspace: your-workspace-slug
-repo: your-repo-slug
-username: your-bitbucket-username
-token: your-app-password
+### Option A — OAuth 2.0 (recommended)
+
+1. In Bitbucket, go to **Personal Settings → OAuth consumers → Add consumer**
+2. Set the callback URL to `http://localhost` and grant the required scopes (Repositories: Read, Pull requests: Read/Write)
+3. Run:
+
+   ```bash
+   bb auth login
+   ```
+
+   Enter your Consumer Key and Consumer Secret when prompted. Your browser will open for authorization.
+
+4. Tokens are stored securely in the OS keyring (macOS Keychain, Windows Credential Manager, Linux libsecret).
+
+Additional auth commands:
+
+```bash
+bb auth status    # show current auth state and token source
+bb auth logout    # remove stored credentials
+bb auth token     # print raw token (useful for scripts)
 ```
 
-Or use environment variables: `BITBUCKET_USER`, `BITBUCKET_TOKEN`
+### Option B — App Password
 
-Or pass flags: `--username`, `--token`, `--workspace`, `--repo`
+```bash
+bb setup
+```
 
-**Precedence (lowest → highest):** config file → env vars → CLI flags
+Prompts for workspace, username, and a [Bitbucket App Password](https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/). The app password is stored in the OS keyring (not in `~/.bbcloud.yaml`).
+
+### CI/CD environments
+
+For environments without an OS keyring (headless Linux, CI):
+
+```bash
+export BITBUCKET_USER=myusername
+export BITBUCKET_TOKEN=myapppassword
+bb pr list --workspace myws --repo myrepo
+```
 
 ## Global Flags
 

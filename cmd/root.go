@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 
+	"github.com/payfacto/bb/internal/auth"
 	"github.com/payfacto/bb/internal/config"
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
@@ -43,7 +45,26 @@ var rootCmd = &cobra.Command{
 		if err := cfg.Validate(); err != nil {
 			return err
 		}
+
+		// Credential resolution: keyring → env (already merged by Load) → CLI flag (merged by Apply).
+		// CLI --token flag has final priority (already in cfg.Token via Apply).
+		if cfg.Token == "" && cfg.Username != "" {
+			tok, keyringErr := auth.GetToken(cfg.Username)
+			if keyringErr == nil {
+				cfg.Token = tok
+			} else if !errors.Is(keyringErr, auth.ErrTokenNotFound) && !errors.Is(keyringErr, auth.ErrNoKeyring) {
+				fmt.Fprintf(os.Stderr, "warning: keyring error (%v) — set BITBUCKET_TOKEN to authenticate\n", keyringErr)
+			}
+		}
+
+		if err := cfg.ValidateCredentials(); err != nil {
+			return err
+		}
+
 		client = bitbucket.New(cfg)
+		if cfg.HasOAuth() {
+			client.SetBearerToken(cfg.Token)
+		}
 		return nil
 	},
 }
