@@ -113,11 +113,3 @@ func init() {
 	commentReplyCmd.MarkFlagRequired("comment-id")
 	commentReplyCmd.MarkFlagRequired("text")
 }
-
-// truncate shortens s to max characters for display.
-func truncate(s string, max int) string {
-	if len(s) <= max {
-		return s
-	}
-	return s[:max] + "…"
-}
