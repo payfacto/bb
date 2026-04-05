@@ -41,6 +41,32 @@ var commentListCmd = &cobra.Command{
 }
 
 var (
+	commentGetPRID      int
+	commentGetCommentID int
+)
+
+var commentGetCmd = &cobra.Command{
+	Use:   "get",
+	Short: "Get a single comment on a pull request",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, r, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		c, err := client.Comments(ws, r, commentGetPRID).Get(context.Background(), commentGetCommentID)
+		if err != nil {
+			return err
+		}
+		return printOutput(c, func() {
+			fmt.Printf("  [%d] %s: %s\n", c.ID, c.User.DisplayName, c.Content.Raw)
+			if c.Inline != nil {
+				fmt.Printf("  File: %s:%d\n", c.Inline.Path, c.Inline.To)
+			}
+		})
+	},
+}
+
+var (
 	commentAddPRID int
 	commentAddText string
 	commentAddFile string
@@ -101,10 +127,15 @@ var commentReplyCmd = &cobra.Command{
 
 func init() {
 	prCmd.AddCommand(commentCmd)
-	commentCmd.AddCommand(commentListCmd, commentAddCmd, commentReplyCmd)
+	commentCmd.AddCommand(commentListCmd, commentGetCmd, commentAddCmd, commentReplyCmd)
 
 	commentListCmd.Flags().IntVar(&commentListPRID, "pr-id", 0, "pull request ID")
 	commentListCmd.MarkFlagRequired("pr-id")
+
+	commentGetCmd.Flags().IntVar(&commentGetPRID, "pr-id", 0, "pull request ID")
+	commentGetCmd.Flags().IntVar(&commentGetCommentID, "comment-id", 0, "comment ID")
+	commentGetCmd.MarkFlagRequired("pr-id")
+	commentGetCmd.MarkFlagRequired("comment-id")
 
 	commentAddCmd.Flags().IntVar(&commentAddPRID, "pr-id", 0, "pull request ID")
 	commentAddCmd.Flags().StringVar(&commentAddText, "text", "", "comment text")
