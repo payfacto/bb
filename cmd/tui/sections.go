@@ -116,6 +116,9 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config) []menuItem {
 				return items, nil
 			}, nil)
 		}},
+		{label: "Setup", description: "Reconfigure workspace, repo, credentials", onSelect: func() View {
+			return newSetupView(config.DefaultPath(), cfg)
+		}},
 	}
 }
 

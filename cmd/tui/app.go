@@ -46,6 +46,14 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return a, tea.Batch(initCmd, sizeCmd)
 
+	case rebuildMenuMsg:
+		// Setup completed or reconfigured — replace entire stack with new home menu.
+		a.stack = navStack{}
+		items := buildMenuItems(msg.client, msg.cfg)
+		menu := newMenuModel(msg.cfg.Workspace, msg.cfg.Repo, items)
+		a.stack.Push(menu)
+		return a, menu.Init()
+
 	case popViewMsg:
 		if a.stack.Len() <= 1 {
 			return a, tea.Quit
