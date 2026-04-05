@@ -72,7 +72,7 @@ Then run: bb auth login`,
 
 		if err := auth.SetToken(existing.Username, tok.AccessToken); err != nil {
 			fmt.Fprintf(os.Stderr, "\nwarning: could not store token in OS keyring (%v)\n", err)
-			fmt.Fprintf(os.Stderr, "set BITBUCKET_TOKEN=%s in your environment\n", tok.AccessToken)
+			fmt.Fprintf(os.Stderr, "run 'bb auth token' after setting BITBUCKET_TOKEN manually, or re-run 'bb auth login'\n")
 		}
 
 		existing.OAuthClientID = clientID

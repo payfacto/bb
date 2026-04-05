@@ -53,8 +53,8 @@ var setupCmd = &cobra.Command{
 
 		if tok != "" {
 			if err := auth.SetToken(user, tok); err != nil {
-				fmt.Fprintf(os.Stderr, "\nWarning: could not store app password in OS keyring (%v).\n", err)
-				fmt.Fprintf(os.Stderr, "Set BITBUCKET_TOKEN=<app-password> in your environment to authenticate.\n")
+				fmt.Fprintf(os.Stderr, "\nwarning: could not store app password in OS keyring (%v)\n", err)
+				fmt.Fprintf(os.Stderr, "set BITBUCKET_TOKEN=<app-password> in your environment to authenticate\n")
 			} else {
 				fmt.Println("App password stored in OS keyring.")
 			}
