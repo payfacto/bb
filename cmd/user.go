@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/payfacto/bb/cmd/render"
 	"github.com/payfacto/bb/internal/config"
 	"github.com/payfacto/bb/pkg/bitbucket"
 	"github.com/spf13/cobra"
@@ -35,12 +36,7 @@ var userMeCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(u, func() {
-			fmt.Printf("%s (@%s)\nAccount ID: %s\n", u.DisplayName, u.Nickname, u.AccountID)
-			if u.Links.HTML.Href != "" {
-				fmt.Printf("Profile:    %s\n", u.Links.HTML.Href)
-			}
-		})
+		return printOutput(u, func() { render.UserMe(u) })
 	},
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/payfacto/bb/cmd/render"
 	"github.com/spf13/cobra"
 )
 
@@ -24,15 +25,7 @@ var deployKeyListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(keys, func() {
-			if len(keys) == 0 {
-				fmt.Println("No deploy keys found.")
-				return
-			}
-			for _, k := range keys {
-				fmt.Printf("%-6d  %-30s  %s\n", k.ID, truncate(k.Label, 30), truncate(k.Key, 50))
-			}
-		})
+		return printOutput(keys, func() { render.DeployKeyList(keys) })
 	},
 }
 

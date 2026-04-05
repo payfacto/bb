@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/payfacto/bb/cmd/render"
 	"github.com/spf13/cobra"
 )
 
@@ -24,16 +25,7 @@ var memberListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(members, func() {
-			if len(members) == 0 {
-				fmt.Println("No members found.")
-				return
-			}
-			for _, m := range members {
-				fmt.Printf("%-30s  %-20s  %s\n",
-					truncate(m.User.DisplayName, 30), m.User.Nickname, m.User.AccountID)
-			}
-		})
+		return printOutput(members, func() { render.MemberList(members) })
 	},
 }
 

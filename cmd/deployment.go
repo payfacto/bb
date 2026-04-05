@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/payfacto/bb/cmd/render"
 	"github.com/spf13/cobra"
 )
 
@@ -24,29 +24,7 @@ var deploymentListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(deployments, func() {
-			if len(deployments) == 0 {
-				fmt.Println("No deployments found.")
-				return
-			}
-			for _, d := range deployments {
-				status := d.State.Name
-				if d.State.Status != nil {
-					status += "/" + d.State.Status.Name
-				}
-				commit := ""
-				if d.Deployable.Commit != nil && len(d.Deployable.Commit.Hash) >= shortHashLen {
-					commit = d.Deployable.Commit.Hash[:shortHashLen]
-				}
-				date := ""
-				if len(d.LastUpdateTime) >= datePrefixLen {
-					date = d.LastUpdateTime[:datePrefixLen]
-				}
-				envUUID := truncate(d.Environment.UUID, 38)
-				fmt.Printf("%-38s  %-30s  %-8s  %s\n",
-					envUUID, status, commit, date)
-			}
-		})
+		return printOutput(deployments, func() { render.DeploymentList(deployments) })
 	},
 }
 
