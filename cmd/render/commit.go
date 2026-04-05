@@ -29,7 +29,11 @@ func CommitListString(commits []bitbucket.Commit) string {
 	sb.WriteString(divider)
 
 	for _, c := range commits {
-		hash := IDStyle.Render(c.Hash[:shortHashLen])
+		hash := c.Hash
+		if len(hash) >= shortHashLen {
+			hash = hash[:shortHashLen]
+		}
+		hash = IDStyle.Render(hash)
 		date := ""
 		if len(c.Date) >= datePrefixLen {
 			date = c.Date[:datePrefixLen]
@@ -66,7 +70,11 @@ func CommitDetailString(c bitbucket.Commit) string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Hash"), IDStyle.Render(c.Hash[:shortHashLen])))
+	hash := c.Hash
+	if len(hash) >= shortHashLen {
+		hash = hash[:shortHashLen]
+	}
+	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Hash"), IDStyle.Render(hash)))
 	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Date"), DimStyle.Render(c.Date)))
 	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Author"), c.Author.Raw))
 	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Message"), c.Message))
