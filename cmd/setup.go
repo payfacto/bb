@@ -40,11 +40,17 @@ var setupCmd = &cobra.Command{
 		user := promptLine(r, "Username (email)", existing.Username)
 		tok := promptPassword("App password (token)", existing.Token)
 
+		authType := existing.AuthType
+		if tok != "" {
+			authType = "apppassword"
+		}
+
 		updated := &config.Config{
-			Workspace: ws,
-			Repo:      defaultRepo,
-			Username:  user,
-			AuthType:  "apppassword",
+			Workspace:     ws,
+			Repo:          defaultRepo,
+			Username:      user,
+			AuthType:      authType,
+			OAuthClientID: existing.OAuthClientID,
 			// Token deliberately not set — stored in keyring below, not in YAML
 		}
 		if err := updated.Save(path); err != nil {
