@@ -56,6 +56,9 @@ Workspace: myworkspace  Repo: myrepo
 - Tab-cycle through filters (OPEN/MERGED/DECLINED) on PR lists
 - Type-ahead search with `/` to filter any list
 - Press `r` to refresh, `q` to quit
+- Reconfigure credentials from the "Setup" menu item without leaving the TUI
+
+**First run:** If no config exists, the TUI automatically shows a setup wizard — no need to run `bb setup` first.
 
 The TUI requires a terminal — piped or scripted usage falls back to the standard CLI.
 

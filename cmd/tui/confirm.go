@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"time"
-
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/key"
 )
@@ -49,7 +47,3 @@ type actionResultMsg struct {
 }
 
 type clearStatusMsg struct{}
-
-func clearStatusAfter(d time.Duration) tea.Cmd {
-	return tea.Tick(d, func(t time.Time) tea.Msg { return clearStatusMsg{} })
-}

@@ -31,7 +31,31 @@ var rootCmd = &cobra.Command{
 	Short: "Bitbucket Cloud CLI",
 	Long:  "A CLI for Bitbucket Cloud REST API 2.0. Run 'bb setup' to configure.",
 	// RunE is called when no subcommand is given — launches TUI.
+	// Loads config but skips validation — TUI handles missing config with a setup wizard.
 	RunE: func(cmd *cobra.Command, args []string) error {
+		var err error
+		cfg, err = config.Load(cfgFile)
+		if err != nil {
+			return err
+		}
+		cfg.Apply(workspace, repo, username, token)
+
+		// Try to resolve credentials, but don't fail if missing — TUI will handle it.
+		if cfg.Token == "" && cfg.Username != "" {
+			tok, keyringErr := auth.GetToken(cfg.Username)
+			if keyringErr == nil {
+				cfg.Token = tok
+			}
+		}
+
+		// Build client if we have credentials, otherwise pass nil — TUI detects this.
+		if cfg.Token != "" {
+			client = bitbucket.New(cfg)
+			if cfg.HasOAuth() {
+				client.SetBearerToken(cfg.Token)
+			}
+		}
+
 		return tui.Run(client, cfg)
 	},
 	// PersistentPreRunE runs before every subcommand except those that override it.
