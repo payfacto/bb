@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/payfacto/bb/cmd/render"
 	"github.com/payfacto/bb/internal/auth"
 	"github.com/payfacto/bb/internal/config"
 )
@@ -129,28 +130,32 @@ var authStatusCmd = &cobra.Command{
 			return nil
 		}
 
-		fmt.Printf("Username:  %s\n", existing.Username)
-		fmt.Printf("Workspace: %s\n", existing.Workspace)
-
 		authMethod := existing.AuthType
 		if authMethod == "" {
 			authMethod = "apppassword (legacy)"
 		}
-		fmt.Printf("Auth type: %s\n", authMethod)
 
+		var tokenStatus string
 		tok, err := auth.GetToken(existing.Username)
 		switch {
 		case err == nil:
-			fmt.Printf("Token:     %s (from OS keyring)\n", maskToken(tok))
+			tokenStatus = maskToken(tok) + " (from OS keyring)"
 		case errors.Is(err, auth.ErrTokenNotFound):
 			if envTok := os.Getenv("BITBUCKET_TOKEN"); envTok != "" {
-				fmt.Printf("Token:     %s (from BITBUCKET_TOKEN env var)\n", maskToken(envTok))
+				tokenStatus = maskToken(envTok) + " (from BITBUCKET_TOKEN env var)"
 			} else {
-				fmt.Println("Token:     not found — run 'bb auth login' or 'bb setup'")
+				tokenStatus = "not found — run 'bb auth login' or 'bb setup'"
 			}
 		default:
-			fmt.Printf("Token:     keyring unavailable (%v)\n", err)
+			tokenStatus = fmt.Sprintf("keyring unavailable (%v)", err)
 		}
+
+		render.AuthStatus(render.AuthStatusInfo{
+			Username:    existing.Username,
+			Workspace:   existing.Workspace,
+			AuthType:    authMethod,
+			TokenStatus: tokenStatus,
+		})
 		return nil
 	},
 }

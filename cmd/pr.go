@@ -203,39 +203,39 @@ func init() {
 	rootCmd.AddCommand(prCmd)
 	prCmd.AddCommand(prListCmd, prGetCmd, prCreateCmd, prDiffCmd, prApproveCmd, prMergeCmd, prDeclineCmd, prActivityCmd, prStatusesCmd)
 
-	prListCmd.Flags().StringVar(&prListState, "state", "OPEN",
+	prListCmd.Flags().StringVarP(&prListState, "state", "s", "OPEN",
 		"filter by state: OPEN, MERGED, DECLINED, SUPERSEDED")
 
-	prGetCmd.Flags().IntVar(&prGetID, "pr-id", 0, "pull request ID")
+	prGetCmd.Flags().IntVarP(&prGetID, "pr-id", "p", 0, "pull request ID")
 	prGetCmd.MarkFlagRequired("pr-id")
 
-	prCreateCmd.Flags().StringVar(&prCreateTitle, "title", "", "PR title")
+	prCreateCmd.Flags().StringVarP(&prCreateTitle, "title", "T", "", "PR title")
 	prCreateCmd.Flags().StringVar(&prCreateFromBranch, "from-branch", "", "source branch")
 	prCreateCmd.Flags().StringVar(&prCreateToBranch, "to-branch", "", "destination branch")
-	prCreateCmd.Flags().StringVar(&prCreateDescription, "description", "", "PR description")
+	prCreateCmd.Flags().StringVarP(&prCreateDescription, "description", "d", "", "PR description")
 	prCreateCmd.Flags().BoolVar(&prCreateCloseSource, "close-source-branch", false,
 		"close source branch after merge")
 	prCreateCmd.MarkFlagRequired("title")
 	prCreateCmd.MarkFlagRequired("from-branch")
 	prCreateCmd.MarkFlagRequired("to-branch")
 
-	prDiffCmd.Flags().IntVar(&prDiffID, "pr-id", 0, "pull request ID")
+	prDiffCmd.Flags().IntVarP(&prDiffID, "pr-id", "p", 0, "pull request ID")
 	prDiffCmd.MarkFlagRequired("pr-id")
 
-	prApproveCmd.Flags().IntVar(&prApproveID, "pr-id", 0, "pull request ID")
+	prApproveCmd.Flags().IntVarP(&prApproveID, "pr-id", "p", 0, "pull request ID")
 	prApproveCmd.MarkFlagRequired("pr-id")
 
-	prMergeCmd.Flags().IntVar(&prMergeID, "pr-id", 0, "pull request ID")
+	prMergeCmd.Flags().IntVarP(&prMergeID, "pr-id", "p", 0, "pull request ID")
 	prMergeCmd.Flags().StringVar(&prMergeStrategy, "strategy", "merge_commit",
 		"merge strategy: merge_commit, squash, fast_forward")
 	prMergeCmd.MarkFlagRequired("pr-id")
 
-	prDeclineCmd.Flags().IntVar(&prDeclineID, "pr-id", 0, "pull request ID")
+	prDeclineCmd.Flags().IntVarP(&prDeclineID, "pr-id", "p", 0, "pull request ID")
 	prDeclineCmd.MarkFlagRequired("pr-id")
 
-	prActivityCmd.Flags().IntVar(&prActivityID, "pr-id", 0, "pull request ID")
+	prActivityCmd.Flags().IntVarP(&prActivityID, "pr-id", "p", 0, "pull request ID")
 	prActivityCmd.MarkFlagRequired("pr-id")
 
-	prStatusesCmd.Flags().IntVar(&prStatusesID, "pr-id", 0, "pull request ID")
+	prStatusesCmd.Flags().IntVarP(&prStatusesID, "pr-id", "p", 0, "pull request ID")
 	prStatusesCmd.MarkFlagRequired("pr-id")
 }

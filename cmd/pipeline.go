@@ -128,19 +128,19 @@ var pipelineLogCmd = &cobra.Command{
 }
 
 func init() {
-	pipelineGetCmd.Flags().StringVar(&pipelineGetUUID, "pipeline-uuid", "", "pipeline UUID (required)")
+	pipelineGetCmd.Flags().StringVarP(&pipelineGetUUID, "pipeline-uuid", "u", "", "pipeline UUID (required)")
 	pipelineGetCmd.MarkFlagRequired("pipeline-uuid")
 
-	pipelineTriggerCmd.Flags().StringVar(&pipelineTriggerBranch, "branch", "", "branch to trigger pipeline on (required)")
+	pipelineTriggerCmd.Flags().StringVarP(&pipelineTriggerBranch, "branch", "b", "", "branch to trigger pipeline on (required)")
 	pipelineTriggerCmd.MarkFlagRequired("branch")
 
-	pipelineStopCmd.Flags().StringVar(&pipelineStopUUID, "pipeline-uuid", "", "pipeline UUID (required)")
+	pipelineStopCmd.Flags().StringVarP(&pipelineStopUUID, "pipeline-uuid", "u", "", "pipeline UUID (required)")
 	pipelineStopCmd.MarkFlagRequired("pipeline-uuid")
 
-	pipelineStepsCmd.Flags().StringVar(&pipelineStepsUUID, "pipeline-uuid", "", "pipeline UUID (required)")
+	pipelineStepsCmd.Flags().StringVarP(&pipelineStepsUUID, "pipeline-uuid", "u", "", "pipeline UUID (required)")
 	pipelineStepsCmd.MarkFlagRequired("pipeline-uuid")
 
-	pipelineLogCmd.Flags().StringVar(&pipelineLogPipelineUUID, "pipeline-uuid", "", "pipeline UUID (required)")
+	pipelineLogCmd.Flags().StringVarP(&pipelineLogPipelineUUID, "pipeline-uuid", "u", "", "pipeline UUID (required)")
 	pipelineLogCmd.Flags().StringVar(&pipelineLogStepUUID, "step-uuid", "", "step UUID (required)")
 	pipelineLogCmd.MarkFlagRequired("pipeline-uuid")
 	pipelineLogCmd.MarkFlagRequired("step-uuid")

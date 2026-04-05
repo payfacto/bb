@@ -72,12 +72,12 @@ var tagDeleteCmd = &cobra.Command{
 }
 
 func init() {
-	tagCreateCmd.Flags().StringVar(&tagCreateName, "name", "", "tag name (required)")
+	tagCreateCmd.Flags().StringVarP(&tagCreateName, "name", "n", "", "tag name (required)")
 	tagCreateCmd.Flags().StringVar(&tagCreateFrom, "from", "", "commit hash or branch name to tag (required)")
 	tagCreateCmd.MarkFlagRequired("name")
 	tagCreateCmd.MarkFlagRequired("from")
 
-	tagDeleteCmd.Flags().StringVar(&tagDeleteName, "name", "", "tag name to delete (required)")
+	tagDeleteCmd.Flags().StringVarP(&tagDeleteName, "name", "n", "", "tag name to delete (required)")
 	tagDeleteCmd.MarkFlagRequired("name")
 
 	tagCmd.AddCommand(tagListCmd, tagCreateCmd, tagDeleteCmd)

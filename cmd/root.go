@@ -73,11 +73,11 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", config.DefaultPath(), "config file path")
-	rootCmd.PersistentFlags().StringVar(&workspace, "workspace", "", "Bitbucket workspace slug (overrides config)")
-	rootCmd.PersistentFlags().StringVar(&repo, "repo", "", "repository slug (overrides config)")
+	rootCmd.PersistentFlags().StringVarP(&workspace, "workspace", "w", "", "Bitbucket workspace slug (overrides config)")
+	rootCmd.PersistentFlags().StringVarP(&repo, "repo", "r", "", "repository slug (overrides config)")
 	rootCmd.PersistentFlags().StringVar(&username, "username", "", "Bitbucket username (overrides config/env)")
 	rootCmd.PersistentFlags().StringVar(&token, "token", "", "Bitbucket app password (overrides config/env)")
-	rootCmd.PersistentFlags().StringVar(&format, "format", "json", "output format: json or text")
+	rootCmd.PersistentFlags().StringVarP(&format, "format", "f", "json", "output format: json or text")
 }
 
 // workspaceAndRepo returns the resolved workspace and repo, or an error if either is missing.

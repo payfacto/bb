@@ -77,10 +77,10 @@ var fileGetCmd = &cobra.Command{
 }
 
 func init() {
-	commitListCmd.Flags().StringVar(&commitListBranch, "branch", "", "branch name (required)")
+	commitListCmd.Flags().StringVarP(&commitListBranch, "branch", "b", "", "branch name (required)")
 	commitListCmd.MarkFlagRequired("branch")
 
-	commitGetCmd.Flags().StringVar(&commitGetHash, "hash", "", "commit hash (required)")
+	commitGetCmd.Flags().StringVarP(&commitGetHash, "hash", "x", "", "commit hash (required)")
 	commitGetCmd.MarkFlagRequired("hash")
 
 	fileGetCmd.Flags().StringVar(&fileGetRef, "ref", "", "branch name, tag, or commit hash (required)")

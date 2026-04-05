@@ -77,7 +77,7 @@ func init() {
 	deployKeyAddCmd.MarkFlagRequired("label")
 	deployKeyAddCmd.MarkFlagRequired("key")
 
-	deployKeyDeleteCmd.Flags().IntVar(&deployKeyDeleteID, "id", 0, "deploy key ID to delete (required)")
+	deployKeyDeleteCmd.Flags().IntVarP(&deployKeyDeleteID, "id", "i", 0, "deploy key ID to delete (required)")
 	deployKeyDeleteCmd.MarkFlagRequired("id")
 
 	deployKeyCmd.AddCommand(deployKeyListCmd, deployKeyAddCmd, deployKeyDeleteCmd)

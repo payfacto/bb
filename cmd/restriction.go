@@ -89,7 +89,7 @@ func init() {
 	restrictionCreateCmd.MarkFlagRequired("kind")
 	restrictionCreateCmd.MarkFlagRequired("pattern")
 
-	restrictionDeleteCmd.Flags().IntVar(&restrictionDeleteID, "id", 0, "branch restriction ID to delete (required)")
+	restrictionDeleteCmd.Flags().IntVarP(&restrictionDeleteID, "id", "i", 0, "branch restriction ID to delete (required)")
 	restrictionDeleteCmd.MarkFlagRequired("id")
 
 	restrictionCmd.AddCommand(restrictionListCmd, restrictionCreateCmd, restrictionDeleteCmd)

@@ -84,12 +84,12 @@ var issueCreateCmd = &cobra.Command{
 }
 
 func init() {
-	issueGetCmd.Flags().IntVar(&issueGetID, "id", 0, "issue ID (required)")
+	issueGetCmd.Flags().IntVarP(&issueGetID, "id", "i", 0, "issue ID (required)")
 	issueGetCmd.MarkFlagRequired("id")
 
-	issueCreateCmd.Flags().StringVar(&issueCreateTitle, "title", "", "issue title (required)")
-	issueCreateCmd.Flags().StringVar(&issueCreateDescription, "description", "", "issue description")
-	issueCreateCmd.Flags().StringVar(&issueCreateKind, "kind", "", "issue kind: bug, enhancement, proposal, task")
+	issueCreateCmd.Flags().StringVarP(&issueCreateTitle, "title", "T", "", "issue title (required)")
+	issueCreateCmd.Flags().StringVarP(&issueCreateDescription, "description", "d", "", "issue description")
+	issueCreateCmd.Flags().StringVarP(&issueCreateKind, "kind", "k", "", "issue kind: bug, enhancement, proposal, task")
 	issueCreateCmd.Flags().StringVar(&issueCreatePriority, "priority", "", "issue priority: trivial, minor, major, critical, blocker")
 	issueCreateCmd.MarkFlagRequired("title")
 

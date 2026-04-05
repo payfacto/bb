@@ -86,16 +86,16 @@ func init() {
 	prCmd.AddCommand(taskCmd)
 	taskCmd.AddCommand(taskListCmd, taskCompleteCmd, taskReopenCmd)
 
-	taskListCmd.Flags().IntVar(&taskListPRID, "pr-id", 0, "pull request ID")
+	taskListCmd.Flags().IntVarP(&taskListPRID, "pr-id", "p", 0, "pull request ID")
 	taskListCmd.MarkFlagRequired("pr-id")
 
-	taskCompleteCmd.Flags().IntVar(&taskCompletePRID, "pr-id", 0, "pull request ID")
+	taskCompleteCmd.Flags().IntVarP(&taskCompletePRID, "pr-id", "p", 0, "pull request ID")
 	taskCompleteCmd.Flags().IntSliceVar(&taskCompleteIDs, "task-id", nil,
 		"task ID to complete (repeatable: --task-id 1 --task-id 2)")
 	taskCompleteCmd.MarkFlagRequired("pr-id")
 	taskCompleteCmd.MarkFlagRequired("task-id")
 
-	taskReopenCmd.Flags().IntVar(&taskReopenPRID, "pr-id", 0, "pull request ID")
+	taskReopenCmd.Flags().IntVarP(&taskReopenPRID, "pr-id", "p", 0, "pull request ID")
 	taskReopenCmd.Flags().IntSliceVar(&taskReopenIDs, "task-id", nil,
 		"task ID to reopen (repeatable: --task-id 1 --task-id 2)")
 	taskReopenCmd.MarkFlagRequired("pr-id")

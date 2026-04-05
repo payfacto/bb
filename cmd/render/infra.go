@@ -236,3 +236,28 @@ func UserMeString(u bitbucket.User) string {
 
 // UserMe prints the formatted user profile to stdout.
 func UserMe(u bitbucket.User) { fmt.Print(UserMeString(u)) }
+
+// AuthStatusInfo holds pre-resolved auth status fields for rendering.
+type AuthStatusInfo struct {
+	Username    string
+	Workspace   string
+	AuthType    string
+	TokenStatus string // e.g. "abcd****efgh (from OS keyring)"
+}
+
+// AuthStatusString returns formatted text for the auth status display.
+func AuthStatusString(info AuthStatusInfo) string {
+	const labelW = 10
+	label := func(s string) string {
+		return LabelStyle.Render(fmt.Sprintf("  %-*s", labelW, s))
+	}
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Username"), info.Username))
+	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Workspace"), info.Workspace))
+	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Auth type"), StateBadge(info.AuthType)))
+	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Token"), info.TokenStatus))
+	return sb.String()
+}
+
+// AuthStatus prints the formatted auth status to stdout.
+func AuthStatus(info AuthStatusInfo) { fmt.Print(AuthStatusString(info)) }
