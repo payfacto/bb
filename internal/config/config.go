@@ -77,10 +77,10 @@ func (cfg *Config) Apply(workspace, repo, username, token string) {
 // Token is validated separately after keyring resolution via ValidateCredentials.
 func (cfg *Config) Validate() error {
 	if cfg.Workspace == "" {
-		return fmt.Errorf("no workspace configured — run 'bb setup' or 'bb auth login' to configure")
+		return fmt.Errorf("no workspace configured (run 'bb setup' or 'bb auth login')")
 	}
 	if cfg.Username == "" {
-		return fmt.Errorf("no username configured — run 'bb setup' or 'bb auth login' to configure")
+		return fmt.Errorf("no username configured (run 'bb setup' or 'bb auth login')")
 	}
 	return nil
 }
@@ -88,7 +88,7 @@ func (cfg *Config) Validate() error {
 // ValidateCredentials returns an error if no token is available.
 func (cfg *Config) ValidateCredentials() error {
 	if cfg.Token == "" {
-		return fmt.Errorf("no credentials found — run 'bb auth login' or 'bb setup' to configure")
+		return fmt.Errorf("no credentials found (run 'bb auth login' or set BITBUCKET_TOKEN)")
 	}
 	return nil
 }

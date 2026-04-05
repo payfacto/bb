@@ -53,6 +53,15 @@ func (c *Client) SetBearerToken(token string) {
 	c.bearerToken = token
 }
 
+// setAuth sets the Authorization header on req using Bearer token (OAuth) or Basic auth (app password).
+func (c *Client) setAuth(req *http.Request) {
+	if c.bearerToken != "" {
+		req.Header.Set("Authorization", "Bearer "+c.bearerToken)
+	} else {
+		req.SetBasicAuth(c.username, c.token)
+	}
+}
+
 // PRs returns a PRResource scoped to the given workspace and repo.
 func (c *Client) PRs(workspace, repo string) *PRResource {
 	return &PRResource{client: c, workspace: workspace, repo: repo}
@@ -165,11 +174,7 @@ func (c *Client) do(ctx context.Context, method, path string, body any, query ur
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	if c.bearerToken != "" {
-		req.Header.Set("Authorization", "Bearer "+c.bearerToken)
-	} else {
-		req.SetBasicAuth(c.username, c.token)
-	}
+	c.setAuth(req)
 	req.Header.Set("Accept", "application/json")
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -201,11 +206,7 @@ func (c *Client) doMultipart(ctx context.Context, path string, body io.Reader, c
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	if c.bearerToken != "" {
-		req.Header.Set("Authorization", "Bearer "+c.bearerToken)
-	} else {
-		req.SetBasicAuth(c.username, c.token)
-	}
+	c.setAuth(req)
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", contentType)
 
