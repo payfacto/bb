@@ -33,6 +33,16 @@ func (r *CommentResource) List(ctx context.Context) ([]Comment, error) {
 	return page.Values, nil
 }
 
+// Get returns a single comment by ID.
+func (r *CommentResource) Get(ctx context.Context, commentID int) (Comment, error) {
+	path := fmt.Sprintf("%s/%d", r.basePath(), commentID)
+	data, err := r.client.do(ctx, "GET", path, nil, nil)
+	if err != nil {
+		return Comment{}, err
+	}
+	return decode[Comment](data)
+}
+
 // Add posts a new comment. Set input.Inline for an inline comment on a specific file/line.
 func (r *CommentResource) Add(ctx context.Context, input AddCommentInput) (Comment, error) {
 	data, err := r.client.do(ctx, "POST", r.basePath(), input, nil)
