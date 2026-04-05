@@ -22,10 +22,11 @@ const (
 
 // Client is the Bitbucket Cloud HTTP client.
 type Client struct {
-	baseURL    string
-	username   string
-	token      string
-	httpClient *http.Client
+	baseURL     string
+	username    string
+	token       string
+	bearerToken string // set when using OAuth; takes priority over Basic auth
+	httpClient  *http.Client
 }
 
 // New creates a Client from cfg using the live Bitbucket API.
@@ -45,6 +46,11 @@ func NewWithBaseURL(cfg *config.Config, baseURL string) *Client {
 	c := New(cfg)
 	c.baseURL = baseURL
 	return c
+}
+
+// SetBearerToken configures the client to use OAuth Bearer token auth instead of Basic auth.
+func (c *Client) SetBearerToken(token string) {
+	c.bearerToken = token
 }
 
 // PRs returns a PRResource scoped to the given workspace and repo.
@@ -159,7 +165,11 @@ func (c *Client) do(ctx context.Context, method, path string, body any, query ur
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	req.SetBasicAuth(c.username, c.token)
+	if c.bearerToken != "" {
+		req.Header.Set("Authorization", "Bearer "+c.bearerToken)
+	} else {
+		req.SetBasicAuth(c.username, c.token)
+	}
 	req.Header.Set("Accept", "application/json")
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -191,7 +201,11 @@ func (c *Client) doMultipart(ctx context.Context, path string, body io.Reader, c
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	req.SetBasicAuth(c.username, c.token)
+	if c.bearerToken != "" {
+		req.Header.Set("Authorization", "Bearer "+c.bearerToken)
+	} else {
+		req.SetBasicAuth(c.username, c.token)
+	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", contentType)
 
