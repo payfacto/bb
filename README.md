@@ -24,10 +24,40 @@ go build -o bb .
 
 ```bash
 bb setup                    # interactive config wizard
-bb pr list                  # list open PRs in configured repo
-bb pr get --pr-id 42        # get a specific PR as JSON
-bb pr list --format text    # human-readable output
+bb                          # launch interactive TUI
+bb pr list                  # list open PRs as JSON
+bb pr list -f text          # human-readable output
+bb pr get -p 42             # get a specific PR as JSON
 ```
+
+## Interactive TUI
+
+Running `bb` with no arguments launches a full-screen interactive terminal UI.
+
+```
+bb — Bitbucket Cloud CLI
+Workspace: myworkspace  Repo: myrepo
+──────────────────────────────────────────────────
+▸ Pull Requests    List, review, approve, merge PRs
+  Pipelines        View builds, trigger, check steps
+  Branches         List and manage branches
+  Commits          Browse commit history
+  ...
+──────────────────────────────────────────────────
+↑/k up  ↓/j down  enter select  / search  q quit
+```
+
+**Navigation:** Arrow keys or `j`/`k` to move, `Enter` to drill in, `Esc` to go back. Breadcrumbs track your location (`Home > Pull Requests > #42 > Comments`).
+
+**Key features:**
+- Browse PRs, pipelines, branches, commits, tags, issues, repos, deployments, and settings
+- Drill into a PR to view comments, activity, statuses, diff, and tasks
+- Approve PRs instantly (`a`), merge/decline with confirmation (`m`)
+- Tab-cycle through filters (OPEN/MERGED/DECLINED) on PR lists
+- Type-ahead search with `/` to filter any list
+- Press `r` to refresh, `q` to quit
+
+The TUI requires a terminal — piped or scripted usage falls back to the standard CLI.
 
 ## Authentication
 
@@ -229,9 +259,13 @@ bb download file --filename NAME --dest PATH
 bb download upload --file PATH
 ```
 
-## Output
+## Output Modes
 
-Default output is JSON (machine-readable, suitable for `jq`). Pass `--format text` for human-readable plain text.
+| Mode | How to use | When |
+|------|-----------|------|
+| **TUI** | `bb` (no args) | Interactive exploration in a terminal |
+| **JSON** | `bb pr list` (default) | Scripts, agents, piping to `jq` |
+| **Text** | `bb pr list -f text` | Human-readable CLI output with color |
 
 `bb pr diff` and `bb pipeline log` always output plain text regardless of `--format`.
 
