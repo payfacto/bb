@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/payfacto/bb/cmd/render"
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
@@ -28,15 +29,7 @@ var commentListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(comments, func() {
-			if len(comments) == 0 {
-				fmt.Println("No comments found.")
-				return
-			}
-			for _, c := range comments {
-				fmt.Printf("  [%d] %s: %s\n", c.ID, c.User.DisplayName, truncate(c.Content.Raw, 120))
-			}
-		})
+		return printOutput(comments, func() { render.CommentList(comments) })
 	},
 }
 
