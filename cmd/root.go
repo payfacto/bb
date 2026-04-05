@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/payfacto/bb/cmd/tui"
 	"github.com/payfacto/bb/internal/auth"
 	"github.com/payfacto/bb/internal/config"
 	"github.com/payfacto/bb/pkg/bitbucket"
@@ -29,6 +30,10 @@ var rootCmd = &cobra.Command{
 	Use:   "bb",
 	Short: "Bitbucket Cloud CLI",
 	Long:  "A CLI for Bitbucket Cloud REST API 2.0. Run 'bb setup' to configure.",
+	// RunE is called when no subcommand is given — launches TUI.
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return tui.Run(client, cfg)
+	},
 	// PersistentPreRunE runs before every subcommand except those that override it.
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		var err error
