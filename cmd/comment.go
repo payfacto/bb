@@ -50,12 +50,7 @@ var commentGetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return printOutput(c, func() {
-			fmt.Printf("  [%d] %s: %s\n", c.ID, c.User.DisplayName, c.Content.Raw)
-			if c.Inline != nil {
-				fmt.Printf("  File: %s:%d\n", c.Inline.Path, c.Inline.To)
-			}
-		})
+		return printOutput(c, func() { render.CommentDetail(c) })
 	},
 }
 
@@ -122,24 +117,24 @@ func init() {
 	prCmd.AddCommand(commentCmd)
 	commentCmd.AddCommand(commentListCmd, commentGetCmd, commentAddCmd, commentReplyCmd)
 
-	commentListCmd.Flags().IntVar(&commentListPRID, "pr-id", 0, "pull request ID")
+	commentListCmd.Flags().IntVarP(&commentListPRID, "pr-id", "p", 0, "pull request ID")
 	commentListCmd.MarkFlagRequired("pr-id")
 
-	commentGetCmd.Flags().IntVar(&commentGetPRID, "pr-id", 0, "pull request ID")
-	commentGetCmd.Flags().IntVar(&commentGetCommentID, "comment-id", 0, "comment ID")
+	commentGetCmd.Flags().IntVarP(&commentGetPRID, "pr-id", "p", 0, "pull request ID")
+	commentGetCmd.Flags().IntVarP(&commentGetCommentID, "comment-id", "c", 0, "comment ID")
 	commentGetCmd.MarkFlagRequired("pr-id")
 	commentGetCmd.MarkFlagRequired("comment-id")
 
-	commentAddCmd.Flags().IntVar(&commentAddPRID, "pr-id", 0, "pull request ID")
-	commentAddCmd.Flags().StringVar(&commentAddText, "text", "", "comment text")
+	commentAddCmd.Flags().IntVarP(&commentAddPRID, "pr-id", "p", 0, "pull request ID")
+	commentAddCmd.Flags().StringVarP(&commentAddText, "text", "t", "", "comment text")
 	commentAddCmd.Flags().StringVar(&commentAddFile, "file", "", "file path for inline comment")
 	commentAddCmd.Flags().IntVar(&commentAddLine, "line", 0, "line number for inline comment")
 	commentAddCmd.MarkFlagRequired("pr-id")
 	commentAddCmd.MarkFlagRequired("text")
 
-	commentReplyCmd.Flags().IntVar(&commentReplyPRID, "pr-id", 0, "pull request ID")
-	commentReplyCmd.Flags().IntVar(&commentReplyCommentID, "comment-id", 0, "parent comment ID")
-	commentReplyCmd.Flags().StringVar(&commentReplyText, "text", "", "reply text")
+	commentReplyCmd.Flags().IntVarP(&commentReplyPRID, "pr-id", "p", 0, "pull request ID")
+	commentReplyCmd.Flags().IntVarP(&commentReplyCommentID, "comment-id", "c", 0, "parent comment ID")
+	commentReplyCmd.Flags().StringVarP(&commentReplyText, "text", "t", "", "reply text")
 	commentReplyCmd.MarkFlagRequired("pr-id")
 	commentReplyCmd.MarkFlagRequired("comment-id")
 	commentReplyCmd.MarkFlagRequired("text")

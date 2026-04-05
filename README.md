@@ -75,80 +75,96 @@ bb pr list --workspace myws --repo myrepo
 
 ## Global Flags
 
-| Flag | Description |
-|------|-------------|
-| `--workspace SLUG` | Bitbucket workspace slug |
-| `--repo SLUG` | Repository slug |
-| `--format json\|text` | Output format (default: `json`) |
-| `--config PATH` | Path to config file (default: `~/.bbcloud.yaml`) |
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--workspace SLUG` | `-w` | Bitbucket workspace slug |
+| `--repo SLUG` | `-r` | Repository slug |
+| `--format json\|text` | `-f` | Output format (default: `json`) |
+| `--config PATH` | | Path to config file (default: `~/.bbcloud.yaml`) |
+
+### Common Shorthands
+
+| Short | Long | Used by |
+|-------|------|---------|
+| `-p` | `--pr-id` | All PR, comment, and task commands |
+| `-s` | `--state` | `pr list` |
+| `-b` | `--branch` | `commit list`, `pipeline trigger` |
+| `-u` | `--pipeline-uuid` | `pipeline get/stop/steps/log` |
+| `-c` | `--comment-id` | `comment get`, `comment reply` |
+| `-t` | `--text` | `comment add`, `comment reply` |
+| `-T` | `--title` | `pr create`, `issue create` |
+| `-d` | `--description` | `pr create`, `issue create` |
+| `-n` | `--name` | `branch create/delete`, `tag create/delete` |
+| `-i` | `--id` | `issue get`, `deploy-key delete`, `restriction delete` |
+| `-k` | `--kind` | `issue create` |
+| `-x` | `--hash` | `commit get` |
 
 ## Commands
 
 ### Pull Requests
 
 ```
-bb pr list [--state OPEN|MERGED|DECLINED|SUPERSEDED]
-bb pr get --pr-id ID
-bb pr create --title "..." --from-branch BRANCH --to-branch BRANCH [--description "..."] [--close-source-branch]
-bb pr diff --pr-id ID
-bb pr approve --pr-id ID
-bb pr merge --pr-id ID [--strategy merge_commit|squash|fast_forward]
-bb pr decline --pr-id ID
-bb pr activity --pr-id ID
-bb pr statuses --pr-id ID
+bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED]
+bb pr get -p ID
+bb pr create --title "..." --from-branch BRANCH --to-branch BRANCH [-d "..."] [--close-source-branch]
+bb pr diff -p ID
+bb pr approve -p ID
+bb pr merge -p ID [--strategy merge_commit|squash|fast_forward]
+bb pr decline -p ID
+bb pr activity -p ID
+bb pr statuses -p ID
 ```
 
 ### PR Comments
 
 ```
-bb comment list --pr-id ID
-bb comment add --pr-id ID --body "..."
-bb comment reply --pr-id ID --comment-id ID --body "..."
+bb pr comment list -p ID
+bb pr comment get -p ID -c COMMENT_ID
+bb pr comment add -p ID -t "..."
+bb pr comment reply -p ID -c COMMENT_ID -t "..."
 ```
 
 ### PR Tasks
 
 ```
-bb task list --pr-id ID
-bb task complete --task-id ID --pr-id ID
-bb task reopen --task-id ID --pr-id ID
+bb pr task list -p ID
+bb pr task complete -p ID --task-id ID
+bb pr task reopen -p ID --task-id ID
 ```
 
 ### Pipelines
 
 ```
 bb pipeline list
-bb pipeline get --pipeline-uuid UUID
-bb pipeline trigger --branch BRANCH
-bb pipeline stop --pipeline-uuid UUID
-bb pipeline steps --pipeline-uuid UUID
-bb pipeline log --pipeline-uuid UUID --step-uuid UUID
+bb pipeline get -u UUID
+bb pipeline trigger -b BRANCH
+bb pipeline stop -u UUID
+bb pipeline steps -u UUID
+bb pipeline log -u UUID --step-uuid UUID
 ```
 
 ### Branches
 
 ```
 bb branch list
-bb branch get --name BRANCH
-bb branch create --name BRANCH --target COMMIT_OR_BRANCH
-bb branch delete --name BRANCH
+bb branch create -n BRANCH --from COMMIT_OR_BRANCH
+bb branch delete -n BRANCH
 ```
 
 ### Tags
 
 ```
 bb tag list
-bb tag get --name TAG
-bb tag create --name TAG --target COMMIT
-bb tag delete --name TAG
+bb tag create -n TAG --from COMMIT
+bb tag delete -n TAG
 ```
 
 ### Commits
 
 ```
-bb commit list [--branch BRANCH]
-bb commit get --hash HASH
-bb commit file --hash HASH --path PATH
+bb commit list -b BRANCH
+bb commit get -x HASH
+bb file get --ref REF --path PATH
 ```
 
 ### Repositories
@@ -161,8 +177,8 @@ bb repo list
 
 ```
 bb issue list
-bb issue get --issue-id ID
-bb issue create --title "..." [--content "..."] [--kind bug|enhancement|proposal|task] [--priority trivial|minor|major|critical|blocker]
+bb issue get -i ID
+bb issue create -T "..." [-d "..."] [-k bug|enhancement|proposal|task] [--priority trivial|minor|major|critical|blocker]
 ```
 
 ### Deployments & Environments

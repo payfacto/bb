@@ -72,12 +72,12 @@ var branchDeleteCmd = &cobra.Command{
 }
 
 func init() {
-	branchCreateCmd.Flags().StringVar(&branchCreateName, "name", "", "name for the new branch (required)")
+	branchCreateCmd.Flags().StringVarP(&branchCreateName, "name", "n", "", "name for the new branch (required)")
 	branchCreateCmd.Flags().StringVar(&branchCreateFrom, "from", "", "branch name or commit hash to branch from (required)")
 	branchCreateCmd.MarkFlagRequired("name")
 	branchCreateCmd.MarkFlagRequired("from")
 
-	branchDeleteCmd.Flags().StringVar(&branchDeleteName, "name", "", "branch name to delete (required)")
+	branchDeleteCmd.Flags().StringVarP(&branchDeleteName, "name", "n", "", "branch name to delete (required)")
 	branchDeleteCmd.MarkFlagRequired("name")
 
 	branchCmd.AddCommand(branchListCmd, branchCreateCmd, branchDeleteCmd)
