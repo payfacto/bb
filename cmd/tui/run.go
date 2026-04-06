@@ -8,6 +8,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/payfacto/bb/internal/config"
+	"github.com/payfacto/bb/internal/history"
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
@@ -21,16 +22,23 @@ func Run(client *bitbucket.Client, cfg *config.Config) error {
 		cfg = &config.Config{}
 	}
 
+	histPath := history.HistoryPath(config.DefaultPath())
+	hist, histErr := history.Load(histPath)
+	cache := newListCache()
+
 	var root View
 	if client == nil {
-		// No credentials — show setup wizard first
 		root = newSetupView(config.DefaultPath(), cfg)
 	} else {
-		items := buildMenuItems(client, cfg)
+		items := buildMenuItems(client, cfg, hist, cache)
 		root = newMenuModel(cfg.Workspace, cfg.Repo, items)
 	}
 
-	app := newApp(root)
+	app := newApp(root, hist, cache)
+	if histErr != nil {
+		app.statusMsg = fmt.Sprintf("could not load history: %v", histErr)
+		app.statusIsErr = true
+	}
 	p := tea.NewProgram(app, tea.WithAltScreen())
 	_, err := p.Run()
 	return err
