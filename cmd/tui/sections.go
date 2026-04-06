@@ -22,6 +22,12 @@ const (
 	shortHashLen  = 8  // characters to show for a commit/tag hash abbreviation
 	isoDateLen    = 10 // characters to keep from an ISO-8601 timestamp (YYYY-MM-DD)
 	msgPreviewLen = 60 // max characters shown for a commit message preview
+
+	// Deploy key display: show a short prefix and suffix, mask the middle.
+	deployKeyPrefixLen = 6
+	deployKeySuffixLen = 4
+	deployKeyMaskLen   = 12
+	deployKeyMinLen    = deployKeyPrefixLen + deployKeySuffixLen // minimum length before masking
 )
 
 // abbrevHash returns the first shortHashLen characters of h, or h unchanged if shorter.
@@ -412,8 +418,8 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int)
 			}, func(item listItem) tea.Cmd {
 				k := item.data.(bitbucket.DeployKey)
 				maskedKey := k.Key
-				if len(k.Key) > 10 {
-					maskedKey = k.Key[:6] + strings.Repeat("•", 12) + k.Key[len(k.Key)-4:]
+				if len(k.Key) > deployKeyMinLen {
+					maskedKey = k.Key[:deployKeyPrefixLen] + strings.Repeat("•", deployKeyMaskLen) + k.Key[len(k.Key)-deployKeySuffixLen:]
 				}
 				return pushViewCmd(newDetailView(DetailConfig{
 					Title: "Deploy Key: " + k.Label,
