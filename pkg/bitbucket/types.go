@@ -229,13 +229,40 @@ type CreateRepoInput struct {
 
 // ForkRepoInput is the request body for forking a repository.
 type ForkRepoInput struct {
-	Name      string      `json:"name,omitempty"`
+	Name      string        `json:"name,omitempty"`
 	Workspace *WorkspaceRef `json:"workspace,omitempty"`
 }
 
 // WorkspaceRef is a minimal workspace reference used in fork requests.
 type WorkspaceRef struct {
 	Slug string `json:"slug"`
+}
+
+// Snippet types
+
+// Snippet represents a Bitbucket snippet (code gist).
+type Snippet struct {
+	ID        string                 `json:"id"`
+	Title     string                 `json:"title"`
+	IsPrivate bool                   `json:"is_private"`
+	CreatedOn string                 `json:"created_on"`
+	UpdatedOn string                 `json:"updated_on"`
+	Owner     Actor                  `json:"owner"`
+	Creator   Actor                  `json:"creator"`
+	Files     map[string]SnippetFile `json:"files"`
+	Links     Links                  `json:"links"`
+}
+
+// SnippetFile is a single file within a snippet.
+type SnippetFile struct {
+	Links SnippetFileLinks `json:"links"`
+}
+
+// SnippetFileLinks holds the raw download link for a snippet file.
+type SnippetFileLinks struct {
+	Raw struct {
+		Href string `json:"href"`
+	} `json:"raw"`
 }
 
 // Webhook types
