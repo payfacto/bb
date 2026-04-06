@@ -638,6 +638,18 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int)
 						{Label: "Open in browser", OnSelect: func() tea.Cmd {
 							return openURLCmd(h.URL)
 						}},
+						{Label: "✗ Delete", Style: &actionDangerStyle, Confirm: &ConfirmConfig{
+							Message: fmt.Sprintf("Delete webhook %q?", h.URL),
+							OnYes: func() tea.Cmd {
+								return tea.Sequence(
+									popView,
+									popView,
+									executeAction(func() error {
+										return client.Webhooks(ws, repo).Delete(context.Background(), h.UUID)
+									}, "Webhook deleted"),
+								)
+							},
+						}},
 					},
 				}))
 			})
@@ -666,6 +678,18 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int)
 					Actions: []ActionItem{
 						{Label: "Reveal Key", OnSelect: func() tea.Cmd {
 							return pushViewCmd(newTextView("Key: "+k.Label, k.Key+"\n"))
+						}},
+						{Label: "✗ Delete", Style: &actionDangerStyle, Confirm: &ConfirmConfig{
+							Message: fmt.Sprintf("Delete deploy key %q?", k.Label),
+							OnYes: func() tea.Cmd {
+								return tea.Sequence(
+									popView,
+									popView,
+									executeAction(func() error {
+										return client.DeployKeys(ws, repo).Delete(context.Background(), k.ID)
+									}, fmt.Sprintf("Deploy key %q deleted", k.Label)),
+								)
+							},
 						}},
 					},
 				}))
@@ -727,7 +751,24 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int)
 				if valueStr != "" {
 					content += fmt.Sprintf("Value:   %s\n", valueStr)
 				}
-				return pushViewCmd(newTextView(fmt.Sprintf("Restriction #%d", r.ID), content))
+				return pushViewCmd(newDetailView(DetailConfig{
+					Title:   fmt.Sprintf("Restriction #%d", r.ID),
+					Content: content,
+					Actions: []ActionItem{
+						{Label: "✗ Delete", Style: &actionDangerStyle, Confirm: &ConfirmConfig{
+							Message: fmt.Sprintf("Delete restriction #%d (%s)?", r.ID, r.Kind),
+							OnYes: func() tea.Cmd {
+								return tea.Sequence(
+									popView,
+									popView,
+									executeAction(func() error {
+										return client.Restrictions(ws, repo).Delete(context.Background(), r.ID)
+									}, fmt.Sprintf("Restriction #%d deleted", r.ID)),
+								)
+							},
+						}},
+					},
+				}))
 			})
 		}},
 		{label: "Downloads", description: "Download artifacts", onSelect: func() View {
