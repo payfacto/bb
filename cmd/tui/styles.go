@@ -24,4 +24,9 @@ var (
 	headerStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("#89b4fa")).Bold(true)
 	subtitleStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#6c7086"))
 	separatorStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("#45475a"))
+
+	// Action intent colours
+	actionSuccessStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#a6e3a1")) // green
+	actionWarnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#f9e2af")) // yellow
+	actionDangerStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#f38ba8")) // red
 )

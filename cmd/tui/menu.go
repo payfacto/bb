@@ -31,6 +31,8 @@ func (m *menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
+		case key.Matches(msg, globalKeys.Back):
+			return m, popView
 		case key.Matches(msg, globalKeys.Up):
 			if m.cursor > 0 {
 				m.cursor--

@@ -24,13 +24,22 @@ type ListConfig struct {
 	OnSelect  func(item listItem) tea.Cmd
 	Filters   []string
 	Shortcuts []key.Binding
+	PageSize  int
+	EmptyMsg  string // optional custom message when no items are returned
 }
+
+const defaultPageSize = 10
+
+// subtitleIndent is the horizontal indent applied when rendering a list item's subtitle line.
+const subtitleIndent = "         "
 
 type listModel struct {
 	cfg       ListConfig
 	items     []listItem
 	filtered  []listItem
 	cursor    int
+	offset    int
+	pageSize  int
 	loading   bool
 	err       error
 	spinner   spinner.Model
@@ -45,7 +54,11 @@ func newListView(cfg ListConfig) *listModel {
 	ti := textinput.New()
 	ti.Placeholder = "search..."
 	ti.CharLimit = 100
-	return &listModel{cfg: cfg, loading: true, spinner: sp, search: ti}
+	ps := cfg.PageSize
+	if ps <= 0 {
+		ps = defaultPageSize
+	}
+	return &listModel{cfg: cfg, loading: true, spinner: sp, search: ti, pageSize: ps}
 }
 
 type fetchResultMsg struct {
@@ -77,6 +90,7 @@ func (m *listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.items = msg.items
 		m.filtered = msg.items
 		m.cursor = 0
+		m.offset = 0
 		return m, nil
 	case spinner.TickMsg:
 		if m.loading {
@@ -100,6 +114,7 @@ func (m *listModel) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.searching = false
 		m.filtered = m.items
 		m.cursor = 0
+		m.offset = 0
 		return m, nil
 	case tea.KeyEnter:
 		m.searching = false
@@ -116,6 +131,7 @@ func (m *listModel) applySearch() {
 	if query == "" {
 		m.filtered = m.items
 		m.cursor = 0
+		m.offset = 0
 		return
 	}
 	var result []listItem
@@ -127,6 +143,7 @@ func (m *listModel) applySearch() {
 	}
 	m.filtered = result
 	m.cursor = 0
+	m.offset = 0
 }
 
 func (m *listModel) updateNavigation(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -134,10 +151,12 @@ func (m *listModel) updateNavigation(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, globalKeys.Up):
 		if m.cursor > 0 {
 			m.cursor--
+			m.clampOffset()
 		}
 	case key.Matches(msg, globalKeys.Down):
 		if m.cursor < len(m.filtered)-1 {
 			m.cursor++
+			m.clampOffset()
 		}
 	case key.Matches(msg, globalKeys.Enter):
 		if m.cursor < len(m.filtered) && m.cfg.OnSelect != nil {
@@ -159,10 +178,20 @@ func (m *listModel) updateNavigation(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.filter = (m.filter + 1) % len(m.cfg.Filters)
 			m.loading = true
 			m.cursor = 0
+			m.offset = 0
 			return m, tea.Batch(m.spinner.Tick, m.fetchItems())
 		}
 	}
 	return m, nil
+}
+
+func (m *listModel) clampOffset() {
+	if m.cursor < m.offset {
+		m.offset = m.cursor
+	}
+	if m.cursor >= m.offset+m.pageSize {
+		m.offset = m.cursor - m.pageSize + 1
+	}
 }
 
 func (m *listModel) View() string {
@@ -192,32 +221,57 @@ func (m *listModel) View() string {
 	}
 	if m.err != nil {
 		sb.WriteString("\n")
-		sb.WriteString(errorStyle.Render(fmt.Sprintf("  Error: %v", m.err)))
+		errMsg := m.err.Error()
+		if strings.Contains(errMsg, "410") {
+			sb.WriteString(errorStyle.Render(fmt.Sprintf("  %s is not enabled for this repository.", m.cfg.Title)))
+		} else {
+			sb.WriteString(errorStyle.Render(fmt.Sprintf("  Error: %v", m.err)))
+		}
 		sb.WriteString("\n")
 		sb.WriteString(subtitleStyle.Render("  Press r to retry"))
 		sb.WriteString("\n")
 		return sb.String()
 	}
 	if len(m.filtered) == 0 {
-		sb.WriteString(fmt.Sprintf("\n  No %s found.\n", strings.ToLower(m.cfg.Title)))
+		msg := m.cfg.EmptyMsg
+		if msg == "" {
+			msg = fmt.Sprintf("No %s found.", strings.ToLower(m.cfg.Title))
+		}
+		sb.WriteString(fmt.Sprintf("\n  %s\n", msg))
 		return sb.String()
 	}
+	total := len(m.filtered)
+	start := m.offset
+	end := m.offset + m.pageSize
+	if end > total {
+		end = total
+	}
 	sb.WriteString("\n")
-	for i, item := range m.filtered {
+	if start > 0 {
+		sb.WriteString(subtitleStyle.Render(fmt.Sprintf("  ↑ %d more above", start)))
+		sb.WriteString("\n")
+	}
+	for i, item := range m.filtered[start:end] {
+		absIdx := start + i
 		var line string
 		if item.id != "" && item.id != item.title {
 			line = fmt.Sprintf("%-6s %s", item.id, item.title)
 		} else {
 			line = item.title
 		}
-		if item.subtitle != "" {
-			line += "  " + subtitleStyle.Render(item.subtitle)
-		}
-		if i == m.cursor {
+		if absIdx == m.cursor {
 			sb.WriteString(selectedStyle.Render(line))
 		} else {
 			sb.WriteString(normalStyle.Render(line))
 		}
+		sb.WriteString("\n")
+		if item.subtitle != "" {
+			sb.WriteString(subtitleStyle.Render(subtitleIndent + item.subtitle))
+			sb.WriteString("\n")
+		}
+	}
+	if end < total {
+		sb.WriteString(subtitleStyle.Render(fmt.Sprintf("  ↓ %d more below", total-end)))
 		sb.WriteString("\n")
 	}
 	return sb.String()

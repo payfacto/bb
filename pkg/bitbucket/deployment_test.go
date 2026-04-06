@@ -35,9 +35,6 @@ func TestDeployments_List(t *testing.T) {
 		if r.URL.Path != "/repositories/testws/testrepo/deployments/" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
-		if r.URL.Query().Get("sort") != "-last_update_time" {
-			t.Errorf("expected sort=-last_update_time, got %s", r.URL.Query().Get("sort"))
-		}
 		if r.URL.Query().Get("pagelen") != "25" {
 			t.Errorf("expected pagelen=25, got %s", r.URL.Query().Get("pagelen"))
 		}

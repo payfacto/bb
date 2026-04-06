@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 )
 
 // PipelineResource provides operations on repository pipelines.
@@ -80,9 +81,12 @@ func (r *PipelineResource) Steps(ctx context.Context, pipelineUUID string) ([]Pi
 
 // Log returns the raw log output for a pipeline step (plain text, not JSON).
 func (r *PipelineResource) Log(ctx context.Context, pipelineUUID, stepUUID string) (string, error) {
+	// Strip curly braces — some Bitbucket endpoints require bare UUIDs in the path.
+	pipelineUUID = strings.Trim(pipelineUUID, "{}")
+	stepUUID = strings.Trim(stepUUID, "{}")
 	path := fmt.Sprintf("%s%s/steps/%s/log",
 		r.basePath(), url.PathEscape(pipelineUUID), url.PathEscape(stepUUID))
-	data, err := r.client.do(ctx, "GET", path, nil, nil)
+	data, err := r.client.doText(ctx, path)
 	if err != nil {
 		return "", err
 	}

@@ -6,8 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/payfacto/bb/cmd/render"
 	"github.com/spf13/cobra"
+
+	"github.com/payfacto/bb/cmd/render"
 )
 
 var downloadCmd = &cobra.Command{

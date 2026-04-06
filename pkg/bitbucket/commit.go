@@ -13,9 +13,14 @@ type CommitResource struct {
 	repo      string
 }
 
-// List returns commits on a branch, newest first.
+// List returns commits, newest first. If branch is empty, returns commits from the repo's default branch.
 func (r *CommitResource) List(ctx context.Context, branch string) ([]Commit, error) {
-	path := fmt.Sprintf("%s/commits/%s", repoPath(r.workspace, r.repo), branch)
+	var path string
+	if branch == "" {
+		path = fmt.Sprintf("%s/commits", repoPath(r.workspace, r.repo))
+	} else {
+		path = fmt.Sprintf("%s/commits/%s", repoPath(r.workspace, r.repo), url.PathEscape(branch))
+	}
 	q := url.Values{"pagelen": {pagelenSmall}}
 	data, err := r.client.do(ctx, "GET", path, nil, q)
 	if err != nil {

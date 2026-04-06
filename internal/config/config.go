@@ -15,6 +15,7 @@ type Config struct {
 	Username      string `yaml:"username"`
 	AuthType      string `yaml:"auth_type,omitempty"`
 	OAuthClientID string `yaml:"oauth_client_id,omitempty"`
+	PageSize      int    `yaml:"page_size,omitempty"`
 
 	// Token is never written to disk; loaded from keyring, env var, or CLI flag at runtime.
 	Token string `yaml:"-"`

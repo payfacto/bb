@@ -16,15 +16,44 @@ import (
 func buildMenuItems(client *bitbucket.Client, cfg *config.Config) []menuItem {
 	ws := cfg.Workspace
 	repo := cfg.Repo
+	ps := cfg.PageSize
+	if ps <= 0 {
+		ps = defaultPageSize
+	}
+	needRepo := func(make func() View) func() View {
+		return guardRepo(repo, make)
+	}
 	return []menuItem{
-		{label: "Pull Requests", description: "List, review, approve, merge PRs", onSelect: func() View {
-			return newPRListView(client, ws, repo)
+		{label: "Repositories", description: "List workspace repos", onSelect: func() View {
+			return newSimpleListView("Repositories", ps, func(ctx context.Context, _ string) ([]listItem, error) {
+				repos, err := client.Repos(ws).List(ctx)
+				if err != nil {
+					return nil, err
+				}
+				items := make([]listItem, len(repos))
+				for i, r := range repos {
+					privacy := ""
+					if !r.IsPrivate {
+						privacy = "  [public]"
+					}
+					items[i] = listItem{title: r.Name + privacy, data: r}
+				}
+				return items, nil
+			}, func(item listItem) tea.Cmd {
+				r := item.data.(bitbucket.Repo)
+				repoCfg := *cfg
+				repoCfg.Repo = r.Slug
+				return pushViewCmd(newMenuModel(ws, r.Slug, buildMenuItems(client, &repoCfg)))
+			})
 		}},
-		{label: "Pipelines", description: "View builds, trigger, check steps", onSelect: func() View {
-			return newPipelineListView(client, ws, repo)
-		}},
-		{label: "Branches", description: "List and manage branches", onSelect: func() View {
-			return newSimpleListView("Branches", func(ctx context.Context, _ string) ([]listItem, error) {
+		{label: "Pull Requests", description: "List, review, approve, merge PRs", onSelect: needRepo(func() View {
+			return newPRListView(client, ws, repo, ps)
+		})},
+		{label: "Pipelines", description: "View builds, trigger, check steps", onSelect: needRepo(func() View {
+			return newPipelineListView(client, ws, repo, ps)
+		})},
+		{label: "Branches", description: "List and manage branches", onSelect: needRepo(func() View {
+			return newSimpleListView("Branches", ps, func(ctx context.Context, _ string) ([]listItem, error) {
 				branches, err := client.Branches(ws, repo).List(ctx)
 				if err != nil {
 					return nil, err
@@ -40,15 +69,14 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config) []menuItem {
 				return items, nil
 			}, func(item listItem) tea.Cmd {
 				b := item.data.(bitbucket.Branch)
-				content := render.BranchListString([]bitbucket.Branch{b})
-				return pushViewCmd(newTextView("Branch: "+b.Name, content))
+				return pushViewCmd(newBranchDetailView(client, ws, repo, b, ps))
 			})
-		}},
-		{label: "Commits", description: "Browse commit history", onSelect: func() View {
-			return newCommitListView(client, ws, repo)
-		}},
-		{label: "Tags", description: "List and manage tags", onSelect: func() View {
-			return newSimpleListView("Tags", func(ctx context.Context, _ string) ([]listItem, error) {
+		})},
+		{label: "Commits", description: "Browse commit history", onSelect: needRepo(func() View {
+			return newCommitListView(client, ws, repo, ps)
+		})},
+		{label: "Tags", description: "List and manage tags", onSelect: needRepo(func() View {
+			return newSimpleListView("Tags", ps, func(ctx context.Context, _ string) ([]listItem, error) {
 				tags, err := client.Tags(ws, repo).List(ctx)
 				if err != nil {
 					return nil, err
@@ -67,45 +95,48 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config) []menuItem {
 				content := render.TagListString([]bitbucket.Tag{t})
 				return pushViewCmd(newTextView("Tag: "+t.Name, content))
 			})
-		}},
-		{label: "Issues", description: "Track and manage issues", onSelect: func() View {
-			return newIssueListView(client, ws, repo)
-		}},
-		{label: "Repositories", description: "List workspace repos", onSelect: func() View {
-			return newSimpleListView("Repositories", func(ctx context.Context, _ string) ([]listItem, error) {
-				repos, err := client.Repos(ws).List(ctx)
-				if err != nil {
-					return nil, err
-				}
-				items := make([]listItem, len(repos))
-				for i, r := range repos {
-					privacy := "public"
-					if r.IsPrivate {
-						privacy = "private"
-					}
-					items[i] = listItem{id: r.Slug, title: r.Name, subtitle: privacy, data: r}
-				}
-				return items, nil
-			}, func(item listItem) tea.Cmd {
-				r := item.data.(bitbucket.Repo)
-				repoCfg := *cfg
-				repoCfg.Repo = r.Slug
-				return pushViewCmd(newMenuModel(ws, r.Slug, buildMenuItems(client, &repoCfg)))
-			})
-		}},
-		{label: "Deployments", description: "View deployments", onSelect: func() View {
-			return newSimpleListView("Deployments", func(ctx context.Context, _ string) ([]listItem, error) {
+		})},
+		{label: "Issues", description: "Track and manage issues", onSelect: needRepo(func() View {
+			return newIssueListView(client, ws, repo, ps)
+		})},
+		{label: "Deployments", description: "View deployments", onSelect: needRepo(func() View {
+			return newSimpleListView("Deployments", ps, func(ctx context.Context, _ string) ([]listItem, error) {
 				deps, err := client.Deployments(ws, repo).List(ctx)
 				if err != nil {
 					return nil, err
 				}
+				// build environment UUID → name lookup (best-effort, ignore error)
+				envNames := map[string]string{}
+				if envs, err := client.Environments(ws, repo).List(ctx); err == nil {
+					for _, e := range envs {
+						envNames[e.UUID] = e.Name
+					}
+				}
 				items := make([]listItem, len(deps))
 				for i, d := range deps {
 					status := d.State.Name
-					if d.State.Status != nil {
-						status += "/" + d.State.Status.Name
+					if d.State.Status != nil && d.State.Status.Name != "" {
+						status = d.State.Status.Name
 					}
-					items[i] = listItem{id: d.UUID, title: status, data: d}
+					date := d.LastUpdateTime
+					if len(date) > 10 {
+						date = date[:10]
+					}
+					title := render.StateBadge(status)
+					if date != "" {
+						title += "  " + date
+					}
+					if name := envNames[d.Environment.UUID]; name != "" {
+						title += "  " + name
+					}
+					if d.Deployable.Commit != nil {
+						h := d.Deployable.Commit.Hash
+						if len(h) > 8 {
+							h = h[:8]
+						}
+						title += "  " + h
+					}
+					items[i] = listItem{title: title, data: d}
 				}
 				return items, nil
 			}, func(item listItem) tea.Cmd {
@@ -114,77 +145,224 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config) []menuItem {
 				if d.State.Status != nil {
 					state += "/" + d.State.Status.Name
 				}
-				var sb strings.Builder
-				sb.WriteString(fmt.Sprintf("UUID:        %s\n", d.UUID))
-				sb.WriteString(fmt.Sprintf("State:       %s\n", state))
-				sb.WriteString(fmt.Sprintf("Environment: %s\n", d.Environment.UUID))
+				// build actions for commit and pipeline navigation
+				var actions []ActionItem
 				if d.Deployable.Commit != nil {
-					sb.WriteString(fmt.Sprintf("Commit:      %s\n", d.Deployable.Commit.Hash))
+					commitHash := d.Deployable.Commit.Hash
+					short := commitHash
+					if len(short) > 8 {
+						short = short[:8]
+					}
+					actions = append(actions, ActionItem{
+						Label: "Commit: " + short,
+						OnSelect: func() tea.Cmd {
+							return fetchAndPushCommitDetail(client, ws, repo, commitHash)
+						},
+					})
 				}
 				if d.Deployable.Pipeline != nil {
-					sb.WriteString(fmt.Sprintf("Pipeline:    %s\n", d.Deployable.Pipeline.UUID))
+					pipelineUUID := d.Deployable.Pipeline.UUID
+					actions = append(actions, ActionItem{
+						Label: "Pipeline: " + pipelineUUID,
+						OnSelect: func() tea.Cmd {
+							return pushViewCmd(newLoadingTextView("Pipeline", func() (string, error) {
+								p, err := client.Pipelines(ws, repo).Get(context.Background(), pipelineUUID)
+								if err != nil {
+									return "", err
+								}
+								return render.PipelineDetailString(p), nil
+							}))
+						},
+					})
 				}
-				sb.WriteString(fmt.Sprintf("Updated:     %s\n", d.LastUpdateTime))
-				return pushViewCmd(newTextView("Deployment: "+state, sb.String()))
+				return pushViewCmd(newDetailView(DetailConfig{
+					Title: "Deployment",
+					ContentFetch: func() string {
+						envName := d.Environment.UUID
+						if envs, err := client.Environments(ws, repo).List(context.Background()); err == nil {
+							for _, e := range envs {
+								if e.UUID == d.Environment.UUID {
+									envName = e.Name
+									if e.EnvironmentType.Name != "" {
+										envName += " (" + e.EnvironmentType.Name + ")"
+									}
+									break
+								}
+							}
+						}
+						var sb strings.Builder
+						sb.WriteString(fmt.Sprintf("State:       %s\n", state))
+						sb.WriteString(fmt.Sprintf("Environment: %s\n", envName))
+						if d.Deployable.Commit != nil {
+							sb.WriteString(fmt.Sprintf("Commit:      %s\n", d.Deployable.Commit.Hash))
+						}
+						if d.Deployable.Pipeline != nil {
+							sb.WriteString(fmt.Sprintf("Pipeline:    %s\n", d.Deployable.Pipeline.UUID))
+						}
+						sb.WriteString(fmt.Sprintf("Updated:     %s\n", d.LastUpdateTime))
+						return sb.String()
+					},
+					Actions: actions,
+				}))
 			})
-		}},
-		{label: "Settings", description: "Webhooks, deploy keys, environments, restrictions", onSelect: func() View {
-			return newMenuModel(ws, repo, buildSettingsItems(client, ws, repo))
-		}},
+		})},
+		{label: "Settings", description: "Webhooks, deploy keys, environments, restrictions", onSelect: needRepo(func() View {
+			return newMenuModel(ws, repo, buildSettingsItems(client, ws, repo, ps))
+		})},
 		{label: "Members", description: "Workspace members", onSelect: func() View {
-			return newSimpleListView("Members", func(ctx context.Context, _ string) ([]listItem, error) {
+			return newSimpleListView("Members", ps, func(ctx context.Context, _ string) ([]listItem, error) {
 				members, err := client.Members(ws).List(ctx)
 				if err != nil {
 					return nil, err
 				}
 				items := make([]listItem, len(members))
 				for i, m := range members {
-					items[i] = listItem{id: m.User.Nickname, title: m.User.DisplayName, subtitle: m.User.AccountID, data: m}
+					title := m.User.DisplayName
+					if m.User.Nickname != "" && m.User.Nickname != m.User.DisplayName {
+						title += "  (" + m.User.Nickname + ")"
+					}
+					items[i] = listItem{title: title, data: m}
 				}
 				return items, nil
 			}, func(item listItem) tea.Cmd {
 				m := item.data.(bitbucket.WorkspaceMember)
+				nickname := m.User.Nickname
+				displayName := m.User.DisplayName
+
+				var actions []ActionItem
+				if ws != "" && repo != "" {
+					actions = append(actions, ActionItem{
+						Label: "Their Pull Requests",
+						OnSelect: func() tea.Cmd {
+							return pushViewCmd(newListView(ListConfig{
+								Title:    displayName + "'s PRs",
+								PageSize: ps,
+								Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
+									prs, err := client.PRs(ws, repo).ListByAuthor(ctx, nickname)
+									if err != nil {
+										return nil, err
+									}
+									items := make([]listItem, len(prs))
+									for i, pr := range prs {
+										items[i] = listItem{
+											id:    fmt.Sprintf("#%d", pr.ID),
+											title: pr.Title,
+											data:  pr,
+										}
+									}
+									return items, nil
+								},
+								OnSelect: func(item listItem) tea.Cmd {
+									pr := item.data.(bitbucket.PR)
+									return pushViewCmd(newLoadingTextView(fmt.Sprintf("PR #%d", pr.ID), func() (string, error) {
+										full, err := client.PRs(ws, repo).Get(context.Background(), pr.ID)
+										if err != nil {
+											return "", err
+										}
+										return render.PRDetailString(full), nil
+									}))
+								},
+							}))
+						},
+					})
+					actions = append(actions, ActionItem{
+						Label: "Their Commits",
+						OnSelect: func() tea.Cmd {
+							return pushViewCmd(newListView(ListConfig{
+								Title:    displayName + "'s Commits",
+								PageSize: ps,
+								Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
+									commits, err := client.Commits(ws, repo).List(ctx, "")
+									if err != nil {
+										return nil, err
+									}
+									var items []listItem
+									for _, c := range commits {
+										// match by display name (Actor only has DisplayName)
+										if c.Author.User == nil || c.Author.User.DisplayName != displayName {
+											continue
+										}
+										hash := c.Hash
+										if len(hash) > 8 {
+											hash = hash[:8]
+										}
+										msg := c.Message
+										if idx := strings.IndexByte(msg, '\n'); idx >= 0 {
+											msg = msg[:idx]
+										}
+										if len(msg) > 60 {
+											msg = msg[:60] + "..."
+										}
+										date := c.Date
+										if len(date) > 10 {
+											date = date[:10]
+										}
+										items = append(items, listItem{id: hash, title: msg, subtitle: date, data: c})
+									}
+									return items, nil
+								},
+								OnSelect: func(item listItem) tea.Cmd {
+									c := item.data.(bitbucket.Commit)
+									return fetchAndPushCommitDetail(client, ws, repo, c.Hash)
+								},
+							}))
+						},
+					})
+				}
+
 				content := fmt.Sprintf("Display Name: %s\nNickname:     %s\nAccount ID:   %s\n",
-					m.User.DisplayName, m.User.Nickname, m.User.AccountID)
-				return pushViewCmd(newTextView(m.User.DisplayName, content))
+					displayName, nickname, m.User.AccountID)
+				return pushViewCmd(newDetailView(DetailConfig{
+					Title:   displayName,
+					Content: content,
+					Actions: actions,
+				}))
 			})
 		}},
-		{label: "Setup", description: "Reconfigure workspace, repo, credentials", onSelect: func() View {
+		{label: "bb Setup", description: "Reconfigure workspace, repo, credentials", onSelect: func() View {
 			return newSetupView(config.DefaultPath(), cfg)
 		}},
 	}
 }
 
-func buildSettingsItems(client *bitbucket.Client, ws, repo string) []menuItem {
+func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int) []menuItem {
 	return []menuItem{
 		{label: "Webhooks", description: "Manage repository webhooks", onSelect: func() View {
-			return newSimpleListView("Webhooks", func(ctx context.Context, _ string) ([]listItem, error) {
+			return newSimpleListView("Webhooks", pageSize, func(ctx context.Context, _ string) ([]listItem, error) {
 				hooks, err := client.Webhooks(ws, repo).List(ctx)
 				if err != nil {
 					return nil, err
 				}
 				items := make([]listItem, len(hooks))
 				for i, h := range hooks {
-					active := "inactive"
+					activeBadge := render.StateBadge("INACTIVE")
 					if h.Active {
-						active = "active"
+						activeBadge = render.StateBadge("ACTIVE")
 					}
-					items[i] = listItem{id: h.UUID, title: h.URL, subtitle: active, data: h}
+					items[i] = listItem{title: activeBadge + " " + h.URL, data: h}
 				}
 				return items, nil
 			}, func(item listItem) tea.Cmd {
 				h := item.data.(bitbucket.Webhook)
-				active := "inactive"
+				active := "INACTIVE"
 				if h.Active {
-					active = "active"
+					active = "ACTIVE"
 				}
-				content := fmt.Sprintf("UUID:        %s\nURL:         %s\nDescription: %s\nStatus:      %s\nEvents:      %s\nCreated:     %s\n",
-					h.UUID, h.URL, h.Description, active, strings.Join(h.Events, ", "), h.CreatedAt)
-				return pushViewCmd(newTextView("Webhook: "+h.URL, content))
+				var sb strings.Builder
+				sb.WriteString(fmt.Sprintf("UUID:        %s\n", h.UUID))
+				sb.WriteString(fmt.Sprintf("URL:         %s\n", h.URL))
+				sb.WriteString(fmt.Sprintf("Description: %s\n", h.Description))
+				sb.WriteString(fmt.Sprintf("Status:      %s\n", render.StateBadge(active)))
+				sb.WriteString("Events:\n")
+				for _, e := range h.Events {
+					sb.WriteString(fmt.Sprintf("             %s\n", e))
+				}
+				sb.WriteString(fmt.Sprintf("Created:     %s\n", h.CreatedAt))
+				return pushViewCmd(newTextView("Webhook: "+h.URL, sb.String()))
 			})
 		}},
 		{label: "Deploy Keys", description: "Manage deploy keys", onSelect: func() View {
-			return newSimpleListView("Deploy Keys", func(ctx context.Context, _ string) ([]listItem, error) {
+			return newSimpleListView("Deploy Keys", pageSize, func(ctx context.Context, _ string) ([]listItem, error) {
 				keys, err := client.DeployKeys(ws, repo).List(ctx)
 				if err != nil {
 					return nil, err
@@ -196,35 +374,49 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string) []menuItem {
 				return items, nil
 			}, func(item listItem) tea.Cmd {
 				k := item.data.(bitbucket.DeployKey)
-				content := fmt.Sprintf("ID:      %d\nLabel:   %s\nCreated: %s\n\nKey:\n%s\n",
-					k.ID, k.Label, k.CreatedOn, k.Key)
-				return pushViewCmd(newTextView("Deploy Key: "+k.Label, content))
+				maskedKey := k.Key
+				if len(k.Key) > 10 {
+					maskedKey = k.Key[:6] + strings.Repeat("•", 12) + k.Key[len(k.Key)-4:]
+				}
+				return pushViewCmd(newDetailView(DetailConfig{
+					Title: "Deploy Key: " + k.Label,
+					Content: fmt.Sprintf("ID:      %d\nLabel:   %s\nCreated: %s\n\nKey:\n%s\n",
+						k.ID, k.Label, k.CreatedOn, maskedKey),
+					Actions: []ActionItem{
+						{Label: "Reveal Key", OnSelect: func() tea.Cmd {
+							return pushViewCmd(newTextView("Key: "+k.Label, k.Key+"\n"))
+						}},
+					},
+				}))
 			})
 		}},
 		{label: "Environments", description: "Deployment environments", onSelect: func() View {
-			return newSimpleListView("Environments", func(ctx context.Context, _ string) ([]listItem, error) {
+			return newSimpleListView("Environments", pageSize, func(ctx context.Context, _ string) ([]listItem, error) {
 				envs, err := client.Environments(ws, repo).List(ctx)
 				if err != nil {
 					return nil, err
 				}
 				items := make([]listItem, len(envs))
 				for i, e := range envs {
-					lock := ""
-					if e.Lock.Name == "LOCKED" {
-						lock = " [LOCKED]"
+					title := e.Name
+					if e.EnvironmentType.Name != "" {
+						title += "  " + e.EnvironmentType.Name
 					}
-					items[i] = listItem{id: e.UUID, title: e.Name + lock, subtitle: e.EnvironmentType.Name, data: e}
+					if e.Lock.Name == "LOCKED" {
+						title += "  " + actionDangerStyle.Render("[LOCKED]")
+					}
+					items[i] = listItem{title: title, data: e}
 				}
 				return items, nil
 			}, func(item listItem) tea.Cmd {
 				e := item.data.(bitbucket.Environment)
 				content := fmt.Sprintf("UUID:  %s\nName:  %s\nType:  %s\nLock:  %s\n",
-					e.UUID, e.Name, e.EnvironmentType.Name, e.Lock.Name)
+					e.UUID, e.Name, e.EnvironmentType.Name, render.StateBadge(e.Lock.Name))
 				return pushViewCmd(newTextView("Environment: "+e.Name, content))
 			})
 		}},
 		{label: "Restrictions", description: "Branch restrictions", onSelect: func() View {
-			return newSimpleListView("Restrictions", func(ctx context.Context, _ string) ([]listItem, error) {
+			return newSimpleListView("Restrictions", pageSize, func(ctx context.Context, _ string) ([]listItem, error) {
 				restrictions, err := client.Restrictions(ws, repo).List(ctx)
 				if err != nil {
 					return nil, err
@@ -236,17 +428,29 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string) []menuItem {
 				return items, nil
 			}, func(item listItem) tea.Cmd {
 				r := item.data.(bitbucket.BranchRestriction)
-				value := ""
-				if r.Value != nil {
-					value = fmt.Sprintf("%d", *r.Value)
+				var valueStr string
+				if r.Value != nil && *r.Value > 0 {
+					switch r.Kind {
+					case "require_passing_builds_to_merge":
+						valueStr = fmt.Sprintf("%d (passing builds required)", *r.Value)
+					case "require_approvals_to_merge":
+						valueStr = fmt.Sprintf("%d (approvals required)", *r.Value)
+					case "require_default_reviewer_approvals_to_merge":
+						valueStr = fmt.Sprintf("%d (default reviewer approvals required)", *r.Value)
+					default:
+						valueStr = fmt.Sprintf("%d", *r.Value)
+					}
 				}
-				content := fmt.Sprintf("ID:      %d\nKind:    %s\nMatch:   %s\nPattern: %s\nValue:   %s\n",
-					r.ID, r.Kind, r.BranchMatchKind, r.Pattern, value)
+				content := fmt.Sprintf("ID:      %d\nKind:    %s\nMatch:   %s\nPattern: %s\n",
+					r.ID, r.Kind, r.BranchMatchKind, r.Pattern)
+				if valueStr != "" {
+					content += fmt.Sprintf("Value:   %s\n", valueStr)
+				}
 				return pushViewCmd(newTextView(fmt.Sprintf("Restriction #%d", r.ID), content))
 			})
 		}},
 		{label: "Downloads", description: "Download artifacts", onSelect: func() View {
-			return newSimpleListView("Downloads", func(ctx context.Context, _ string) ([]listItem, error) {
+			return newSimpleListView("Downloads", pageSize, func(ctx context.Context, _ string) ([]listItem, error) {
 				downloads, err := client.Downloads(ws, repo).List(ctx)
 				if err != nil {
 					return nil, err
@@ -265,16 +469,75 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string) []menuItem {
 	}
 }
 
-func newSimpleListView(title string, fetch func(ctx context.Context, filter string) ([]listItem, error), onSelect func(listItem) tea.Cmd) *listModel {
-	return newListView(ListConfig{Title: title, Fetch: fetch, OnSelect: onSelect})
+func newSimpleListView(title string, pageSize int, fetch func(ctx context.Context, filter string) ([]listItem, error), onSelect func(listItem) tea.Cmd) *listModel {
+	return newListView(ListConfig{Title: title, PageSize: pageSize, Fetch: fetch, OnSelect: onSelect})
 }
 
 // --- PR Section ---
 
-func newPRListView(client *bitbucket.Client, ws, repo string) *listModel {
+func newBranchDetailView(client *bitbucket.Client, ws, repo string, b bitbucket.Branch, pageSize int) *detailModel {
+	deleteKey := key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete"))
+	commitsKey := key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "commits"))
+
+	return newDetailView(DetailConfig{
+		Title: "Branch: " + b.Name,
+		ContentFetch: func() string {
+			return render.BranchDetailString(b)
+		},
+		Actions: []ActionItem{
+			{Label: "Commits", Key: &commitsKey, OnSelect: func() tea.Cmd {
+				return pushViewCmd(newListView(ListConfig{
+					Title:    "Commits: " + b.Name,
+					PageSize: pageSize,
+					Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
+						commits, err := client.Commits(ws, repo).List(ctx, b.Name)
+						if err != nil {
+							return nil, err
+						}
+						items := make([]listItem, len(commits))
+						for i, c := range commits {
+							hash := c.Hash
+							if len(hash) > 8 {
+								hash = hash[:8]
+							}
+							msg := c.Message
+							if idx := strings.IndexByte(msg, '\n'); idx >= 0 {
+								msg = msg[:idx]
+							}
+							if len(msg) > 60 {
+								msg = msg[:60] + "..."
+							}
+							items[i] = listItem{id: hash, title: msg, subtitle: c.Author.Raw, data: c}
+						}
+						return items, nil
+					},
+					OnSelect: func(item listItem) tea.Cmd {
+						c := item.data.(bitbucket.Commit)
+						return pushViewCmd(newCommitDetailView(client, ws, repo, c))
+					},
+				}))
+			}},
+			{Label: "✗ Delete", Key: &deleteKey, Style: &actionDangerStyle, Confirm: &ConfirmConfig{
+				Message: fmt.Sprintf("Delete branch %q?", b.Name),
+				OnYes: func() tea.Cmd {
+					return tea.Sequence(
+						popView,
+						popView,
+						executeAction(func() error {
+							return client.Branches(ws, repo).Delete(context.Background(), b.Name)
+						}, fmt.Sprintf("Branch %q deleted", b.Name)),
+					)
+				},
+			}},
+		},
+	})
+}
+
+func newPRListView(client *bitbucket.Client, ws, repo string, pageSize int) *listModel {
 	return newListView(ListConfig{
-		Title:   "Pull Requests",
-		Filters: []string{"OPEN", "MERGED", "DECLINED", "SUPERSEDED"},
+		Title:    "Pull Requests",
+		Filters:  []string{"OPEN", "MERGED", "DECLINED", "SUPERSEDED"},
+		PageSize: pageSize,
 		Fetch: func(ctx context.Context, filter string) ([]listItem, error) {
 			prs, err := client.PRs(ws, repo).List(ctx, filter)
 			if err != nil {
@@ -288,32 +551,28 @@ func newPRListView(client *bitbucket.Client, ws, repo string) *listModel {
 		},
 		OnSelect: func(item listItem) tea.Cmd {
 			pr := item.data.(bitbucket.PR)
-			return pushViewCmd(newPRDetailView(client, ws, repo, pr))
+			return pushViewCmd(newPRDetailView(client, ws, repo, pr, pageSize))
 		},
 	})
 }
 
-func newPRDetailView(client *bitbucket.Client, ws, repo string, pr bitbucket.PR) *detailModel {
+func newPRDetailView(client *bitbucket.Client, ws, repo string, pr bitbucket.PR, pageSize int) *detailModel {
 	approveKey := key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "approve"))
 	mergeKey := key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "merge"))
 	commentsKey := key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "comments"))
 	diffKey := key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "diff"))
 
 	return newDetailView(DetailConfig{
-		Title:   fmt.Sprintf("#%d", pr.ID),
-		Content: render.PRDetailString(pr),
+		Title: fmt.Sprintf("#%d", pr.ID),
+		ContentFetch: func() string {
+			return render.PRDetailString(pr)
+		},
 		Actions: []ActionItem{
 			{Label: "Comments", Key: &commentsKey, OnSelect: func() tea.Cmd {
-				return pushViewCmd(newPRCommentListView(client, ws, repo, pr.ID))
+				return pushViewCmd(newPRCommentListView(client, ws, repo, pr.ID, pageSize))
 			}},
 			{Label: "Activity", OnSelect: func() tea.Cmd {
-				return fetchAndPushText(fmt.Sprintf("Activity (#%d)", pr.ID), func() (string, error) {
-					activities, err := client.PRs(ws, repo).Activity(context.Background(), pr.ID)
-					if err != nil {
-						return "", err
-					}
-					return render.PRActivityString(activities), nil
-				})
+				return pushViewCmd(newPRActivityListView(client, ws, repo, pr.ID, pageSize))
 			}},
 			{Label: "Statuses", OnSelect: func() tea.Cmd {
 				return fetchAndPushText(fmt.Sprintf("Statuses (#%d)", pr.ID), func() (string, error) {
@@ -330,14 +589,14 @@ func newPRDetailView(client *bitbucket.Client, ws, repo string, pr bitbucket.PR)
 				})
 			}},
 			{Label: "Tasks", OnSelect: func() tea.Cmd {
-				return pushViewCmd(newPRTaskListView(client, ws, repo, pr.ID))
+				return pushViewCmd(newPRTaskListView(client, ws, repo, pr.ID, pageSize))
 			}},
-			{Label: "Approve", Key: &approveKey, OnSelect: func() tea.Cmd {
+			{Label: "✓ Approve", Key: &approveKey, Style: &actionSuccessStyle, OnSelect: func() tea.Cmd {
 				return executeAction(func() error {
 					return client.PRs(ws, repo).Approve(context.Background(), pr.ID)
 				}, fmt.Sprintf("PR #%d approved", pr.ID))
 			}},
-			{Label: "Merge", Key: &mergeKey, Confirm: &ConfirmConfig{
+			{Label: "⤓ Merge", Key: &mergeKey, Style: &actionWarnStyle, Confirm: &ConfirmConfig{
 				Message: fmt.Sprintf("Merge PR #%d into %s?", pr.ID, pr.Destination.Branch.Name),
 				OnYes: func() tea.Cmd {
 					return tea.Sequence(
@@ -348,7 +607,7 @@ func newPRDetailView(client *bitbucket.Client, ws, repo string, pr bitbucket.PR)
 					)
 				},
 			}},
-			{Label: "Decline", Confirm: &ConfirmConfig{
+			{Label: "✗ Decline", Style: &actionDangerStyle, Confirm: &ConfirmConfig{
 				Message: fmt.Sprintf("Decline PR #%d?", pr.ID),
 				OnYes: func() tea.Cmd {
 					return tea.Sequence(
@@ -363,9 +622,10 @@ func newPRDetailView(client *bitbucket.Client, ws, repo string, pr bitbucket.PR)
 	})
 }
 
-func newPRCommentListView(client *bitbucket.Client, ws, repo string, prID int) *listModel {
+func newPRCommentListView(client *bitbucket.Client, ws, repo string, prID, pageSize int) *listModel {
 	return newListView(ListConfig{
-		Title: "Comments",
+		Title:    "Comments",
+		PageSize: pageSize,
 		Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
 			comments, err := client.Comments(ws, repo, prID).List(ctx)
 			if err != nil {
@@ -374,6 +634,9 @@ func newPRCommentListView(client *bitbucket.Client, ws, repo string, prID int) *
 			items := make([]listItem, len(comments))
 			for i, c := range comments {
 				text := c.Content.Raw
+				if idx := strings.IndexByte(text, '\n'); idx >= 0 {
+					text = text[:idx]
+				}
 				if len(text) > 60 {
 					text = text[:60] + "..."
 				}
@@ -388,9 +651,10 @@ func newPRCommentListView(client *bitbucket.Client, ws, repo string, prID int) *
 	})
 }
 
-func newPRTaskListView(client *bitbucket.Client, ws, repo string, prID int) *listModel {
+func newPRTaskListView(client *bitbucket.Client, ws, repo string, prID, pageSize int) *listModel {
 	return newListView(ListConfig{
-		Title: "Tasks",
+		Title:    "Tasks",
+		PageSize: pageSize,
 		Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
 			tasks, err := client.Tasks(ws, repo, prID).List(ctx)
 			if err != nil {
@@ -398,7 +662,11 @@ func newPRTaskListView(client *bitbucket.Client, ws, repo string, prID int) *lis
 			}
 			items := make([]listItem, len(tasks))
 			for i, t := range tasks {
-				items[i] = listItem{id: fmt.Sprintf("[%d]", t.ID), title: t.Description, subtitle: t.State, data: t}
+				desc := t.Description
+				if idx := strings.IndexByte(desc, '\n'); idx >= 0 {
+					desc = desc[:idx]
+				}
+				items[i] = listItem{id: fmt.Sprintf("[%d]", t.ID), title: render.StateBadge(t.State) + " " + desc, data: t}
 			}
 			return items, nil
 		},
@@ -410,11 +678,88 @@ func newPRTaskListView(client *bitbucket.Client, ws, repo string, prID int) *lis
 	})
 }
 
+func newPRActivityListView(client *bitbucket.Client, ws, repo string, prID, pageSize int) *listModel {
+	return newListView(ListConfig{
+		Title:    fmt.Sprintf("Activity (#%d)", prID),
+		PageSize: pageSize,
+		Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
+			activities, err := client.PRs(ws, repo).Activity(ctx, prID)
+			if err != nil {
+				return nil, err
+			}
+			items := make([]listItem, 0, len(activities))
+			for _, a := range activities {
+				switch {
+				case a.Approval != nil:
+					date := a.Approval.Date
+					if len(date) > 10 {
+						date = date[:10]
+					}
+					tag := actionSuccessStyle.Render("[approval]")
+					items = append(items, listItem{
+						title:    tag + " " + a.Approval.User.DisplayName + " approved",
+						subtitle: date,
+						data:     a,
+					})
+				case a.Update != nil:
+					date := a.Update.Date
+					if len(date) > 10 {
+						date = date[:10]
+					}
+					items = append(items, listItem{
+						title:    subtitleStyle.Render("[update]") + " " + a.Update.Author.DisplayName + " → " + a.Update.State,
+						subtitle: date,
+						data:     a,
+					})
+				case a.Comment != nil:
+					items = append(items, listItem{
+						title: helpKeyStyle.Render(fmt.Sprintf("[%d]", a.Comment.ID)) + " " +
+							a.Comment.User.DisplayName + ": " + truncateStr(a.Comment.Content.Raw, 60),
+						data: a,
+					})
+				}
+			}
+			return items, nil
+		},
+		OnSelect: func(item listItem) tea.Cmd {
+			a := item.data.(bitbucket.Activity)
+			switch {
+			case a.Comment != nil:
+				return pushViewCmd(newTextView(
+					fmt.Sprintf("Comment [%d]", a.Comment.ID),
+					render.CommentDetailString(*a.Comment),
+				))
+			case a.Approval != nil:
+				return pushViewCmd(newTextView("Approval", fmt.Sprintf(
+					"User:  %s\nDate:  %s\n", a.Approval.User.DisplayName, a.Approval.Date,
+				)))
+			case a.Update != nil:
+				return pushViewCmd(newTextView("Update", fmt.Sprintf(
+					"Author: %s\nState:  %s\nDate:   %s\n",
+					a.Update.Author.DisplayName, a.Update.State, a.Update.Date,
+				)))
+			}
+			return nil
+		},
+	})
+}
+
+// truncateStr shortens s to max runes with an ellipsis — mirrors render.truncate locally
+// so sections.go does not import the render package's unexported helper.
+func truncateStr(s string, max int) string {
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	return string(runes[:max-1]) + "…"
+}
+
 // --- Pipeline Section ---
 
-func newPipelineListView(client *bitbucket.Client, ws, repo string) *listModel {
+func newPipelineListView(client *bitbucket.Client, ws, repo string, pageSize int) *listModel {
 	return newListView(ListConfig{
-		Title: "Pipelines",
+		Title:    "Pipelines",
+		PageSize: pageSize,
 		Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
 			pipelines, err := client.Pipelines(ws, repo).List(ctx)
 			if err != nil {
@@ -422,45 +767,65 @@ func newPipelineListView(client *bitbucket.Client, ws, repo string) *listModel {
 			}
 			items := make([]listItem, len(pipelines))
 			for i, p := range pipelines {
-				state := p.State.Name
-				if p.State.Result != nil {
-					state += "/" + p.State.Result.Name
+				// Show result badge when available (FAILED/SUCCESSFUL/STOPPED),
+				// otherwise show the state badge (IN_PROGRESS/PENDING).
+				var badge string
+				if p.State.Result != nil && p.State.Result.Name != "" {
+					badge = render.StateBadge(p.State.Result.Name)
+				} else {
+					badge = render.StateBadge(p.State.Name)
 				}
-				items[i] = listItem{id: fmt.Sprintf("#%d", p.BuildNumber), title: state, subtitle: p.Target.RefName, data: p}
+				items[i] = listItem{id: fmt.Sprintf("#%d", p.BuildNumber), title: badge, subtitle: p.Target.RefName, data: p}
 			}
 			return items, nil
 		},
 		OnSelect: func(item listItem) tea.Cmd {
 			p := item.data.(bitbucket.Pipeline)
-			return pushViewCmd(newPipelineDetailView(client, ws, repo, p))
+			return pushViewCmd(newPipelineDetailView(client, ws, repo, p, pageSize))
 		},
 	})
 }
 
-func newPipelineDetailView(client *bitbucket.Client, ws, repo string, p bitbucket.Pipeline) *detailModel {
+func newPipelineDetailView(client *bitbucket.Client, ws, repo string, p bitbucket.Pipeline, pageSize int) *detailModel {
 	return newDetailView(DetailConfig{
 		Title:   fmt.Sprintf("#%d", p.BuildNumber),
 		Content: render.PipelineDetailString(p),
 		Actions: []ActionItem{
 			{Label: "Steps", OnSelect: func() tea.Cmd {
-				return pushViewCmd(newSimpleListView("Steps", func(ctx context.Context, _ string) ([]listItem, error) {
+				return pushViewCmd(newSimpleListView("Steps", pageSize, func(ctx context.Context, _ string) ([]listItem, error) {
 					steps, err := client.Pipelines(ws, repo).Steps(ctx, p.UUID)
 					if err != nil {
 						return nil, err
 					}
 					items := make([]listItem, len(steps))
 					for i, s := range steps {
-						state := s.State.Name
-						if s.State.Result != nil {
-							state += "/" + s.State.Result.Name
+						var badge string
+						if s.State.Result != nil && s.State.Result.Name != "" {
+							badge = render.StateBadge(s.State.Result.Name)
+						} else {
+							badge = render.StateBadge(s.State.Name)
 						}
-						items[i] = listItem{id: s.UUID, title: s.Name, subtitle: state, data: s}
+						items[i] = listItem{id: s.UUID, title: s.Name, subtitle: badge, data: s}
 					}
 					return items, nil
 				}, func(item listItem) tea.Cmd {
 					step := item.data.(bitbucket.PipelineStep)
+					result := ""
+					if step.State.Result != nil {
+						result = step.State.Result.Name
+					}
+					if result == "NOT_RUN" || step.State.Name == "PENDING" || step.StartedOn == "" {
+						return pushMessage("Log: "+step.Name, "No log available — this step did not run.")
+					}
 					return fetchAndPushText("Log: "+step.Name, func() (string, error) {
-						return client.Pipelines(ws, repo).Log(context.Background(), p.UUID, step.UUID)
+						log, err := client.Pipelines(ws, repo).Log(context.Background(), p.UUID, step.UUID)
+						if err != nil {
+							if strings.Contains(err.Error(), "404") {
+								return "No log available for this step.", nil
+							}
+							return "", err
+						}
+						return log, nil
 					})
 				}))
 			}},
@@ -470,15 +835,12 @@ func newPipelineDetailView(client *bitbucket.Client, ws, repo string, p bitbucke
 
 // --- Commit Section ---
 
-func newCommitListView(client *bitbucket.Client, ws, repo string) *listModel {
+func newCommitListView(client *bitbucket.Client, ws, repo string, pageSize int) *listModel {
 	return newListView(ListConfig{
-		Title: "Commits",
+		Title:    "Commits",
+		PageSize: pageSize,
 		Fetch: func(ctx context.Context, filter string) ([]listItem, error) {
-			branch := filter
-			if branch == "" {
-				branch = "main"
-			}
-			commits, err := client.Commits(ws, repo).List(ctx, branch)
+			commits, err := client.Commits(ws, repo).List(ctx, filter)
 			if err != nil {
 				return nil, err
 			}
@@ -489,29 +851,78 @@ func newCommitListView(client *bitbucket.Client, ws, repo string) *listModel {
 					hash = hash[:8]
 				}
 				msg := c.Message
+				if idx := strings.IndexByte(msg, '\n'); idx >= 0 {
+					msg = msg[:idx]
+				}
 				if len(msg) > 60 {
 					msg = msg[:60] + "..."
 				}
-				items[i] = listItem{id: hash, title: msg, subtitle: c.Author.Raw, data: c}
+				date := c.Date
+				if len(date) >= 10 {
+					date = date[:10]
+				}
+				subtitle := date + "  " + c.Author.Raw
+				items[i] = listItem{id: hash, title: msg, subtitle: subtitle, data: c}
 			}
 			return items, nil
 		},
 		OnSelect: func(item listItem) tea.Cmd {
 			c := item.data.(bitbucket.Commit)
-			hash := c.Hash
-			if len(hash) > 8 {
-				hash = hash[:8]
-			}
-			return pushViewCmd(newTextView("Commit: "+hash, render.CommitDetailString(c)))
+			return pushViewCmd(newCommitDetailView(client, ws, repo, c))
 		},
 	})
 }
 
 // --- Issue Section ---
 
-func newIssueListView(client *bitbucket.Client, ws, repo string) *listModel {
+// fetchAndPushCommitDetail fetches a commit by hash then pushes a full commit detail view with actionable parents.
+func fetchAndPushCommitDetail(client *bitbucket.Client, ws, repo, hash string) tea.Cmd {
+	short := hash
+	if len(short) > 8 {
+		short = short[:8]
+	}
+	return func() tea.Msg {
+		c, err := client.Commits(ws, repo).Get(context.Background(), hash)
+		if err != nil {
+			return pushViewCmd(newTextView("Commit: "+short, "Error: "+err.Error()))()
+		}
+		return pushViewCmd(newCommitDetailView(client, ws, repo, c))()
+	}
+}
+
+func newCommitDetailView(client *bitbucket.Client, ws, repo string, c bitbucket.Commit) *detailModel {
+	hash := c.Hash
+	if len(hash) > 8 {
+		hash = hash[:8]
+	}
+
+	actions := make([]ActionItem, 0, len(c.Parents))
+	for _, p := range c.Parents {
+		p := p // capture
+		shortHash := p.Hash
+		if len(shortHash) > 8 {
+			shortHash = shortHash[:8]
+		}
+		actions = append(actions, ActionItem{
+			Label: "Parent: " + shortHash,
+			OnSelect: func() tea.Cmd {
+				return fetchAndPushCommitDetail(client, ws, repo, p.Hash)
+			},
+		})
+	}
+
+	return newDetailView(DetailConfig{
+		Title:        "Commit: " + hash,
+		ContentFetch: func() string { return render.CommitDetailString(c) },
+		Actions:      actions,
+	})
+}
+
+func newIssueListView(client *bitbucket.Client, ws, repo string, pageSize int) *listModel {
 	return newListView(ListConfig{
-		Title: "Issues",
+		Title:    "Issues",
+		PageSize: pageSize,
+		EmptyMsg: "No issues found.",
 		Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
 			issues, err := client.Issues(ws, repo).List(ctx)
 			if err != nil {
@@ -519,7 +930,7 @@ func newIssueListView(client *bitbucket.Client, ws, repo string) *listModel {
 			}
 			items := make([]listItem, len(issues))
 			for i, issue := range issues {
-				items[i] = listItem{id: fmt.Sprintf("#%d", issue.ID), title: issue.Title, subtitle: issue.State + " / " + issue.Kind, data: issue}
+				items[i] = listItem{id: fmt.Sprintf("#%d", issue.ID), title: render.StateBadge(issue.State) + " " + issue.Title, subtitle: issue.Kind, data: issue}
 			}
 			return items, nil
 		},
@@ -532,14 +943,14 @@ func newIssueListView(client *bitbucket.Client, ws, repo string) *listModel {
 
 // --- Helpers ---
 
+// fetchAndPushText pushes an immediate spinner/loading view that transitions
+// to a scrollable text view once the fetch completes.
 func fetchAndPushText(title string, fetch func() (string, error)) tea.Cmd {
-	return func() tea.Msg {
-		content, err := fetch()
-		if err != nil {
-			return actionResultMsg{success: false, message: err.Error()}
-		}
-		return pushViewMsg{view: newTextView(title, content)}
-	}
+	return pushViewCmd(newLoadingTextView(title, fetch))
+}
+
+func pushMessage(title, body string) tea.Cmd {
+	return fetchAndPushText(title, func() (string, error) { return body, nil })
 }
 
 func executeAction(action func() error, successMsg string) tea.Cmd {
@@ -548,5 +959,20 @@ func executeAction(action func() error, successMsg string) tea.Cmd {
 			return actionResultMsg{success: false, message: err.Error()}
 		}
 		return actionResultMsg{success: true, message: successMsg}
+	}
+}
+
+// guardRepo returns a menu onSelect func that shows a friendly error view when
+// no repository is configured, instead of attempting an API call that will fail.
+func guardRepo(repo string, make func() View) func() View {
+	if repo != "" {
+		return make
+	}
+	return func() View {
+		return newTextView("No Repository Selected",
+			"This section requires a repository to be configured.\n\n"+
+				"  • Open 'Repositories' from the home menu and press Enter\n"+
+				"    on a repository to scope the menu to it, or\n\n"+
+				"  • Run 'bb setup' to save a default repository.\n")
 	}
 }
