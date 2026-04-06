@@ -562,9 +562,11 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 						var sb strings.Builder
 						sb.WriteString(fmt.Sprintf("Slug:        %s\n", r.Slug))
 						sb.WriteString(fmt.Sprintf("Full Name:   %s\n", r.FullName))
-						if r.Description != "" {
-							sb.WriteString(fmt.Sprintf("Description: %s\n", r.Description))
+						desc := r.Description
+						if desc == "" {
+							desc = "(none)"
 						}
+						sb.WriteString(fmt.Sprintf("Description: %s\n", desc))
 						visibility := "private"
 						if !r.IsPrivate {
 							visibility = "public"
