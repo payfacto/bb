@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"golang.org/x/term"
 
+	"github.com/payfacto/bb/cmd/render"
 	"github.com/payfacto/bb/internal/config"
 	"github.com/payfacto/bb/internal/history"
 	"github.com/payfacto/bb/pkg/bitbucket"
@@ -21,6 +22,12 @@ func Run(client *bitbucket.Client, cfg *config.Config) error {
 	if cfg == nil {
 		cfg = &config.Config{}
 	}
+
+	// Warm the glamour markdown renderer before entering alt screen.
+	// WithAutoStyle queries the terminal's background colour via an OSC escape
+	// sequence; doing this inside bubbletea's alt screen causes it to race
+	// with the input loop and can block for several seconds.
+	render.WarmMarkdownRenderer()
 
 	histPath := history.HistoryPath(config.DefaultPath())
 	hist, histErr := history.Load(histPath)
