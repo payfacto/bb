@@ -2,11 +2,9 @@ package tui
 
 import "time"
 
-const defaultCacheTTL = 5 * time.Minute
-
 type cacheEntry struct {
 	items  []listItem
-	expiry time.Time
+	expiry time.Time // zero means no expiry
 }
 
 type listCache struct {
@@ -20,14 +18,23 @@ func newListCache() *listCache {
 // Get returns cached items for key. Returns false if the entry is missing or expired.
 func (c *listCache) Get(key string) ([]listItem, bool) {
 	e, ok := c.entries[key]
-	if !ok || time.Now().After(e.expiry) {
+	if !ok {
+		return nil, false
+	}
+	if !e.expiry.IsZero() && time.Now().After(e.expiry) {
 		return nil, false
 	}
 	return e.items, true
 }
 
+// Set stores items under key with the given TTL.
 func (c *listCache) Set(key string, items []listItem, ttl time.Duration) {
 	c.entries[key] = cacheEntry{items: items, expiry: time.Now().Add(ttl)}
+}
+
+// Pin stores items under key with no expiry — they persist until explicitly invalidated.
+func (c *listCache) Pin(key string, items []listItem) {
+	c.entries[key] = cacheEntry{items: items}
 }
 
 // Invalidate removes the entry for key so the next Get is a miss.

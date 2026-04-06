@@ -12,10 +12,13 @@ import (
 
 const maxMRU = 5
 
-// History persists per-workspace favourites and a global MRU repo list.
+// History persists per-workspace favourites, a global MRU repo list, and a
+// workspace-scoped repo list cache so the TUI never needs to re-fetch unless
+// the user explicitly requests a refresh.
 type History struct {
-	Favourites map[string][]string `json:"favourites"` // workspace → []slug
-	MRU        []MRUEntry          `json:"mru"`        // newest first, capped at maxMRU
+	Favourites map[string][]string       `json:"favourites"`          // workspace → []slug
+	MRU        []MRUEntry                `json:"mru"`                 // newest first, capped at maxMRU
+	RepoCache  map[string][]CachedRepo   `json:"repo_cache,omitempty"` // workspace → repos
 }
 
 // MRUEntry is a recently-visited repository.
@@ -23,6 +26,13 @@ type MRUEntry struct {
 	Workspace string `json:"workspace"`
 	Slug      string `json:"slug"`
 	Name      string `json:"name"`
+}
+
+// CachedRepo stores the minimal repo fields needed by the TUI.
+type CachedRepo struct {
+	Slug      string `json:"slug"`
+	Name      string `json:"name"`
+	IsPrivate bool   `json:"is_private"`
 }
 
 // HistoryPath returns the history file path derived from the config file path.
@@ -91,6 +101,26 @@ func (h *History) AddMRU(ws, slug, name string) {
 		}
 	}
 	h.MRU = updated
+}
+
+// SetRepos stores the repo list for the given workspace in the cache.
+func (h *History) SetRepos(ws string, repos []CachedRepo) {
+	if h.RepoCache == nil {
+		h.RepoCache = make(map[string][]CachedRepo)
+	}
+	h.RepoCache[ws] = repos
+}
+
+// GetRepos returns the cached repo list for the given workspace.
+// Returns false when no cache entry exists for that workspace.
+func (h *History) GetRepos(ws string) ([]CachedRepo, bool) {
+	repos, ok := h.RepoCache[ws]
+	return repos, ok && len(repos) > 0
+}
+
+// ClearRepos removes the cached repo list for the given workspace.
+func (h *History) ClearRepos(ws string) {
+	delete(h.RepoCache, ws)
 }
 
 // RecentSlugs returns the MRU slugs for the given workspace, newest first.

@@ -42,16 +42,33 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 				PageSize:  ps,
 				Shortcuts: []key.Binding{favKey},
 				Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
+					// 1. In-memory hit — instant.
 					if cached, ok := cache.Get(cacheKey); ok {
 						return cached, nil
 					}
+					// 2. Disk hit — no API call needed.
+					if diskRepos, ok := hist.GetRepos(ws); ok {
+						items := repoItemsFromCache(diskRepos, hist, ws)
+						cache.Pin(cacheKey, items)
+						return items, nil
+					}
+					// 3. First run or explicit refresh — fetch from API and persist.
 					repos, err := client.Repos(ws).List(ctx)
 					if err != nil {
 						return nil, err
 					}
+					hist.SetRepos(ws, toCachedRepos(repos))
+					// Save is best-effort; a failure here means the cache won't
+					// persist but the repos are still displayed correctly.
+					_ = hist.Save(histPath)
 					items := repoListItems(repos, hist, ws)
-					cache.Set(cacheKey, items, defaultCacheTTL)
+					cache.Pin(cacheKey, items)
 					return items, nil
+				},
+				OnRefresh: func() {
+					cache.Invalidate(cacheKey)
+					hist.ClearRepos(ws)
+					_ = hist.Save(histPath)
 				},
 				OnKey: func(msg tea.KeyMsg, selected listItem, items []listItem) ([]listItem, tea.Cmd) {
 					if !key.Matches(msg, favKey) {
@@ -518,6 +535,24 @@ func repoBaseTitle(r bitbucket.Repo) string {
 		return r.Name
 	}
 	return r.Name + "  [public]"
+}
+
+// toCachedRepos converts API repos to the minimal form persisted in history.
+func toCachedRepos(repos []bitbucket.Repo) []history.CachedRepo {
+	out := make([]history.CachedRepo, len(repos))
+	for i, r := range repos {
+		out[i] = history.CachedRepo{Slug: r.Slug, Name: r.Name, IsPrivate: r.IsPrivate}
+	}
+	return out
+}
+
+// repoItemsFromCache reconstructs listItems from disk-cached repo data.
+func repoItemsFromCache(cached []history.CachedRepo, hist *history.History, ws string) []listItem {
+	repos := make([]bitbucket.Repo, len(cached))
+	for i, c := range cached {
+		repos[i] = bitbucket.Repo{Slug: c.Slug, Name: c.Name, IsPrivate: c.IsPrivate}
+	}
+	return repoListItems(repos, hist, ws)
 }
 
 // repoListItems converts API repos into listItems with favourite/MRU markers, sorted.

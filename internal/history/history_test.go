@@ -133,3 +133,59 @@ func TestHistoryPath(t *testing.T) {
 		t.Errorf("expected %q, got %q", want, p)
 	}
 }
+
+func TestRepoCacheSetGet(t *testing.T) {
+	h := &History{Favourites: make(map[string][]string)}
+
+	// Empty cache returns false.
+	if _, ok := h.GetRepos("ws"); ok {
+		t.Error("expected no cached repos for fresh History")
+	}
+
+	repos := []CachedRepo{
+		{Slug: "repo-a", Name: "Repo A", IsPrivate: false},
+		{Slug: "repo-b", Name: "Repo B", IsPrivate: true},
+	}
+	h.SetRepos("ws", repos)
+
+	got, ok := h.GetRepos("ws")
+	if !ok {
+		t.Fatal("expected cached repos after SetRepos")
+	}
+	if len(got) != 2 || got[0].Slug != "repo-a" || got[1].Slug != "repo-b" {
+		t.Errorf("unexpected cached repos: %v", got)
+	}
+
+	// Different workspace is independent.
+	if _, ok := h.GetRepos("other-ws"); ok {
+		t.Error("expected no cached repos for different workspace")
+	}
+}
+
+func TestRepoCacheClear(t *testing.T) {
+	h := &History{Favourites: make(map[string][]string)}
+	h.SetRepos("ws", []CachedRepo{{Slug: "repo-a", Name: "Repo A"}})
+
+	h.ClearRepos("ws")
+	if _, ok := h.GetRepos("ws"); ok {
+		t.Error("expected no cached repos after ClearRepos")
+	}
+}
+
+func TestRepoCachePersists(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "hist.json")
+	h := &History{Favourites: make(map[string][]string)}
+	h.SetRepos("ws", []CachedRepo{{Slug: "repo-a", Name: "Repo A", IsPrivate: true}})
+
+	if err := h.Save(path); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	loaded, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	got, ok := loaded.GetRepos("ws")
+	if !ok || len(got) != 1 || got[0].Slug != "repo-a" || !got[0].IsPrivate {
+		t.Errorf("unexpected repos after round-trip: ok=%v repos=%v", ok, got)
+	}
+}
