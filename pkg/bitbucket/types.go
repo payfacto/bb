@@ -146,6 +146,21 @@ type PipelineStep struct {
 	CompletedOn string        `json:"completed_on"`
 }
 
+// PipelineVariable represents a repository-level pipeline variable.
+type PipelineVariable struct {
+	UUID    string `json:"uuid"`
+	Key     string `json:"key"`
+	Value   string `json:"value"`
+	Secured bool   `json:"secured"`
+}
+
+// CreatePipelineVariableInput is the request body for creating a pipeline variable.
+type CreatePipelineVariableInput struct {
+	Key     string `json:"key"`
+	Value   string `json:"value"`
+	Secured bool   `json:"secured"`
+}
+
 type TriggerPipelineInput struct {
 	Target TriggerTarget `json:"target"`
 }
@@ -243,10 +258,17 @@ type CreateRepoInput struct {
 	Project     *ProjectRef `json:"project,omitempty"`
 }
 
+// MainbranchRef is the minimal branch reference used when setting a repo's default branch.
+type MainbranchRef struct {
+	Name string `json:"name"`
+	Type string `json:"type"` // always "branch"
+}
+
 // UpdateRepoInput is the request body for updating repository metadata.
 type UpdateRepoInput struct {
-	Description string `json:"description,omitempty"`
-	IsPrivate   *bool  `json:"is_private,omitempty"`
+	Description string         `json:"description,omitempty"`
+	IsPrivate   *bool          `json:"is_private,omitempty"`
+	Mainbranch  *MainbranchRef `json:"mainbranch,omitempty"`
 }
 
 // ForkRepoInput is the request body for forking a repository.

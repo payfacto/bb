@@ -596,6 +596,16 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 								}, "Description updated")
 							}))
 						}},
+						{Label: "Set Default Branch", OnSelect: func() tea.Cmd {
+							return pushViewCmd(newInputView("Default Branch Name", "main", func(branch string) tea.Cmd {
+								return executeAction(func() error {
+									_, err := client.Repos(ws).Update(context.Background(), repo, bitbucket.UpdateRepoInput{
+										Mainbranch: &bitbucket.MainbranchRef{Name: branch, Type: "branch"},
+									})
+									return err
+								}, fmt.Sprintf("Default branch set to %q", branch))
+							}))
+						}},
 						{Label: "✗ Delete Repo", Style: &actionDangerStyle, Confirm: &ConfirmConfig{
 							Message: fmt.Sprintf("Permanently delete %q? This cannot be undone.", repo),
 							OnYes: func() tea.Cmd {
@@ -807,6 +817,73 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int)
 				d := item.data.(bitbucket.Download)
 				content := fmt.Sprintf("Name: %s\nSize: %d bytes\n", d.Name, d.Size)
 				return pushViewCmd(newTextView("Download: "+d.Name, content))
+			})
+		}},
+		{label: "Pipeline Variables", description: "Repo-level pipeline variables", onSelect: func() View {
+			newVarKey := key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "new variable"))
+			return newListView(ListConfig{
+				Title:     "Pipeline Variables",
+				PageSize:  pageSize,
+				EmptyMsg:  "No pipeline variables found.",
+				Shortcuts: []key.Binding{newVarKey},
+				Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
+					vars, err := client.PipelineVariables(ws, repo).List(ctx)
+					if err != nil {
+						return nil, err
+					}
+					items := make([]listItem, len(vars))
+					for i, v := range vars {
+						title := v.Key
+						if v.Secured {
+							title += "  [secured]"
+						}
+						items[i] = listItem{id: v.UUID, title: title, data: v}
+					}
+					return items, nil
+				},
+				OnKey: func(msg tea.KeyMsg, _ listItem, items []listItem) ([]listItem, tea.Cmd) {
+					if !key.Matches(msg, newVarKey) {
+						return nil, nil
+					}
+					return nil, pushViewCmd(newInputView("New Variable — Key", "VAR_NAME", func(varKey string) tea.Cmd {
+						return pushViewCmd(newInputView("New Variable — Value", "value", func(value string) tea.Cmd {
+							return executeAction(func() error {
+								_, err := client.PipelineVariables(ws, repo).Create(context.Background(), bitbucket.CreatePipelineVariableInput{
+									Key:   varKey,
+									Value: value,
+								})
+								return err
+							}, fmt.Sprintf("Variable %q created", varKey))
+						}))
+					}))
+				},
+				OnSelect: func(item listItem) tea.Cmd {
+					v := item.data.(bitbucket.PipelineVariable)
+					value := v.Value
+					if v.Secured {
+						value = "[secured — value not shown]"
+					}
+					content := fmt.Sprintf("Key:     %s\nValue:   %s\nSecured: %v\nUUID:    %s\n",
+						v.Key, value, v.Secured, v.UUID)
+					return pushViewCmd(newDetailView(DetailConfig{
+						Title:   "Variable: " + v.Key,
+						Content: content,
+						Actions: []ActionItem{
+							{Label: "✗ Delete", Style: &actionDangerStyle, Confirm: &ConfirmConfig{
+								Message: fmt.Sprintf("Delete variable %q?", v.Key),
+								OnYes: func() tea.Cmd {
+									return tea.Sequence(
+										popView,
+										popView,
+										executeAction(func() error {
+											return client.PipelineVariables(ws, repo).Delete(context.Background(), v.UUID)
+										}, fmt.Sprintf("Variable %q deleted", v.Key)),
+									)
+								},
+							}},
+						},
+					}))
+				},
 			})
 		}},
 	}
