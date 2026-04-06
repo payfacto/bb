@@ -366,7 +366,6 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 		{label: "Projects", description: "Workspace projects", onSelect: func() View {
 			projFavKey := key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "toggle favourite"))
 			projCacheKey := "projects:" + ws
-			histPath := history.HistoryPath(config.DefaultPath())
 			return newListView(ListConfig{
 				Title:     "Projects",
 				PageSize:  ps,
