@@ -138,7 +138,7 @@ func TestRepoCacheSetGet(t *testing.T) {
 	h := &History{Favourites: make(map[string][]string)}
 
 	// Empty cache returns false.
-	if _, ok := h.GetRepos("ws"); ok {
+	if _, ok := h.Repos("ws"); ok {
 		t.Error("expected no cached repos for fresh History")
 	}
 
@@ -148,7 +148,7 @@ func TestRepoCacheSetGet(t *testing.T) {
 	}
 	h.SetRepos("ws", repos)
 
-	got, ok := h.GetRepos("ws")
+	got, ok := h.Repos("ws")
 	if !ok {
 		t.Fatal("expected cached repos after SetRepos")
 	}
@@ -157,8 +157,17 @@ func TestRepoCacheSetGet(t *testing.T) {
 	}
 
 	// Different workspace is independent.
-	if _, ok := h.GetRepos("other-ws"); ok {
+	if _, ok := h.Repos("other-ws"); ok {
 		t.Error("expected no cached repos for different workspace")
+	}
+}
+
+func TestRepoCacheEmptySlice(t *testing.T) {
+	h := &History{Favourites: make(map[string][]string)}
+	// Storing an empty slice must still report as a cache miss.
+	h.SetRepos("ws", []CachedRepo{})
+	if _, ok := h.Repos("ws"); ok {
+		t.Error("expected cache miss for empty repo slice")
 	}
 }
 
@@ -167,7 +176,7 @@ func TestRepoCacheClear(t *testing.T) {
 	h.SetRepos("ws", []CachedRepo{{Slug: "repo-a", Name: "Repo A"}})
 
 	h.ClearRepos("ws")
-	if _, ok := h.GetRepos("ws"); ok {
+	if _, ok := h.Repos("ws"); ok {
 		t.Error("expected no cached repos after ClearRepos")
 	}
 }
@@ -184,7 +193,7 @@ func TestRepoCachePersists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	got, ok := loaded.GetRepos("ws")
+	got, ok := loaded.Repos("ws")
 	if !ok || len(got) != 1 || got[0].Slug != "repo-a" || !got[0].IsPrivate {
 		t.Errorf("unexpected repos after round-trip: ok=%v repos=%v", ok, got)
 	}

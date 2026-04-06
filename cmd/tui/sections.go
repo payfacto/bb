@@ -47,7 +47,7 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 						return cached, nil
 					}
 					// 2. Disk hit — no API call needed.
-					if diskRepos, ok := hist.GetRepos(ws); ok {
+					if diskRepos, ok := hist.Repos(ws); ok {
 						items := repoItemsFromCache(diskRepos, hist, ws)
 						cache.Pin(cacheKey, items)
 						return items, nil
@@ -65,10 +65,10 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 					cache.Pin(cacheKey, items)
 					return items, nil
 				},
-				OnRefresh: func() {
+				OnRefresh: func() tea.Cmd {
 					cache.Invalidate(cacheKey)
 					hist.ClearRepos(ws)
-					_ = hist.Save(histPath)
+					return saveHistoryCmd(hist, histPath)
 				},
 				OnKey: func(msg tea.KeyMsg, selected listItem, items []listItem) ([]listItem, tea.Cmd) {
 					if !key.Matches(msg, favKey) {

@@ -16,9 +16,9 @@ const maxMRU = 5
 // workspace-scoped repo list cache so the TUI never needs to re-fetch unless
 // the user explicitly requests a refresh.
 type History struct {
-	Favourites map[string][]string       `json:"favourites"`          // workspace → []slug
-	MRU        []MRUEntry                `json:"mru"`                 // newest first, capped at maxMRU
-	RepoCache  map[string][]CachedRepo   `json:"repo_cache,omitempty"` // workspace → repos
+	Favourites map[string][]string     `json:"favourites"`           // workspace → []slug
+	MRU        []MRUEntry              `json:"mru"`                  // newest first, capped at maxMRU
+	RepoCache  map[string][]CachedRepo `json:"repo_cache,omitempty"` // workspace → repos
 }
 
 // MRUEntry is a recently-visited repository.
@@ -111,9 +111,9 @@ func (h *History) SetRepos(ws string, repos []CachedRepo) {
 	h.RepoCache[ws] = repos
 }
 
-// GetRepos returns the cached repo list for the given workspace.
+// Repos returns the cached repo list for the given workspace.
 // Returns false when no cache entry exists for that workspace.
-func (h *History) GetRepos(ws string) ([]CachedRepo, bool) {
+func (h *History) Repos(ws string) ([]CachedRepo, bool) {
 	repos, ok := h.RepoCache[ws]
 	return repos, ok && len(repos) > 0
 }
