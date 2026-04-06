@@ -686,8 +686,6 @@ func newPRListView(client *bitbucket.Client, ws, repo string, pageSize int) *lis
 }
 
 func newPRDetailView(client *bitbucket.Client, ws, repo string, pr bitbucket.PR, pageSize int) *detailModel {
-	approveKey := key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "approve"))
-	mergeKey := key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "merge"))
 	commentsKey := key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "comments"))
 	diffKey := key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "diff"))
 
@@ -720,12 +718,12 @@ func newPRDetailView(client *bitbucket.Client, ws, repo string, pr bitbucket.PR,
 			{Label: "Tasks", OnSelect: func() tea.Cmd {
 				return pushViewCmd(newPRTaskListView(client, ws, repo, pr.ID, pageSize))
 			}},
-			{Label: "✓ Approve", Key: &approveKey, Style: &actionSuccessStyle, OnSelect: func() tea.Cmd {
+			{Label: "✓ Approve", Style: &actionSuccessStyle, OnSelect: func() tea.Cmd {
 				return executeAction(func() error {
 					return client.PRs(ws, repo).Approve(context.Background(), pr.ID)
 				}, fmt.Sprintf("PR #%d approved", pr.ID))
 			}},
-			{Label: "⤓ Merge", Key: &mergeKey, Style: &actionWarnStyle, Confirm: &ConfirmConfig{
+			{Label: "⤓ Merge", Style: &actionWarnStyle, Confirm: &ConfirmConfig{
 				Message: fmt.Sprintf("Merge PR #%d into %s?", pr.ID, pr.Destination.Branch.Name),
 				OnYes: func() tea.Cmd {
 					return tea.Sequence(
