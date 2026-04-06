@@ -55,6 +55,89 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 	histPath := history.HistoryPath(config.DefaultPath())
 
 	return []menuItem{
+		{label: "Projects", description: "Workspace projects", onSelect: func() View {
+			projFavKey := key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "toggle favourite"))
+			projCacheKey := "projects:" + ws
+			return newListView(ListConfig{
+				Title:     "Projects",
+				PageSize:  ps,
+				Shortcuts: []key.Binding{projFavKey},
+				Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
+					// 1. In-memory hit — instant.
+					if cached, ok := cache.Get(projCacheKey); ok {
+						return cached, nil
+					}
+					// 2. Disk hit — no API call needed.
+					if diskProjects, ok := hist.Projects(ws); ok {
+						items := projectItemsFromCache(diskProjects, hist, ws)
+						cache.Pin(projCacheKey, items)
+						return items, nil
+					}
+					// 3. First run or explicit refresh — fetch from API and persist.
+					projects, err := client.Projects(ws).List(ctx)
+					if err != nil {
+						return nil, err
+					}
+					hist.SetProjects(ws, toCachedProjects(projects))
+					// Save is best-effort; a failure here means the cache won't
+					// persist but projects are still displayed correctly.
+					_ = hist.Save(histPath)
+					items := projectListItems(projects, hist, ws)
+					cache.Pin(projCacheKey, items)
+					return items, nil
+				},
+				OnRefresh: func() tea.Cmd {
+					cache.Invalidate(projCacheKey)
+					hist.ClearProjects(ws)
+					return saveHistoryCmd(hist, histPath)
+				},
+				OnKey: func(msg tea.KeyMsg, selected listItem, items []listItem) ([]listItem, tea.Cmd) {
+					if !key.Matches(msg, projFavKey) {
+						return nil, nil
+					}
+					p := selected.data.(bitbucket.Project)
+					hist.ToggleProjectFavourite(ws, p.Key)
+					cache.Invalidate(projCacheKey)
+					updated := sortProjectItems(items, hist, ws)
+					return updated, saveHistoryCmd(hist, histPath)
+				},
+				OnSelect: func(item listItem) tea.Cmd {
+					p := item.data.(bitbucket.Project)
+					hist.AddProjectMRU(ws, p.Key, p.Name)
+					cache.Invalidate(projCacheKey)
+					navCmd := pushViewCmd(newDetailView(DetailConfig{
+						Title: "Project: " + p.Key,
+						ContentFetch: func() string {
+							return render.ProjectDetailString(p)
+						},
+						Actions: []ActionItem{
+							{Label: "Repos in this project", OnSelect: func() tea.Cmd {
+								return pushViewCmd(newSimpleListView("Repos: "+p.Key, ps,
+									func(ctx context.Context, _ string) ([]listItem, error) {
+										repos, err := client.Repos(ws).ListByProject(ctx, p.Key)
+										if err != nil {
+											return nil, err
+										}
+										items := make([]listItem, len(repos))
+										for i, r := range repos {
+											items[i] = listItem{title: repoBaseTitle(r), data: r}
+										}
+										return items, nil
+									},
+									func(item listItem) tea.Cmd {
+										r := item.data.(bitbucket.Repo)
+										repoCfg := *cfg
+										repoCfg.Repo = r.Slug
+										return pushViewCmd(newMenuModel(ws, r.Slug, buildMenuItems(client, &repoCfg, hist, cache)))
+									},
+								))
+							}},
+						},
+					}))
+					return tea.Batch(navCmd, saveHistoryCmd(hist, histPath))
+				},
+			})
+		}},
 		{label: "Repositories", description: "List workspace repos", onSelect: func() View {
 			return newListView(ListConfig{
 				Title:     "Repositories",
@@ -254,9 +337,6 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 				}))
 			})
 		})},
-		{label: "Settings", description: "Webhooks, deploy keys, environments, restrictions", onSelect: needRepo(func() View {
-			return newMenuModel(ws, repo, buildSettingsItems(client, ws, repo, ps))
-		})},
 		{label: "Members", description: "Workspace members", onSelect: func() View {
 			return newSimpleListView("Members", ps, func(ctx context.Context, _ string) ([]listItem, error) {
 				members, err := client.Members(ws).List(ctx)
@@ -363,89 +443,6 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 				}))
 			})
 		}},
-		{label: "Projects", description: "Workspace projects", onSelect: func() View {
-			projFavKey := key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "toggle favourite"))
-			projCacheKey := "projects:" + ws
-			return newListView(ListConfig{
-				Title:     "Projects",
-				PageSize:  ps,
-				Shortcuts: []key.Binding{projFavKey},
-				Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
-					// 1. In-memory hit — instant.
-					if cached, ok := cache.Get(projCacheKey); ok {
-						return cached, nil
-					}
-					// 2. Disk hit — no API call needed.
-					if diskProjects, ok := hist.Projects(ws); ok {
-						items := projectItemsFromCache(diskProjects, hist, ws)
-						cache.Pin(projCacheKey, items)
-						return items, nil
-					}
-					// 3. First run or explicit refresh — fetch from API and persist.
-					projects, err := client.Projects(ws).List(ctx)
-					if err != nil {
-						return nil, err
-					}
-					hist.SetProjects(ws, toCachedProjects(projects))
-					// Save is best-effort; a failure here means the cache won't
-					// persist but projects are still displayed correctly.
-					_ = hist.Save(histPath)
-					items := projectListItems(projects, hist, ws)
-					cache.Pin(projCacheKey, items)
-					return items, nil
-				},
-				OnRefresh: func() tea.Cmd {
-					cache.Invalidate(projCacheKey)
-					hist.ClearProjects(ws)
-					return saveHistoryCmd(hist, histPath)
-				},
-				OnKey: func(msg tea.KeyMsg, selected listItem, items []listItem) ([]listItem, tea.Cmd) {
-					if !key.Matches(msg, projFavKey) {
-						return nil, nil
-					}
-					p := selected.data.(bitbucket.Project)
-					hist.ToggleProjectFavourite(ws, p.Key)
-					cache.Invalidate(projCacheKey)
-					updated := sortProjectItems(items, hist, ws)
-					return updated, saveHistoryCmd(hist, histPath)
-				},
-				OnSelect: func(item listItem) tea.Cmd {
-					p := item.data.(bitbucket.Project)
-					hist.AddProjectMRU(ws, p.Key, p.Name)
-					cache.Invalidate(projCacheKey)
-					navCmd := pushViewCmd(newDetailView(DetailConfig{
-						Title: "Project: " + p.Key,
-						ContentFetch: func() string {
-							return render.ProjectDetailString(p)
-						},
-						Actions: []ActionItem{
-							{Label: "Repos in this project", OnSelect: func() tea.Cmd {
-								return pushViewCmd(newSimpleListView("Repos: "+p.Key, ps,
-									func(ctx context.Context, _ string) ([]listItem, error) {
-										repos, err := client.Repos(ws).ListByProject(ctx, p.Key)
-										if err != nil {
-											return nil, err
-										}
-										items := make([]listItem, len(repos))
-										for i, r := range repos {
-											items[i] = listItem{title: repoBaseTitle(r), data: r}
-										}
-										return items, nil
-									},
-									func(item listItem) tea.Cmd {
-										r := item.data.(bitbucket.Repo)
-										repoCfg := *cfg
-										repoCfg.Repo = r.Slug
-										return pushViewCmd(newMenuModel(ws, r.Slug, buildMenuItems(client, &repoCfg, hist, cache)))
-									},
-								))
-							}},
-						},
-					}))
-					return tea.Batch(navCmd, saveHistoryCmd(hist, histPath))
-				},
-			})
-		}},
 		{label: "Snippets", description: "Workspace snippets", onSelect: func() View {
 			return newSimpleListView("Snippets", ps, func(ctx context.Context, _ string) ([]listItem, error) {
 				snippets, err := client.Snippets(ws).List(ctx)
@@ -472,6 +469,9 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 				}))
 			})
 		}},
+		{label: "Settings", description: "Webhooks, deploy keys, environments, restrictions", onSelect: needRepo(func() View {
+			return newMenuModel(ws, repo, buildSettingsItems(client, ws, repo, ps))
+		})},
 		{label: "bb Setup", description: "Reconfigure workspace, repo, credentials", onSelect: func() View {
 			return newSetupView(config.DefaultPath(), cfg)
 		}},
