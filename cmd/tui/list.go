@@ -23,8 +23,9 @@ type ListConfig struct {
 	Fetch    func(ctx context.Context, filter string) ([]listItem, error)
 	OnSelect func(item listItem) tea.Cmd
 	// OnKey is called for unhandled key presses when items are loaded.
-	// Returning non-nil items replaces the current item list in place.
-	OnKey     func(msg tea.KeyMsg, cursor int, items []listItem) ([]listItem, tea.Cmd)
+	// selected is the item under the cursor (from the filtered view).
+	// Returning non-nil items replaces the full item list in place.
+	OnKey func(msg tea.KeyMsg, selected listItem, items []listItem) ([]listItem, tea.Cmd)
 	Filters   []string
 	Shortcuts []key.Binding
 	PageSize  int
@@ -185,8 +186,9 @@ func (m *listModel) updateNavigation(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(m.spinner.Tick, m.fetchItems())
 		}
 	}
-	if m.cfg.OnKey != nil && !m.loading && len(m.items) > 0 {
-		if newItems, cmd := m.cfg.OnKey(msg, m.cursor, m.items); newItems != nil {
+	if m.cfg.OnKey != nil && !m.loading && m.cursor < len(m.filtered) {
+		selected := m.filtered[m.cursor]
+		if newItems, cmd := m.cfg.OnKey(msg, selected, m.items); newItems != nil {
 			m.items = newItems
 			m.applySearch()
 			return m, cmd

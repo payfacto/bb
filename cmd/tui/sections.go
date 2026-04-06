@@ -53,11 +53,11 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 					cache.Set(cacheKey, items, defaultCacheTTL)
 					return items, nil
 				},
-				OnKey: func(msg tea.KeyMsg, cursor int, items []listItem) ([]listItem, tea.Cmd) {
-					if !key.Matches(msg, favKey) || cursor >= len(items) {
+				OnKey: func(msg tea.KeyMsg, selected listItem, items []listItem) ([]listItem, tea.Cmd) {
+					if !key.Matches(msg, favKey) {
 						return nil, nil
 					}
-					r := items[cursor].data.(bitbucket.Repo)
+					r := selected.data.(bitbucket.Repo)
 					hist.ToggleFavourite(ws, r.Slug)
 					cache.Invalidate(cacheKey)
 					updated := sortRepoItems(items, hist, ws)
