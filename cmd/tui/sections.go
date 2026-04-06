@@ -645,7 +645,7 @@ func repoBaseTitle(r bitbucket.Repo) string {
 	if r.IsPrivate {
 		return r.Name
 	}
-	return r.Name + "  [public]"
+	return r.Name + "  " + errorStyle.Render("[public]")
 }
 
 // toCachedRepos converts API repos to the minimal form persisted in history.
@@ -699,6 +699,7 @@ func sortRepoItems(items []listItem, hist *history.History, ws string) []listIte
 			item.title = repoMRUMarker + item.title
 			mruOnly = append(mruOnly, item)
 		} else {
+			item.title = projNoMarker + item.title
 			rest = append(rest, item)
 		}
 	}
