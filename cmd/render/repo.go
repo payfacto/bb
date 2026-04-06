@@ -102,3 +102,29 @@ func RepoListString(repos []bitbucket.Repo) string {
 
 // RepoList prints the formatted repository list to stdout.
 func RepoList(repos []bitbucket.Repo) { fmt.Print(RepoListString(repos)) }
+
+// RepoDetailString returns the full detail string for a single repository.
+func RepoDetailString(r bitbucket.Repo) string {
+	privacy := "public"
+	if r.IsPrivate {
+		privacy = "private"
+	}
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("  %s  %s\n", LabelStyle.Render("Slug:       "), IDStyle.Render(r.Slug)))
+	sb.WriteString(fmt.Sprintf("  %s  %s\n", LabelStyle.Render("Name:       "), BranchStyle.Render(r.Name)))
+	sb.WriteString(fmt.Sprintf("  %s  %s\n", LabelStyle.Render("Full name:  "), r.FullName))
+	sb.WriteString(fmt.Sprintf("  %s  %s\n", LabelStyle.Render("Access:     "), StateBadge(privacy)))
+	if r.Description != "" {
+		sb.WriteString(fmt.Sprintf("  %s  %s\n", LabelStyle.Render("Description:"), r.Description))
+	}
+	if r.Project != nil {
+		sb.WriteString(fmt.Sprintf("  %s  %s (%s)\n", LabelStyle.Render("Project:    "), r.Project.Name, r.Project.Key))
+	}
+	if r.Links.HTML.Href != "" {
+		sb.WriteString(fmt.Sprintf("  %s  %s\n", LabelStyle.Render("URL:        "), DimStyle.Render(r.Links.HTML.Href)))
+	}
+	return sb.String()
+}
+
+// RepoDetail prints the formatted repository detail to stdout.
+func RepoDetail(r bitbucket.Repo) { fmt.Print(RepoDetailString(r)) }

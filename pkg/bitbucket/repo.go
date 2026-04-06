@@ -28,3 +28,24 @@ func (r *RepoResource) ListByProject(ctx context.Context, projectKey string) ([]
 	}
 	return fetchAllPages[Repo](ctx, r.client, path, q)
 }
+
+// Create creates a new repository in the workspace.
+func (r *RepoResource) Create(ctx context.Context, slug string, input CreateRepoInput) (Repo, error) {
+	path := fmt.Sprintf("/repositories/%s/%s", r.workspace, slug)
+	data, err := r.client.do(ctx, "POST", path, input, nil)
+	if err != nil {
+		return Repo{}, err
+	}
+	return decode[Repo](data)
+}
+
+// Fork forks an existing repository into the workspace (or target workspace).
+// sourceSlug is the slug of the repo to fork within r.workspace.
+func (r *RepoResource) Fork(ctx context.Context, sourceSlug string, input ForkRepoInput) (Repo, error) {
+	path := fmt.Sprintf("/repositories/%s/%s/forks", r.workspace, sourceSlug)
+	data, err := r.client.do(ctx, "POST", path, input, nil)
+	if err != nil {
+		return Repo{}, err
+	}
+	return decode[Repo](data)
+}
