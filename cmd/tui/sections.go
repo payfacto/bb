@@ -363,51 +363,87 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 			})
 		}},
 		{label: "Projects", description: "Workspace projects", onSelect: func() View {
-			return newSimpleListView("Projects", ps, func(ctx context.Context, _ string) ([]listItem, error) {
-				projects, err := client.Projects(ws).List(ctx)
-				if err != nil {
-					return nil, err
-				}
-				items := make([]listItem, len(projects))
-				for i, p := range projects {
-					title := p.Name
-					if !p.IsPrivate {
-						title += "  [public]"
+			projFavKey := key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "toggle favourite"))
+			projCacheKey := "projects:" + ws
+			histPath := history.HistoryPath(config.DefaultPath())
+			return newListView(ListConfig{
+				Title:     "Projects",
+				PageSize:  ps,
+				Shortcuts: []key.Binding{projFavKey},
+				Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
+					// 1. In-memory hit — instant.
+					if cached, ok := cache.Get(projCacheKey); ok {
+						return cached, nil
 					}
-					items[i] = listItem{id: p.Key, title: title, data: p}
-				}
-				return items, nil
-			}, func(item listItem) tea.Cmd {
-				p := item.data.(bitbucket.Project)
-				return pushViewCmd(newDetailView(DetailConfig{
-					Title: "Project: " + p.Key,
-					ContentFetch: func() string {
-						return render.ProjectDetailString(p)
-					},
-					Actions: []ActionItem{
-						{Label: "Repos in this project", OnSelect: func() tea.Cmd {
-							return pushViewCmd(newSimpleListView("Repos: "+p.Key, ps,
-								func(ctx context.Context, _ string) ([]listItem, error) {
-									repos, err := client.Repos(ws).ListByProject(ctx, p.Key)
-									if err != nil {
-										return nil, err
-									}
-									items := make([]listItem, len(repos))
-									for i, r := range repos {
-										items[i] = listItem{title: repoBaseTitle(r), data: r}
-									}
-									return items, nil
-								},
-								func(item listItem) tea.Cmd {
-									r := item.data.(bitbucket.Repo)
-									repoCfg := *cfg
-									repoCfg.Repo = r.Slug
-									return pushViewCmd(newMenuModel(ws, r.Slug, buildMenuItems(client, &repoCfg, hist, cache)))
-								},
-							))
-						}},
-					},
-				}))
+					// 2. Disk hit — no API call needed.
+					if diskProjects, ok := hist.Projects(ws); ok {
+						items := projectItemsFromCache(diskProjects, hist, ws)
+						cache.Pin(projCacheKey, items)
+						return items, nil
+					}
+					// 3. First run or explicit refresh — fetch from API and persist.
+					projects, err := client.Projects(ws).List(ctx)
+					if err != nil {
+						return nil, err
+					}
+					hist.SetProjects(ws, toCachedProjects(projects))
+					// Save is best-effort; a failure here means the cache won't
+					// persist but projects are still displayed correctly.
+					_ = hist.Save(histPath)
+					items := projectListItems(projects, hist, ws)
+					cache.Pin(projCacheKey, items)
+					return items, nil
+				},
+				OnRefresh: func() tea.Cmd {
+					cache.Invalidate(projCacheKey)
+					hist.ClearProjects(ws)
+					return saveHistoryCmd(hist, histPath)
+				},
+				OnKey: func(msg tea.KeyMsg, selected listItem, items []listItem) ([]listItem, tea.Cmd) {
+					if !key.Matches(msg, projFavKey) {
+						return nil, nil
+					}
+					p := selected.data.(bitbucket.Project)
+					hist.ToggleProjectFavourite(ws, p.Key)
+					cache.Invalidate(projCacheKey)
+					updated := sortProjectItems(items, hist, ws)
+					return updated, saveHistoryCmd(hist, histPath)
+				},
+				OnSelect: func(item listItem) tea.Cmd {
+					p := item.data.(bitbucket.Project)
+					hist.AddProjectMRU(ws, p.Key, p.Name)
+					cache.Invalidate(projCacheKey)
+					navCmd := pushViewCmd(newDetailView(DetailConfig{
+						Title: "Project: " + p.Key,
+						ContentFetch: func() string {
+							return render.ProjectDetailString(p)
+						},
+						Actions: []ActionItem{
+							{Label: "Repos in this project", OnSelect: func() tea.Cmd {
+								return pushViewCmd(newSimpleListView("Repos: "+p.Key, ps,
+									func(ctx context.Context, _ string) ([]listItem, error) {
+										repos, err := client.Repos(ws).ListByProject(ctx, p.Key)
+										if err != nil {
+											return nil, err
+										}
+										items := make([]listItem, len(repos))
+										for i, r := range repos {
+											items[i] = listItem{title: repoBaseTitle(r), data: r}
+										}
+										return items, nil
+									},
+									func(item listItem) tea.Cmd {
+										r := item.data.(bitbucket.Repo)
+										repoCfg := *cfg
+										repoCfg.Repo = r.Slug
+										return pushViewCmd(newMenuModel(ws, r.Slug, buildMenuItems(client, &repoCfg, hist, cache)))
+									},
+								))
+							}},
+						},
+					}))
+					return tea.Batch(navCmd, saveHistoryCmd(hist, histPath))
+				},
 			})
 		}},
 		{label: "bb Setup", description: "Reconfigure workspace, repo, credentials", onSelect: func() View {
@@ -651,6 +687,95 @@ func sortRepoItems(items []listItem, hist *history.History, ws string) []listIte
 	// Rest A-Z by repo name.
 	sort.Slice(rest, func(i, j int) bool {
 		return rest[i].data.(bitbucket.Repo).Name < rest[j].data.(bitbucket.Repo).Name
+	})
+
+	result := make([]listItem, 0, len(items))
+	result = append(result, favs...)
+	result = append(result, mruOnly...)
+	result = append(result, rest...)
+	return result
+}
+
+// --- Project helpers ---
+
+// projectBaseTitle returns the display title for a project without any sort marker.
+// The key is shown first so it is always visible without scrolling.
+func projectBaseTitle(p bitbucket.Project) string {
+	title := p.Key + "  " + p.Name
+	if !p.IsPrivate {
+		title += "  [public]"
+	}
+	return title
+}
+
+// toCachedProjects converts API projects to the minimal form persisted in history.
+func toCachedProjects(projects []bitbucket.Project) []history.CachedProject {
+	out := make([]history.CachedProject, len(projects))
+	for i, p := range projects {
+		out[i] = history.CachedProject{Key: p.Key, Name: p.Name, IsPrivate: p.IsPrivate}
+	}
+	return out
+}
+
+// projectItemsFromCache reconstructs listItems from disk-cached project data.
+func projectItemsFromCache(cached []history.CachedProject, hist *history.History, ws string) []listItem {
+	projects := make([]bitbucket.Project, len(cached))
+	for i, c := range cached {
+		projects[i] = bitbucket.Project{Key: c.Key, Name: c.Name, IsPrivate: c.IsPrivate}
+	}
+	return projectListItems(projects, hist, ws)
+}
+
+// projectListItems converts API projects into listItems with favourite/MRU markers, sorted.
+func projectListItems(projects []bitbucket.Project, hist *history.History, ws string) []listItem {
+	items := make([]listItem, len(projects))
+	for i, p := range projects {
+		items[i] = listItem{title: projectBaseTitle(p), data: p}
+	}
+	return sortProjectItems(items, hist, ws)
+}
+
+// sortProjectItems re-orders items: favourites (A-Z) → MRU (newest first, non-fav only) → rest (A-Z).
+// Favourite items are prefixed with repoFavMarker and MRU-only items with repoMRUMarker.
+// The function is idempotent — existing markers are stripped before re-applying.
+func sortProjectItems(items []listItem, hist *history.History, ws string) []listItem {
+	for i, item := range items {
+		items[i].title = projectBaseTitle(item.data.(bitbucket.Project))
+	}
+
+	mruKeys := hist.RecentProjectKeys(ws)
+	mruRank := make(map[string]int, len(mruKeys))
+	for i, k := range mruKeys {
+		mruRank[k] = i
+	}
+
+	var favs, mruOnly, rest []listItem
+	for _, item := range items {
+		p := item.data.(bitbucket.Project)
+		if hist.IsProjectFavourite(ws, p.Key) {
+			item.title = repoFavMarker + item.title
+			favs = append(favs, item)
+		} else if _, inMRU := mruRank[p.Key]; inMRU {
+			item.title = repoMRUMarker + item.title
+			mruOnly = append(mruOnly, item)
+		} else {
+			rest = append(rest, item)
+		}
+	}
+
+	// Favourites A-Z by project name.
+	sort.Slice(favs, func(i, j int) bool {
+		return favs[i].data.(bitbucket.Project).Name < favs[j].data.(bitbucket.Project).Name
+	})
+	// MRU in recency order (lower rank = more recent).
+	sort.Slice(mruOnly, func(i, j int) bool {
+		ri := mruRank[mruOnly[i].data.(bitbucket.Project).Key]
+		rj := mruRank[mruOnly[j].data.(bitbucket.Project).Key]
+		return ri < rj
+	})
+	// Rest A-Z by project name.
+	sort.Slice(rest, func(i, j int) bool {
+		return rest[i].data.(bitbucket.Project).Name < rest[j].data.(bitbucket.Project).Name
 	})
 
 	result := make([]listItem, 0, len(items))

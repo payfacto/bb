@@ -11,13 +11,16 @@ import (
 
 const maxMRU = 5
 
-// History persists per-workspace favourites, a global MRU repo list, and a
-// workspace-scoped repo list cache so the TUI never needs to re-fetch unless
+// History persists per-workspace favourites, global MRU lists, and
+// workspace-scoped list caches so the TUI never needs to re-fetch unless
 // the user explicitly requests a refresh.
 type History struct {
-	Favourites map[string][]string     `json:"favourites"`           // workspace → []slug
-	MRU        []MRUEntry              `json:"mru"`                  // newest first, capped at maxMRU
-	RepoCache  map[string][]CachedRepo `json:"repo_cache,omitempty"` // workspace → repos
+	Favourites        map[string][]string        `json:"favourites"`                   // workspace → []slug
+	MRU               []MRUEntry                 `json:"mru"`                          // newest first, capped at maxMRU
+	RepoCache         map[string][]CachedRepo    `json:"repo_cache,omitempty"`         // workspace → repos
+	ProjectFavourites map[string][]string        `json:"project_favourites,omitempty"` // workspace → []key
+	ProjectMRU        []ProjectMRUEntry          `json:"project_mru,omitempty"`        // newest first, capped at maxMRU
+	ProjectCache      map[string][]CachedProject `json:"project_cache,omitempty"`      // workspace → projects
 }
 
 // MRUEntry is a recently-visited repository.
@@ -27,9 +30,23 @@ type MRUEntry struct {
 	Name      string `json:"name"`
 }
 
+// ProjectMRUEntry is a recently-visited project.
+type ProjectMRUEntry struct {
+	Workspace string `json:"workspace"`
+	Key       string `json:"key"`
+	Name      string `json:"name"`
+}
+
 // CachedRepo stores the minimal repo fields needed by the TUI.
 type CachedRepo struct {
 	Slug      string `json:"slug"`
+	Name      string `json:"name"`
+	IsPrivate bool   `json:"is_private"`
+}
+
+// CachedProject stores the minimal project fields needed by the TUI.
+type CachedProject struct {
+	Key       string `json:"key"`
 	Name      string `json:"name"`
 	IsPrivate bool   `json:"is_private"`
 }
@@ -131,4 +148,77 @@ func (h *History) RecentSlugs(ws string) []string {
 		}
 	}
 	return slugs
+}
+
+// --- Project favourites, MRU, and cache ---
+
+// IsProjectFavourite reports whether key is starred in the given workspace.
+func (h *History) IsProjectFavourite(ws, key string) bool {
+	if h.ProjectFavourites == nil {
+		return false
+	}
+	return slices.Contains(h.ProjectFavourites[ws], key)
+}
+
+// ToggleProjectFavourite adds key to project favourites if absent, or removes it if present.
+func (h *History) ToggleProjectFavourite(ws, key string) {
+	if h.ProjectFavourites == nil {
+		h.ProjectFavourites = make(map[string][]string)
+	}
+	favs := h.ProjectFavourites[ws]
+	for i, k := range favs {
+		if k == key {
+			h.ProjectFavourites[ws] = append(favs[:i], favs[i+1:]...)
+			return
+		}
+	}
+	favs = append(favs, key)
+	slices.Sort(favs)
+	h.ProjectFavourites[ws] = favs
+}
+
+// AddProjectMRU prepends an entry for (ws, key, name), deduplicates, and caps at maxMRU.
+func (h *History) AddProjectMRU(ws, key, name string) {
+	updated := make([]ProjectMRUEntry, 0, maxMRU)
+	updated = append(updated, ProjectMRUEntry{Workspace: ws, Key: key, Name: name})
+	for _, e := range h.ProjectMRU {
+		if len(updated) >= maxMRU {
+			break
+		}
+		if !(e.Workspace == ws && e.Key == key) {
+			updated = append(updated, e)
+		}
+	}
+	h.ProjectMRU = updated
+}
+
+// RecentProjectKeys returns the MRU project keys for the given workspace, newest first.
+func (h *History) RecentProjectKeys(ws string) []string {
+	var keys []string
+	for _, e := range h.ProjectMRU {
+		if e.Workspace == ws {
+			keys = append(keys, e.Key)
+		}
+	}
+	return keys
+}
+
+// SetProjects stores the project list for the given workspace in the cache.
+func (h *History) SetProjects(ws string, projects []CachedProject) {
+	if h.ProjectCache == nil {
+		h.ProjectCache = make(map[string][]CachedProject)
+	}
+	h.ProjectCache[ws] = projects
+}
+
+// Projects returns the cached project list for the given workspace.
+// Returns false when no cache entry exists or the slice is empty.
+func (h *History) Projects(ws string) ([]CachedProject, bool) {
+	projects, ok := h.ProjectCache[ws]
+	return projects, ok && len(projects) > 0
+}
+
+// ClearProjects removes the cached project list for the given workspace.
+func (h *History) ClearProjects(ws string) {
+	delete(h.ProjectCache, ws)
 }

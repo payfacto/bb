@@ -204,3 +204,124 @@ func TestSortRepoItems_Idempotent(t *testing.T) {
 		}
 	}
 }
+
+// --- projectBaseTitle ---
+
+func TestProjectBaseTitle_Private(t *testing.T) {
+	p := bitbucket.Project{Key: "PROJ", Name: "My Project", IsPrivate: true}
+	got := projectBaseTitle(p)
+	if got != "PROJ  My Project" {
+		t.Errorf("unexpected title: %q", got)
+	}
+}
+
+func TestProjectBaseTitle_Public(t *testing.T) {
+	p := bitbucket.Project{Key: "PROJ", Name: "My Project", IsPrivate: false}
+	got := projectBaseTitle(p)
+	if !strings.Contains(got, "PROJ") || !strings.Contains(got, "public") {
+		t.Errorf("public project title should contain key and [public], got %q", got)
+	}
+}
+
+// --- sortProjectItems ---
+
+func makeSortProjectItems() ([]listItem, *history.History) {
+	projects := []bitbucket.Project{
+		{Key: "ZZ", Name: "Zebra"},
+		{Key: "AA", Name: "Apple"},
+		{Key: "MM", Name: "Mango"},
+		{Key: "BB", Name: "Berry"},
+	}
+	items := make([]listItem, len(projects))
+	for i, p := range projects {
+		items[i] = listItem{title: projectBaseTitle(p), data: p}
+	}
+	hist := &history.History{Favourites: make(map[string][]string)}
+	return items, hist
+}
+
+func TestSortProjectItems_NoFavNoMRU(t *testing.T) {
+	items, hist := makeSortProjectItems()
+	sorted := sortProjectItems(items, hist, "ws")
+
+	// Expect A-Z by name: Apple, Berry, Mango, Zebra
+	want := []string{"Apple", "Berry", "Mango", "Zebra"}
+	for i, w := range want {
+		if sorted[i].data.(bitbucket.Project).Name != w {
+			t.Errorf("pos %d: expected %q, got %q", i, w, sorted[i].data.(bitbucket.Project).Name)
+		}
+	}
+}
+
+func TestSortProjectItems_FavouritesFirst(t *testing.T) {
+	items, hist := makeSortProjectItems()
+	hist.ToggleProjectFavourite("ws", "ZZ")
+	hist.ToggleProjectFavourite("ws", "MM")
+
+	sorted := sortProjectItems(items, hist, "ws")
+
+	// Favs A-Z by name first: Mango, Zebra
+	if sorted[0].data.(bitbucket.Project).Key != "MM" {
+		t.Errorf("expected MM first fav, got %q", sorted[0].data.(bitbucket.Project).Key)
+	}
+	if sorted[1].data.(bitbucket.Project).Key != "ZZ" {
+		t.Errorf("expected ZZ second fav, got %q", sorted[1].data.(bitbucket.Project).Key)
+	}
+}
+
+func TestSortProjectItems_MRUAfterFavs(t *testing.T) {
+	items, hist := makeSortProjectItems()
+	hist.ToggleProjectFavourite("ws", "AA")
+	hist.AddProjectMRU("ws", "ZZ", "Zebra") // oldest MRU
+	hist.AddProjectMRU("ws", "BB", "Berry") // newest MRU
+
+	sorted := sortProjectItems(items, hist, "ws")
+
+	if sorted[0].data.(bitbucket.Project).Key != "AA" {
+		t.Errorf("expected AA (fav) first, got %q", sorted[0].data.(bitbucket.Project).Key)
+	}
+	if sorted[1].data.(bitbucket.Project).Key != "BB" {
+		t.Errorf("expected BB (newest MRU) second, got %q", sorted[1].data.(bitbucket.Project).Key)
+	}
+	if sorted[2].data.(bitbucket.Project).Key != "ZZ" {
+		t.Errorf("expected ZZ (older MRU) third, got %q", sorted[2].data.(bitbucket.Project).Key)
+	}
+}
+
+func TestSortProjectItems_FavMarker(t *testing.T) {
+	items, hist := makeSortProjectItems()
+	hist.ToggleProjectFavourite("ws", "AA")
+
+	sorted := sortProjectItems(items, hist, "ws")
+
+	if !strings.HasPrefix(sorted[0].title, repoFavMarker) {
+		t.Errorf("fav project should have marker prefix, got %q", sorted[0].title)
+	}
+}
+
+func TestSortProjectItems_Idempotent(t *testing.T) {
+	items, hist := makeSortProjectItems()
+	hist.ToggleProjectFavourite("ws", "BB")
+
+	first := sortProjectItems(items, hist, "ws")
+	second := sortProjectItems(first, hist, "ws")
+
+	for i := range first {
+		if first[i].data.(bitbucket.Project).Key != second[i].data.(bitbucket.Project).Key {
+			t.Errorf("sort not idempotent at pos %d: %q vs %q",
+				i, first[i].data.(bitbucket.Project).Key, second[i].data.(bitbucket.Project).Key)
+		}
+	}
+}
+
+func TestProjectBaseTitle_InTitle(t *testing.T) {
+	items, hist := makeSortProjectItems()
+	sorted := sortProjectItems(items, hist, "ws")
+	// Every item title should start with the project key.
+	for _, it := range sorted {
+		p := it.data.(bitbucket.Project)
+		if !strings.Contains(it.title, p.Key) {
+			t.Errorf("title %q does not contain key %q", it.title, p.Key)
+		}
+	}
+}
