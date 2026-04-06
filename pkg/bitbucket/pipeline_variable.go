@@ -2,7 +2,6 @@ package bitbucket
 
 import (
 	"context"
-	"fmt"
 )
 
 // PipelineVariableResource provides operations on repository-level pipeline variables.
@@ -13,7 +12,7 @@ type PipelineVariableResource struct {
 }
 
 func (r *PipelineVariableResource) basePath() string {
-	return fmt.Sprintf("%s/pipelines_config/variables/", repoPath(r.workspace, r.repo))
+	return repoPath(r.workspace, r.repo) + "/pipelines_config/variables/"
 }
 
 // List returns all pipeline variables for the repository.
@@ -40,7 +39,6 @@ func (r *PipelineVariableResource) Create(ctx context.Context, input CreatePipel
 
 // Delete removes a pipeline variable by UUID.
 func (r *PipelineVariableResource) Delete(ctx context.Context, uuid string) error {
-	path := fmt.Sprintf("%s%s", r.basePath(), uuid)
-	_, err := r.client.do(ctx, "DELETE", path, nil, nil)
+	_, err := r.client.do(ctx, "DELETE", r.basePath()+uuid, nil, nil)
 	return err
 }

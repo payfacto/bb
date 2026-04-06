@@ -6,6 +6,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+const inputCharLimit = 200
+
 // inputModel is a minimal single-field text input view.
 // onSubmit is called with the entered value when the user presses Enter.
 type inputModel struct {
@@ -17,7 +19,7 @@ type inputModel struct {
 func newInputView(title, placeholder string, onSubmit func(string) tea.Cmd) *inputModel {
 	ti := textinput.New()
 	ti.Placeholder = placeholder
-	ti.CharLimit = 200
+	ti.CharLimit = inputCharLimit
 	ti.Focus()
 	return &inputModel{title: title, input: ti, onSubmit: onSubmit}
 }
