@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 )
 
 const maxMRU = 5
@@ -84,7 +83,7 @@ func (h *History) ToggleFavourite(ws, slug string) {
 		}
 	}
 	favs = append(favs, slug)
-	sort.Strings(favs)
+	slices.Sort(favs)
 	h.Favourites[ws] = favs
 }
 

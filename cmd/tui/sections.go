@@ -18,7 +18,19 @@ import (
 const (
 	repoFavMarker = "★ "
 	repoMRUMarker = "↺ "
+
+	shortHashLen  = 8  // characters to show for a commit/tag hash abbreviation
+	isoDateLen    = 10 // characters to keep from an ISO-8601 timestamp (YYYY-MM-DD)
+	msgPreviewLen = 60 // max characters shown for a commit message preview
 )
+
+// abbrevHash returns the first shortHashLen characters of h, or h unchanged if shorter.
+func abbrevHash(h string) string {
+	if len(h) > shortHashLen {
+		return h[:shortHashLen]
+	}
+	return h
+}
 
 func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.History, cache *listCache) []menuItem {
 	ws := cfg.Workspace
@@ -105,11 +117,7 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 				}
 				items := make([]listItem, len(branches))
 				for i, b := range branches {
-					hash := b.Target.Hash
-					if len(hash) > 8 {
-						hash = hash[:8]
-					}
-					items[i] = listItem{id: hash, title: b.Name, data: b}
+					items[i] = listItem{id: abbrevHash(b.Target.Hash), title: b.Name, data: b}
 				}
 				return items, nil
 			}, func(item listItem) tea.Cmd {
@@ -128,11 +136,7 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 				}
 				items := make([]listItem, len(tags))
 				for i, t := range tags {
-					hash := t.Target.Hash
-					if len(hash) > 8 {
-						hash = hash[:8]
-					}
-					items[i] = listItem{id: hash, title: t.Name, data: t}
+					items[i] = listItem{id: abbrevHash(t.Target.Hash), title: t.Name, data: t}
 				}
 				return items, nil
 			}, func(item listItem) tea.Cmd {
@@ -164,8 +168,8 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 						status = d.State.Status.Name
 					}
 					date := d.LastUpdateTime
-					if len(date) > 10 {
-						date = date[:10]
+					if len(date) > isoDateLen {
+						date = date[:isoDateLen]
 					}
 					title := render.StateBadge(status)
 					if date != "" {
@@ -175,11 +179,7 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 						title += "  " + name
 					}
 					if d.Deployable.Commit != nil {
-						h := d.Deployable.Commit.Hash
-						if len(h) > 8 {
-							h = h[:8]
-						}
-						title += "  " + h
+						title += "  " + abbrevHash(d.Deployable.Commit.Hash)
 					}
 					items[i] = listItem{title: title, data: d}
 				}
@@ -194,12 +194,8 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 				var actions []ActionItem
 				if d.Deployable.Commit != nil {
 					commitHash := d.Deployable.Commit.Hash
-					short := commitHash
-					if len(short) > 8 {
-						short = short[:8]
-					}
 					actions = append(actions, ActionItem{
-						Label: "Commit: " + short,
+						Label: "Commit: " + abbrevHash(commitHash),
 						OnSelect: func() tea.Cmd {
 							return fetchAndPushCommitDetail(client, ws, repo, commitHash)
 						},
@@ -327,22 +323,18 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 										if c.Author.User == nil || c.Author.User.DisplayName != displayName {
 											continue
 										}
-										hash := c.Hash
-										if len(hash) > 8 {
-											hash = hash[:8]
-										}
 										msg := c.Message
 										if idx := strings.IndexByte(msg, '\n'); idx >= 0 {
 											msg = msg[:idx]
 										}
-										if len(msg) > 60 {
-											msg = msg[:60] + "..."
+										if len(msg) > msgPreviewLen {
+											msg = msg[:msgPreviewLen] + "..."
 										}
 										date := c.Date
-										if len(date) > 10 {
-											date = date[:10]
+										if len(date) > isoDateLen {
+											date = date[:isoDateLen]
 										}
-										items = append(items, listItem{id: hash, title: msg, subtitle: date, data: c})
+										items = append(items, listItem{id: abbrevHash(c.Hash), title: msg, subtitle: date, data: c})
 									}
 									return items, nil
 								},
@@ -637,18 +629,14 @@ func newBranchDetailView(client *bitbucket.Client, ws, repo string, b bitbucket.
 						}
 						items := make([]listItem, len(commits))
 						for i, c := range commits {
-							hash := c.Hash
-							if len(hash) > 8 {
-								hash = hash[:8]
-							}
 							msg := c.Message
 							if idx := strings.IndexByte(msg, '\n'); idx >= 0 {
 								msg = msg[:idx]
 							}
-							if len(msg) > 60 {
-								msg = msg[:60] + "..."
+							if len(msg) > msgPreviewLen {
+								msg = msg[:msgPreviewLen] + "..."
 							}
-							items[i] = listItem{id: hash, title: msg, subtitle: c.Author.Raw, data: c}
+							items[i] = listItem{id: abbrevHash(c.Hash), title: msg, subtitle: c.Author.Raw, data: c}
 						}
 						return items, nil
 					},
@@ -778,8 +766,8 @@ func newPRCommentListView(client *bitbucket.Client, ws, repo string, prID, pageS
 				if idx := strings.IndexByte(text, '\n'); idx >= 0 {
 					text = text[:idx]
 				}
-				if len(text) > 60 {
-					text = text[:60] + "..."
+				if len(text) > msgPreviewLen {
+					text = text[:msgPreviewLen] + "..."
 				}
 				items[i] = listItem{id: fmt.Sprintf("[%d]", c.ID), title: c.User.DisplayName + ": " + text, data: c}
 			}
@@ -833,8 +821,8 @@ func newPRActivityListView(client *bitbucket.Client, ws, repo string, prID, page
 				switch {
 				case a.Approval != nil:
 					date := a.Approval.Date
-					if len(date) > 10 {
-						date = date[:10]
+					if len(date) > isoDateLen {
+						date = date[:isoDateLen]
 					}
 					tag := actionSuccessStyle.Render("[approval]")
 					items = append(items, listItem{
@@ -844,8 +832,8 @@ func newPRActivityListView(client *bitbucket.Client, ws, repo string, prID, page
 					})
 				case a.Update != nil:
 					date := a.Update.Date
-					if len(date) > 10 {
-						date = date[:10]
+					if len(date) > isoDateLen {
+						date = date[:isoDateLen]
 					}
 					items = append(items, listItem{
 						title:    subtitleStyle.Render("[update]") + " " + a.Update.Author.DisplayName + " → " + a.Update.State,
@@ -855,7 +843,7 @@ func newPRActivityListView(client *bitbucket.Client, ws, repo string, prID, page
 				case a.Comment != nil:
 					items = append(items, listItem{
 						title: helpKeyStyle.Render(fmt.Sprintf("[%d]", a.Comment.ID)) + " " +
-							a.Comment.User.DisplayName + ": " + truncateStr(a.Comment.Content.Raw, 60),
+							a.Comment.User.DisplayName + ": " + truncateStr(a.Comment.Content.Raw, msgPreviewLen),
 						data: a,
 					})
 				}
@@ -987,23 +975,19 @@ func newCommitListView(client *bitbucket.Client, ws, repo string, pageSize int) 
 			}
 			items := make([]listItem, len(commits))
 			for i, c := range commits {
-				hash := c.Hash
-				if len(hash) > 8 {
-					hash = hash[:8]
-				}
 				msg := c.Message
 				if idx := strings.IndexByte(msg, '\n'); idx >= 0 {
 					msg = msg[:idx]
 				}
-				if len(msg) > 60 {
-					msg = msg[:60] + "..."
+				if len(msg) > msgPreviewLen {
+					msg = msg[:msgPreviewLen] + "..."
 				}
 				date := c.Date
-				if len(date) >= 10 {
-					date = date[:10]
+				if len(date) >= isoDateLen {
+					date = date[:isoDateLen]
 				}
 				subtitle := date + "  " + c.Author.Raw
-				items[i] = listItem{id: hash, title: msg, subtitle: subtitle, data: c}
+				items[i] = listItem{id: abbrevHash(c.Hash), title: msg, subtitle: subtitle, data: c}
 			}
 			return items, nil
 		},
@@ -1018,10 +1002,7 @@ func newCommitListView(client *bitbucket.Client, ws, repo string, pageSize int) 
 
 // fetchAndPushCommitDetail fetches a commit by hash then pushes a full commit detail view with actionable parents.
 func fetchAndPushCommitDetail(client *bitbucket.Client, ws, repo, hash string) tea.Cmd {
-	short := hash
-	if len(short) > 8 {
-		short = short[:8]
-	}
+	short := abbrevHash(hash)
 	return func() tea.Msg {
 		c, err := client.Commits(ws, repo).Get(context.Background(), hash)
 		if err != nil {
@@ -1032,20 +1013,13 @@ func fetchAndPushCommitDetail(client *bitbucket.Client, ws, repo, hash string) t
 }
 
 func newCommitDetailView(client *bitbucket.Client, ws, repo string, c bitbucket.Commit) *detailModel {
-	hash := c.Hash
-	if len(hash) > 8 {
-		hash = hash[:8]
-	}
+	hash := abbrevHash(c.Hash)
 
 	actions := make([]ActionItem, 0, len(c.Parents))
 	for _, p := range c.Parents {
 		p := p // capture
-		shortHash := p.Hash
-		if len(shortHash) > 8 {
-			shortHash = shortHash[:8]
-		}
 		actions = append(actions, ActionItem{
-			Label: "Parent: " + shortHash,
+			Label: "Parent: " + abbrevHash(p.Hash),
 			OnSelect: func() tea.Cmd {
 				return fetchAndPushCommitDetail(client, ws, repo, p.Hash)
 			},
