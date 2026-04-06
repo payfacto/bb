@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -61,7 +62,11 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config) []menuItem {
 					items[i] = listItem{id: hash, title: t.Name, data: t}
 				}
 				return items, nil
-			}, nil)
+			}, func(item listItem) tea.Cmd {
+				t := item.data.(bitbucket.Tag)
+				content := render.TagListString([]bitbucket.Tag{t})
+				return pushViewCmd(newTextView("Tag: "+t.Name, content))
+			})
 		}},
 		{label: "Issues", description: "Track and manage issues", onSelect: func() View {
 			return newIssueListView(client, ws, repo)
@@ -81,7 +86,12 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config) []menuItem {
 					items[i] = listItem{id: r.Slug, title: r.Name, subtitle: privacy, data: r}
 				}
 				return items, nil
-			}, nil)
+			}, func(item listItem) tea.Cmd {
+				r := item.data.(bitbucket.Repo)
+				repoCfg := *cfg
+				repoCfg.Repo = r.Slug
+				return pushViewCmd(newMenuModel(ws, r.Slug, buildMenuItems(client, &repoCfg)))
+			})
 		}},
 		{label: "Deployments", description: "View deployments", onSelect: func() View {
 			return newSimpleListView("Deployments", func(ctx context.Context, _ string) ([]listItem, error) {
@@ -98,7 +108,25 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config) []menuItem {
 					items[i] = listItem{id: d.UUID, title: status, data: d}
 				}
 				return items, nil
-			}, nil)
+			}, func(item listItem) tea.Cmd {
+				d := item.data.(bitbucket.Deployment)
+				state := d.State.Name
+				if d.State.Status != nil {
+					state += "/" + d.State.Status.Name
+				}
+				var sb strings.Builder
+				sb.WriteString(fmt.Sprintf("UUID:        %s\n", d.UUID))
+				sb.WriteString(fmt.Sprintf("State:       %s\n", state))
+				sb.WriteString(fmt.Sprintf("Environment: %s\n", d.Environment.UUID))
+				if d.Deployable.Commit != nil {
+					sb.WriteString(fmt.Sprintf("Commit:      %s\n", d.Deployable.Commit.Hash))
+				}
+				if d.Deployable.Pipeline != nil {
+					sb.WriteString(fmt.Sprintf("Pipeline:    %s\n", d.Deployable.Pipeline.UUID))
+				}
+				sb.WriteString(fmt.Sprintf("Updated:     %s\n", d.LastUpdateTime))
+				return pushViewCmd(newTextView("Deployment: "+state, sb.String()))
+			})
 		}},
 		{label: "Settings", description: "Webhooks, deploy keys, environments, restrictions", onSelect: func() View {
 			return newMenuModel(ws, repo, buildSettingsItems(client, ws, repo))
@@ -114,7 +142,12 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config) []menuItem {
 					items[i] = listItem{id: m.User.Nickname, title: m.User.DisplayName, subtitle: m.User.AccountID, data: m}
 				}
 				return items, nil
-			}, nil)
+			}, func(item listItem) tea.Cmd {
+				m := item.data.(bitbucket.WorkspaceMember)
+				content := fmt.Sprintf("Display Name: %s\nNickname:     %s\nAccount ID:   %s\n",
+					m.User.DisplayName, m.User.Nickname, m.User.AccountID)
+				return pushViewCmd(newTextView(m.User.DisplayName, content))
+			})
 		}},
 		{label: "Setup", description: "Reconfigure workspace, repo, credentials", onSelect: func() View {
 			return newSetupView(config.DefaultPath(), cfg)
@@ -139,7 +172,16 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string) []menuItem {
 					items[i] = listItem{id: h.UUID, title: h.URL, subtitle: active, data: h}
 				}
 				return items, nil
-			}, nil)
+			}, func(item listItem) tea.Cmd {
+				h := item.data.(bitbucket.Webhook)
+				active := "inactive"
+				if h.Active {
+					active = "active"
+				}
+				content := fmt.Sprintf("UUID:        %s\nURL:         %s\nDescription: %s\nStatus:      %s\nEvents:      %s\nCreated:     %s\n",
+					h.UUID, h.URL, h.Description, active, strings.Join(h.Events, ", "), h.CreatedAt)
+				return pushViewCmd(newTextView("Webhook: "+h.URL, content))
+			})
 		}},
 		{label: "Deploy Keys", description: "Manage deploy keys", onSelect: func() View {
 			return newSimpleListView("Deploy Keys", func(ctx context.Context, _ string) ([]listItem, error) {
@@ -152,7 +194,12 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string) []menuItem {
 					items[i] = listItem{id: fmt.Sprintf("%d", k.ID), title: k.Label, data: k}
 				}
 				return items, nil
-			}, nil)
+			}, func(item listItem) tea.Cmd {
+				k := item.data.(bitbucket.DeployKey)
+				content := fmt.Sprintf("ID:      %d\nLabel:   %s\nCreated: %s\n\nKey:\n%s\n",
+					k.ID, k.Label, k.CreatedOn, k.Key)
+				return pushViewCmd(newTextView("Deploy Key: "+k.Label, content))
+			})
 		}},
 		{label: "Environments", description: "Deployment environments", onSelect: func() View {
 			return newSimpleListView("Environments", func(ctx context.Context, _ string) ([]listItem, error) {
@@ -169,7 +216,12 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string) []menuItem {
 					items[i] = listItem{id: e.UUID, title: e.Name + lock, subtitle: e.EnvironmentType.Name, data: e}
 				}
 				return items, nil
-			}, nil)
+			}, func(item listItem) tea.Cmd {
+				e := item.data.(bitbucket.Environment)
+				content := fmt.Sprintf("UUID:  %s\nName:  %s\nType:  %s\nLock:  %s\n",
+					e.UUID, e.Name, e.EnvironmentType.Name, e.Lock.Name)
+				return pushViewCmd(newTextView("Environment: "+e.Name, content))
+			})
 		}},
 		{label: "Restrictions", description: "Branch restrictions", onSelect: func() View {
 			return newSimpleListView("Restrictions", func(ctx context.Context, _ string) ([]listItem, error) {
@@ -182,7 +234,16 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string) []menuItem {
 					items[i] = listItem{id: fmt.Sprintf("%d", r.ID), title: r.Kind, subtitle: r.Pattern, data: r}
 				}
 				return items, nil
-			}, nil)
+			}, func(item listItem) tea.Cmd {
+				r := item.data.(bitbucket.BranchRestriction)
+				value := ""
+				if r.Value != nil {
+					value = fmt.Sprintf("%d", *r.Value)
+				}
+				content := fmt.Sprintf("ID:      %d\nKind:    %s\nMatch:   %s\nPattern: %s\nValue:   %s\n",
+					r.ID, r.Kind, r.BranchMatchKind, r.Pattern, value)
+				return pushViewCmd(newTextView(fmt.Sprintf("Restriction #%d", r.ID), content))
+			})
 		}},
 		{label: "Downloads", description: "Download artifacts", onSelect: func() View {
 			return newSimpleListView("Downloads", func(ctx context.Context, _ string) ([]listItem, error) {
@@ -195,7 +256,11 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string) []menuItem {
 					items[i] = listItem{id: fmt.Sprintf("%d bytes", d.Size), title: d.Name, data: d}
 				}
 				return items, nil
-			}, nil)
+			}, func(item listItem) tea.Cmd {
+				d := item.data.(bitbucket.Download)
+				content := fmt.Sprintf("Name: %s\nSize: %d bytes\n", d.Name, d.Size)
+				return pushViewCmd(newTextView("Download: "+d.Name, content))
+			})
 		}},
 	}
 }
@@ -336,6 +401,11 @@ func newPRTaskListView(client *bitbucket.Client, ws, repo string, prID int) *lis
 				items[i] = listItem{id: fmt.Sprintf("[%d]", t.ID), title: t.Description, subtitle: t.State, data: t}
 			}
 			return items, nil
+		},
+		OnSelect: func(item listItem) tea.Cmd {
+			t := item.data.(bitbucket.Task)
+			content := fmt.Sprintf("ID:    %d\nState: %s\n\n%s\n", t.ID, t.State, t.Description)
+			return pushViewCmd(newTextView(fmt.Sprintf("Task #%d", t.ID), content))
 		},
 	})
 }

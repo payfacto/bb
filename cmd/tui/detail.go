@@ -3,8 +3,8 @@ package tui
 import (
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/key"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type ActionItem struct {
@@ -21,10 +21,9 @@ type ConfirmConfig struct {
 }
 
 type DetailConfig struct {
-	Title     string
-	Content   string
-	Actions   []ActionItem
-	Shortcuts []key.Binding
+	Title   string
+	Content string
+	Actions []ActionItem
 }
 
 type detailModel struct {
@@ -83,7 +82,7 @@ func (m *detailModel) View() string {
 	var sb strings.Builder
 	sb.WriteString(m.cfg.Content)
 	sb.WriteString("\n")
-	sb.WriteString(separatorStyle.Render(strings.Repeat("─", 50)))
+	sb.WriteString(separatorStyle.Render(strings.Repeat("─", viewWidth)))
 	sb.WriteString("\n\n")
 	if len(m.cfg.Actions) > 0 {
 		sb.WriteString(subtitleStyle.Render("ACTIONS"))
@@ -106,7 +105,7 @@ func (m *detailModel) View() string {
 
 func (m *detailModel) Title() string { return m.cfg.Title }
 func (m *detailModel) ShortHelp() []key.Binding {
-	bindings := []key.Binding{globalKeys.Up, globalKeys.Down, globalKeys.Enter, globalKeys.Back}
+	bindings := []key.Binding{globalKeys.Up, globalKeys.Down, globalKeys.Enter, globalKeys.Back, globalKeys.Quit}
 	for _, action := range m.cfg.Actions {
 		if action.Key != nil {
 			bindings = append(bindings, *action.Key)

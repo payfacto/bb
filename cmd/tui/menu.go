@@ -57,7 +57,7 @@ func (m *menuModel) View() string {
 	sb.WriteString("\n")
 	sb.WriteString(subtitleStyle.Render(fmt.Sprintf("Workspace: %s  Repo: %s", m.ws, m.repoSlug)))
 	sb.WriteString("\n")
-	sb.WriteString(separatorStyle.Render(strings.Repeat("─", 50)))
+	sb.WriteString(separatorStyle.Render(strings.Repeat("─", viewWidth)))
 	sb.WriteString("\n\n")
 	for i, item := range m.items {
 		line := fmt.Sprintf("%-20s %s", item.label, subtitleStyle.Render(item.description))

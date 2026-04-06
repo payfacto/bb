@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type listItem struct {
@@ -179,7 +179,7 @@ func (m *listModel) View() string {
 			}
 		}
 		sb.WriteString("\n")
-		sb.WriteString(separatorStyle.Render(strings.Repeat("─", 50)))
+		sb.WriteString(separatorStyle.Render(strings.Repeat("─", viewWidth)))
 		sb.WriteString("\n")
 	}
 	if m.searching {
@@ -204,7 +204,12 @@ func (m *listModel) View() string {
 	}
 	sb.WriteString("\n")
 	for i, item := range m.filtered {
-		line := fmt.Sprintf("%-6s %s", item.id, item.title)
+		var line string
+		if item.id != "" && item.id != item.title {
+			line = fmt.Sprintf("%-6s %s", item.id, item.title)
+		} else {
+			line = item.title
+		}
 		if item.subtitle != "" {
 			line += "  " + subtitleStyle.Render(item.subtitle)
 		}
@@ -224,7 +229,7 @@ func (m *listModel) ShortHelp() []key.Binding {
 	if len(m.cfg.Filters) > 0 {
 		bindings = append(bindings, tabKey)
 	}
-	bindings = append(bindings, globalKeys.Filter, globalKeys.Refresh, globalKeys.Back)
+	bindings = append(bindings, globalKeys.Filter, globalKeys.Refresh, globalKeys.Back, globalKeys.Quit)
 	bindings = append(bindings, m.cfg.Shortcuts...)
 	return bindings
 }
