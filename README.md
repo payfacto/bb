@@ -4,13 +4,24 @@
 [![Go](https://img.shields.io/badge/Go-1.25-blue)](go.mod)
 [![Go Report Card](https://goreportcard.com/badge/github.com/payfacto/bb)](https://goreportcard.com/report/github.com/payfacto/bb)
 
-# bb — Bitbucket Cloud CLI
+# bb — Bitbucket Cloud CLI & TUI
 
-A Go CLI for the Bitbucket Cloud REST API v2.0. Designed AI agent consumption, but humans can use it too!
+A Go CLI for the Bitbucket Cloud REST API v2.0. Designed for AI agent consumption, but humans can use it too!
+
+> **New:** Now includes an intuitive TUI interface for developers!
 
 > **Disclaimer:** `bb` is an unofficial tool and is not affiliated with or endorsed by Atlassian or Bitbucket.
 
 ## Install
+
+```bash
+# Homebrew (macOS/Linux)
+brew tap payfacto/tap
+brew install payfacto/tap/bb
+```
+
+**Download Binary**
+Download the latest release from the [releases page](https://github.com/payfacto/bb/releases).
 
 ```bash
 # From source
@@ -61,6 +72,31 @@ Workspace: myworkspace  Repo: myrepo
 **First run:** If no config exists, the TUI automatically shows a setup wizard — no need to run `bb setup` first.
 
 The TUI requires a terminal — piped or scripted usage falls back to the standard CLI.
+
+## Shell Completion
+
+Generate tab-completion scripts for your shell:
+
+**bash**
+```bash
+bb completion bash > /etc/bash_completion.d/bb
+source /etc/bash_completion.d/bb
+```
+
+**zsh**
+```zsh
+bb completion zsh > "${fpath[1]}/_bb"
+```
+
+**fish**
+```fish
+bb completion fish > ~/.config/fish/completions/bb.fish
+```
+
+**PowerShell**
+```powershell
+bb completion powershell | Out-String | Invoke-Expression
+```
 
 ## Authentication
 
