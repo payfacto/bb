@@ -9,7 +9,14 @@ type PR struct {
 	Source      Endpoint `json:"source"`
 	Destination Endpoint `json:"destination"`
 	Author      Actor    `json:"author"`
+	Reviewers   []Actor  `json:"reviewers"`
 	Links       Links    `json:"links"`
+}
+
+// UpdatePRReviewersInput is the minimal body for adding a reviewer to a PR.
+type UpdatePRReviewersInput struct {
+	Title     string  `json:"title"`
+	Reviewers []Actor `json:"reviewers"`
 }
 
 // Endpoint is a branch reference used in PR source/destination.
@@ -28,7 +35,9 @@ func NewEndpoint(branchName string) Endpoint {
 
 // Actor is a Bitbucket user reference.
 type Actor struct {
+	AccountID   string `json:"account_id,omitempty"`
 	DisplayName string `json:"display_name"`
+	Nickname    string `json:"nickname,omitempty"`
 }
 
 // CloneLink holds a single clone URL (SSH or HTTPS).
@@ -232,6 +241,12 @@ type CreateRepoInput struct {
 	Description string      `json:"description,omitempty"`
 	IsPrivate   bool        `json:"is_private"`
 	Project     *ProjectRef `json:"project,omitempty"`
+}
+
+// UpdateRepoInput is the request body for updating repository metadata.
+type UpdateRepoInput struct {
+	Description string `json:"description,omitempty"`
+	IsPrivate   *bool  `json:"is_private,omitempty"`
 }
 
 // ForkRepoInput is the request body for forking a repository.

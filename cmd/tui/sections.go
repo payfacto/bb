@@ -588,6 +588,27 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 								return openURLCmd(r.Links.HTML.Href)()
 							}
 						}},
+						{Label: "Update Description", OnSelect: func() tea.Cmd {
+							return pushViewCmd(newInputView("New Description", "repo description", func(desc string) tea.Cmd {
+								return executeAction(func() error {
+									_, err := client.Repos(ws).Update(context.Background(), repo, bitbucket.UpdateRepoInput{Description: desc})
+									return err
+								}, "Description updated")
+							}))
+						}},
+						{Label: "✗ Delete Repo", Style: &actionDangerStyle, Confirm: &ConfirmConfig{
+							Message: fmt.Sprintf("Permanently delete %q? This cannot be undone.", repo),
+							OnYes: func() tea.Cmd {
+								return tea.Sequence(
+									popView,
+									popView,
+									popView,
+									executeAction(func() error {
+										return client.Repos(ws).Delete(context.Background(), repo)
+									}, fmt.Sprintf("Repository %q deleted", repo)),
+								)
+							},
+						}},
 					},
 				})
 			},
@@ -1143,6 +1164,13 @@ func newPRDetailView(client *bitbucket.Client, ws, repo string, pr bitbucket.PR,
 			}},
 			{Label: "Tasks", OnSelect: func() tea.Cmd {
 				return pushViewCmd(newPRTaskListView(client, ws, repo, pr.ID, pageSize))
+			}},
+			{Label: "Add Reviewer", OnSelect: func() tea.Cmd {
+				return pushViewCmd(newInputView("Add Reviewer — Account ID", "account_id", func(accountID string) tea.Cmd {
+					return executeAction(func() error {
+						return client.PRs(ws, repo).AddReviewer(context.Background(), pr.ID, accountID)
+					}, "Reviewer added")
+				}))
 			}},
 			{Label: "✓ Approve", Style: &actionSuccessStyle, OnSelect: func() tea.Cmd {
 				return executeAction(func() error {
