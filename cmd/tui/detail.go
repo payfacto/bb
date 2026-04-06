@@ -35,6 +35,7 @@ type DetailConfig struct {
 type detailModel struct {
 	cfg     DetailConfig
 	cursor  int
+	width   int // terminal width, clamped to maxViewWidth; used for separators
 	vp      viewport.Model
 	vpReady bool
 	spinner spinner.Model
@@ -80,6 +81,11 @@ func (m *detailModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.WindowSizeMsg:
+		w := msg.Width
+		if w == 0 || w > maxViewWidth {
+			w = maxViewWidth
+		}
+		m.width = w
 		// Reserve lines: 1 separator + 2 "ACTIONS" header + len(actions) + 2 padding
 		actionsH := 0
 		if len(m.cfg.Actions) > 0 {
@@ -183,7 +189,11 @@ func (m *detailModel) View() string {
 		sb.WriteString(m.cfg.Content)
 	}
 	sb.WriteString("\n")
-	sb.WriteString(separatorStyle.Render(strings.Repeat("─", viewWidth)))
+	sepWidth := m.width
+	if sepWidth == 0 {
+		sepWidth = viewWidth
+	}
+	sb.WriteString(separatorStyle.Render(strings.Repeat("─", sepWidth)))
 	sb.WriteString("\n\n")
 	if len(m.cfg.Actions) > 0 {
 		sb.WriteString(subtitleStyle.Render("ACTIONS"))
