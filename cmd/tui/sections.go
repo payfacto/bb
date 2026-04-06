@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -10,10 +11,16 @@ import (
 
 	"github.com/payfacto/bb/cmd/render"
 	"github.com/payfacto/bb/internal/config"
+	"github.com/payfacto/bb/internal/history"
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
-func buildMenuItems(client *bitbucket.Client, cfg *config.Config) []menuItem {
+const (
+	repoFavMarker = "★ "
+	repoMRUMarker = "↺ "
+)
+
+func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.History, cache *listCache) []menuItem {
 	ws := cfg.Workspace
 	repo := cfg.Repo
 	ps := cfg.PageSize
@@ -23,27 +30,48 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config) []menuItem {
 	needRepo := func(make func() View) func() View {
 		return guardRepo(repo, make)
 	}
+
+	favKey := key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "toggle favourite"))
+	cacheKey := "repos:" + ws
+	histPath := history.HistoryPath(config.DefaultPath())
+
 	return []menuItem{
 		{label: "Repositories", description: "List workspace repos", onSelect: func() View {
-			return newSimpleListView("Repositories", ps, func(ctx context.Context, _ string) ([]listItem, error) {
-				repos, err := client.Repos(ws).List(ctx)
-				if err != nil {
-					return nil, err
-				}
-				items := make([]listItem, len(repos))
-				for i, r := range repos {
-					privacy := ""
-					if !r.IsPrivate {
-						privacy = "  [public]"
+			return newListView(ListConfig{
+				Title:     "Repositories",
+				PageSize:  ps,
+				Shortcuts: []key.Binding{favKey},
+				Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
+					if cached, ok := cache.Get(cacheKey); ok {
+						return cached, nil
 					}
-					items[i] = listItem{title: r.Name + privacy, data: r}
-				}
-				return items, nil
-			}, func(item listItem) tea.Cmd {
-				r := item.data.(bitbucket.Repo)
-				repoCfg := *cfg
-				repoCfg.Repo = r.Slug
-				return pushViewCmd(newMenuModel(ws, r.Slug, buildMenuItems(client, &repoCfg)))
+					repos, err := client.Repos(ws).List(ctx)
+					if err != nil {
+						return nil, err
+					}
+					items := repoListItems(repos, hist, ws)
+					cache.Set(cacheKey, items, defaultCacheTTL)
+					return items, nil
+				},
+				OnKey: func(msg tea.KeyMsg, cursor int, items []listItem) ([]listItem, tea.Cmd) {
+					if !key.Matches(msg, favKey) || cursor >= len(items) {
+						return nil, nil
+					}
+					r := items[cursor].data.(bitbucket.Repo)
+					hist.ToggleFavourite(ws, r.Slug)
+					cache.Invalidate(cacheKey)
+					updated := sortRepoItems(items, hist, ws)
+					return updated, saveHistoryCmd(hist, histPath)
+				},
+				OnSelect: func(item listItem) tea.Cmd {
+					r := item.data.(bitbucket.Repo)
+					hist.AddMRU(ws, r.Slug, r.Name)
+					cache.Invalidate(cacheKey)
+					repoCfg := *cfg
+					repoCfg.Repo = r.Slug
+					navCmd := pushViewCmd(newMenuModel(ws, r.Slug, buildMenuItems(client, &repoCfg, hist, cache)))
+					return tea.Batch(navCmd, saveHistoryCmd(hist, histPath))
+				},
 			})
 		}},
 		{label: "Pull Requests", description: "List, review, approve, merge PRs", onSelect: needRepo(func() View {
@@ -471,6 +499,84 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int)
 
 func newSimpleListView(title string, pageSize int, fetch func(ctx context.Context, filter string) ([]listItem, error), onSelect func(listItem) tea.Cmd) *listModel {
 	return newListView(ListConfig{Title: title, PageSize: pageSize, Fetch: fetch, OnSelect: onSelect})
+}
+
+// saveHistoryCmd returns a tea.Cmd that persists hist to path and reports any
+// error via actionResultMsg so it surfaces in the TUI status bar.
+func saveHistoryCmd(hist *history.History, path string) tea.Cmd {
+	return func() tea.Msg {
+		if err := hist.Save(path); err != nil {
+			return actionResultMsg{success: false, message: fmt.Sprintf("save history: %v", err)}
+		}
+		return nil
+	}
+}
+
+// repoBaseTitle returns the display title for a repo without any sort marker.
+func repoBaseTitle(r bitbucket.Repo) string {
+	if r.IsPrivate {
+		return r.Name
+	}
+	return r.Name + "  [public]"
+}
+
+// repoListItems converts API repos into listItems with favourite/MRU markers, sorted.
+func repoListItems(repos []bitbucket.Repo, hist *history.History, ws string) []listItem {
+	items := make([]listItem, len(repos))
+	for i, r := range repos {
+		items[i] = listItem{title: repoBaseTitle(r), data: r}
+	}
+	return sortRepoItems(items, hist, ws)
+}
+
+// sortRepoItems re-orders items: favourites (A-Z) → MRU (newest first, non-fav only) → rest (A-Z).
+// Favourite items are prefixed with repoFavMarker and MRU-only items with repoMRUMarker.
+// The function is idempotent — existing markers are stripped before re-applying.
+func sortRepoItems(items []listItem, hist *history.History, ws string) []listItem {
+	for i, item := range items {
+		items[i].title = repoBaseTitle(item.data.(bitbucket.Repo))
+	}
+
+	mruSlugs := hist.RecentSlugs(ws)
+	mruRank := make(map[string]int, len(mruSlugs))
+	for i, s := range mruSlugs {
+		mruRank[s] = i
+	}
+
+	var favs, mruOnly, rest []listItem
+	for _, item := range items {
+		r := item.data.(bitbucket.Repo)
+		if hist.IsFavourite(ws, r.Slug) {
+			item.title = repoFavMarker + item.title
+			favs = append(favs, item)
+		} else if _, inMRU := mruRank[r.Slug]; inMRU {
+			item.title = repoMRUMarker + item.title
+			mruOnly = append(mruOnly, item)
+		} else {
+			rest = append(rest, item)
+		}
+	}
+
+	// Favourites A-Z by repo name.
+	sort.Slice(favs, func(i, j int) bool {
+		return favs[i].data.(bitbucket.Repo).Name < favs[j].data.(bitbucket.Repo).Name
+	})
+	// MRU in recency order (lower rank = more recent).
+	sort.Slice(mruOnly, func(i, j int) bool {
+		ri := mruRank[mruOnly[i].data.(bitbucket.Repo).Slug]
+		rj := mruRank[mruOnly[j].data.(bitbucket.Repo).Slug]
+		return ri < rj
+	})
+	// Rest A-Z by repo name.
+	sort.Slice(rest, func(i, j int) bool {
+		return rest[i].data.(bitbucket.Repo).Name < rest[j].data.(bitbucket.Repo).Name
+	})
+
+	result := make([]listItem, 0, len(items))
+	result = append(result, favs...)
+	result = append(result, mruOnly...)
+	result = append(result, rest...)
+	return result
 }
 
 // --- PR Section ---

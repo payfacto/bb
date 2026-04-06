@@ -6,6 +6,8 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/payfacto/bb/internal/history"
 )
 
 const statusClearDelay = 2 * time.Second // how long status messages remain visible
@@ -16,10 +18,12 @@ type appModel struct {
 	height      int
 	statusMsg   string
 	statusIsErr bool
+	hist        *history.History
+	cache       *listCache
 }
 
-func newApp(root View) *appModel {
-	a := &appModel{}
+func newApp(root View, hist *history.History, cache *listCache) *appModel {
+	a := &appModel{hist: hist, cache: cache}
 	a.stack.Push(root)
 	return a
 }
@@ -51,7 +55,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case rebuildMenuMsg:
 		// Setup completed or reconfigured — replace entire stack with new home menu.
 		a.stack = navStack{}
-		items := buildMenuItems(msg.client, msg.cfg)
+		items := buildMenuItems(msg.client, msg.cfg, a.hist, a.cache)
 		menu := newMenuModel(msg.cfg.Workspace, msg.cfg.Repo, items)
 		a.stack.Push(menu)
 		return a, menu.Init()
