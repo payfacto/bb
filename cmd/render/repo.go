@@ -33,6 +33,14 @@ func BranchListString(branches []bitbucket.Branch) string {
 	return sb.String()
 }
 
+// BranchDetailString returns the full detail string for a single branch (no truncation).
+func BranchDetailString(b bitbucket.Branch) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("  %s  %s\n", LabelStyle.Render("Name:"), BranchStyle.Render(b.Name)))
+	sb.WriteString(fmt.Sprintf("  %s  %s\n", LabelStyle.Render("Hash:"), IDStyle.Render(b.Target.Hash)))
+	return sb.String()
+}
+
 // BranchList prints the formatted branch list to stdout.
 func BranchList(branches []bitbucket.Branch) { fmt.Print(BranchListString(branches)) }
 

@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/payfacto/bb/cmd/render"
 	"github.com/spf13/cobra"
+
+	"github.com/payfacto/bb/cmd/render"
 )
 
 var commitCmd = &cobra.Command{

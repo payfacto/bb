@@ -31,6 +31,24 @@ func (r *PRResource) List(ctx context.Context, state string) ([]PR, error) {
 	return page.Values, nil
 }
 
+// ListByAuthor returns pull requests authored by the given nickname.
+func (r *PRResource) ListByAuthor(ctx context.Context, nickname string) ([]PR, error) {
+	q := url.Values{
+		"q":       {fmt.Sprintf(`author.nickname="%s"`, nickname)},
+		"state":   {"ALL"},
+		"pagelen": {pagelenDefault},
+	}
+	data, err := r.client.do(ctx, "GET", repoPath(r.workspace, r.repo)+"/pullrequests", nil, q)
+	if err != nil {
+		return nil, err
+	}
+	page, err := decode[paged[PR]](data)
+	if err != nil {
+		return nil, err
+	}
+	return page.Values, nil
+}
+
 // Get returns a single pull request by ID.
 func (r *PRResource) Get(ctx context.Context, prID int) (PR, error) {
 	data, err := r.client.do(ctx, "GET", r.prPath(prID), nil, nil)

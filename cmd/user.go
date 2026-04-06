@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	"github.com/payfacto/bb/cmd/render"
 	"github.com/payfacto/bb/internal/config"
 	"github.com/payfacto/bb/pkg/bitbucket"
-	"github.com/spf13/cobra"
 )
 
 var userCmd = &cobra.Command{

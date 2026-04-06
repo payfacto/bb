@@ -3,8 +3,9 @@ package cmd
 import (
 	"context"
 
-	"github.com/payfacto/bb/cmd/render"
 	"github.com/spf13/cobra"
+
+	"github.com/payfacto/bb/cmd/render"
 )
 
 var envCmd = &cobra.Command{

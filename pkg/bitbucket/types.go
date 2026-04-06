@@ -88,7 +88,8 @@ type AddCommentInput struct {
 
 // paged is a generic Bitbucket paged response container.
 type paged[T any] struct {
-	Values []T `json:"values"`
+	Values []T    `json:"values"`
+	Next   string `json:"next"`
 }
 
 // Pipeline types

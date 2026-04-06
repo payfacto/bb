@@ -79,7 +79,7 @@ func TestPRDetailString_fields(t *testing.T) {
 	pr.Description = ""
 
 	out := render.PRDetailString(pr)
-	checks := []string{"#42", "Add OAuth support", "OPEN", "alice", "feat/oauth", "main", "https://bitbucket.org"}
+	checks := []string{"#42", "Add OAuth support", "OPEN", "alice", "feat/oauth", "main"}
 	for _, want := range checks {
 		if !strings.Contains(out, want) {
 			t.Errorf("expected %q in PRDetail output, got:\n%s", want, out)

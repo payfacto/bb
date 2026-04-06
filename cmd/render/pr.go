@@ -8,10 +8,10 @@ import (
 )
 
 const (
-	titleMaxLen    = 45
-	authorMaxLen   = 12
-	datePrefixLen  = 10 // characters in "2026-04-01" portion of ISO-8601
-	shortHashLen   = 8  // characters to show for a commit hash abbreviation
+	titleMaxLen   = 45
+	authorMaxLen  = 12
+	datePrefixLen = 10 // characters in "2026-04-01" portion of ISO-8601
+	shortHashLen  = 8  // characters to show for a commit hash abbreviation
 )
 
 // truncate shortens s to max runes, appending … if truncated.
@@ -92,7 +92,6 @@ func PRDetailString(pr bitbucket.PR) string {
 		BranchStyle.Render(pr.Source.Branch.Name),
 		BranchStyle.Render(pr.Destination.Branch.Name),
 	))
-	sb.WriteString(fmt.Sprintf("%s  %s\n", label("URL"), pr.Links.HTML.Href))
 
 	if pr.Description != "" {
 		sb.WriteString(sep + "\n")

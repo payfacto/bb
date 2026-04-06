@@ -15,14 +15,6 @@ type RepoResource struct {
 // List returns all repositories the authenticated user has access to in the workspace.
 func (r *RepoResource) List(ctx context.Context) ([]Repo, error) {
 	path := fmt.Sprintf("/repositories/%s", r.workspace)
-	q := url.Values{"role": {"member"}, "pagelen": {pagelenSmall}}
-	data, err := r.client.do(ctx, "GET", path, nil, q)
-	if err != nil {
-		return nil, err
-	}
-	page, err := decode[paged[Repo]](data)
-	if err != nil {
-		return nil, err
-	}
-	return page.Values, nil
+	q := url.Values{"role": {"member"}, "pagelen": {pagelenLarge}}
+	return fetchAllPages[Repo](ctx, r.client, path, q)
 }

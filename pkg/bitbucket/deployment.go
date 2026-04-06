@@ -17,9 +17,9 @@ func (r *DeploymentResource) basePath() string {
 	return fmt.Sprintf("%s/deployments/", repoPath(r.workspace, r.repo))
 }
 
-// List returns the most recent deployments, newest first.
+// List returns the most recent deployments.
 func (r *DeploymentResource) List(ctx context.Context) ([]Deployment, error) {
-	q := url.Values{"sort": {"-last_update_time"}, "pagelen": {pagelenSmall}}
+	q := url.Values{"pagelen": {pagelenSmall}}
 	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
 	if err != nil {
 		return nil, err

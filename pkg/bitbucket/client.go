@@ -202,9 +202,44 @@ func (c *Client) do(ctx context.Context, method, path string, body any, query ur
 	}
 
 	if resp.StatusCode >= 400 {
+		var envelope struct {
+			Error struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if jsonErr := json.Unmarshal(data, &envelope); jsonErr == nil && envelope.Error.Message != "" {
+			return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, envelope.Error.Message)
+		}
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(data))
 	}
 
+	return data, nil
+}
+
+// doText executes an authenticated GET that returns plain text (e.g. log endpoints).
+func (c *Client) doText(ctx context.Context, path string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	c.setAuth(req)
+	// Do not set Accept header — the log endpoint rejects Accept: text/plain
+	// and may redirect (307) to S3 where JSON Accept headers are also rejected.
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response body: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(data))
+	}
 	return data, nil
 }
 
@@ -232,6 +267,14 @@ func (c *Client) doMultipart(ctx context.Context, path string, body io.Reader, c
 	}
 
 	if resp.StatusCode >= 400 {
+		var envelope struct {
+			Error struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if jsonErr := json.Unmarshal(data, &envelope); jsonErr == nil && envelope.Error.Message != "" {
+			return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, envelope.Error.Message)
+		}
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(data))
 	}
 
@@ -245,4 +288,67 @@ func decode[T any](data []byte) (T, error) {
 		return v, fmt.Errorf("decode response: %w", err)
 	}
 	return v, nil
+}
+
+// fetchPage fetches a single absolute URL and returns its body. Used by fetchAllPages to follow
+// "next" pagination links. Each call closes its own response body before returning.
+func (c *Client) fetchPage(ctx context.Context, rawURL string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", rawURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	c.setAuth(req)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response body: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		var envelope struct {
+			Error struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if jsonErr := json.Unmarshal(data, &envelope); jsonErr == nil && envelope.Error.Message != "" {
+			return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, envelope.Error.Message)
+		}
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(data))
+	}
+	return data, nil
+}
+
+// fetchAllPages fetches all pages for a given path+query, following "next" links.
+func fetchAllPages[T any](ctx context.Context, c *Client, path string, q url.Values) ([]T, error) {
+	var all []T
+	nextURL := ""
+	for {
+		var data []byte
+		var err error
+		if nextURL != "" {
+			data, err = c.fetchPage(ctx, nextURL)
+		} else {
+			data, err = c.do(ctx, "GET", path, nil, q)
+		}
+		if err != nil {
+			return nil, err
+		}
+		page, err := decode[paged[T]](data)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, page.Values...)
+		if page.Next == "" {
+			break
+		}
+		nextURL = page.Next
+	}
+	return all, nil
 }
