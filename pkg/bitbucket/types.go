@@ -440,6 +440,11 @@ type CreateIssueInput struct {
 	Priority string   `json:"priority,omitempty"`
 }
 
+// UpdateIssueInput is the request body for updating an issue's status.
+type UpdateIssueInput struct {
+	Status string `json:"status"` // "new", "open", "resolved", "on hold", "invalid", "duplicate", "wontfix", "closed"
+}
+
 // BranchRestriction types
 
 type BranchRestriction struct {

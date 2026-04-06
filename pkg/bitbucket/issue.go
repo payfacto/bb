@@ -41,6 +41,16 @@ func (r *IssueResource) Get(ctx context.Context, id int) (Issue, error) {
 	return decode[Issue](data)
 }
 
+// Update changes the issue's status.
+func (r *IssueResource) Update(ctx context.Context, id int, input UpdateIssueInput) (Issue, error) {
+	path := fmt.Sprintf("%s/%d", r.basePath(), id)
+	data, err := r.client.do(ctx, "PUT", path, input, nil)
+	if err != nil {
+		return Issue{}, err
+	}
+	return decode[Issue](data)
+}
+
 // Create creates a new issue with the provided fields.
 func (r *IssueResource) Create(ctx context.Context, input CreateIssueInput) (Issue, error) {
 	data, err := r.client.do(ctx, "POST", r.basePath(), input, nil)
