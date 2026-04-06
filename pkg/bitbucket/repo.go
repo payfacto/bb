@@ -59,3 +59,20 @@ func (r *RepoResource) Fork(ctx context.Context, sourceSlug string, input ForkRe
 	}
 	return decode[Repo](data)
 }
+
+// Update modifies repository metadata (e.g. description).
+func (r *RepoResource) Update(ctx context.Context, slug string, input UpdateRepoInput) (Repo, error) {
+	path := fmt.Sprintf("/repositories/%s/%s", r.workspace, slug)
+	data, err := r.client.do(ctx, "PUT", path, input, nil)
+	if err != nil {
+		return Repo{}, err
+	}
+	return decode[Repo](data)
+}
+
+// Delete permanently deletes a repository. This action is irreversible.
+func (r *RepoResource) Delete(ctx context.Context, slug string) error {
+	path := fmt.Sprintf("/repositories/%s/%s", r.workspace, slug)
+	_, err := r.client.do(ctx, "DELETE", path, nil, nil)
+	return err
+}

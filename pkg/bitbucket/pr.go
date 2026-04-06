@@ -111,6 +111,24 @@ func (r *PRResource) Activity(ctx context.Context, prID int) ([]Activity, error)
 	return page.Values, nil
 }
 
+// AddReviewer adds a reviewer (by account_id) to an existing pull request.
+// It fetches the current PR to preserve existing reviewers.
+func (r *PRResource) AddReviewer(ctx context.Context, prID int, accountID string) error {
+	pr, err := r.Get(ctx, prID)
+	if err != nil {
+		return fmt.Errorf("get PR: %w", err)
+	}
+	for _, rv := range pr.Reviewers {
+		if rv.AccountID == accountID {
+			return nil // already a reviewer
+		}
+	}
+	reviewers := append(pr.Reviewers, Actor{AccountID: accountID})
+	input := UpdatePRReviewersInput{Title: pr.Title, Reviewers: reviewers}
+	_, err = r.client.do(ctx, "PUT", r.prPath(prID), input, nil)
+	return err
+}
+
 // Statuses returns the build statuses associated with the pull request's source commit.
 func (r *PRResource) Statuses(ctx context.Context, prID int) ([]PRStatus, error) {
 	path := fmt.Sprintf("%s/statuses", r.prPath(prID))
