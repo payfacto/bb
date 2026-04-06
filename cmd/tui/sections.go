@@ -798,7 +798,7 @@ func projectBaseTitle(p bitbucket.Project) string {
 func toCachedProjects(projects []bitbucket.Project) []history.CachedProject {
 	out := make([]history.CachedProject, len(projects))
 	for i, p := range projects {
-		out[i] = history.CachedProject{Key: p.Key, Name: p.Name, IsPrivate: p.IsPrivate}
+		out[i] = history.CachedProject{Key: p.Key, Name: p.Name, IsPrivate: p.IsPrivate, URL: p.Links.HTML.Href}
 	}
 	return out
 }
@@ -807,7 +807,9 @@ func toCachedProjects(projects []bitbucket.Project) []history.CachedProject {
 func projectItemsFromCache(cached []history.CachedProject, hist *history.History, ws string) []listItem {
 	projects := make([]bitbucket.Project, len(cached))
 	for i, c := range cached {
-		projects[i] = bitbucket.Project{Key: c.Key, Name: c.Name, IsPrivate: c.IsPrivate}
+		var links bitbucket.Links
+		links.HTML.Href = c.URL
+		projects[i] = bitbucket.Project{Key: c.Key, Name: c.Name, IsPrivate: c.IsPrivate, Links: links}
 	}
 	return projectListItems(projects, hist, ws)
 }
