@@ -588,6 +588,32 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 								return openURLCmd(r.Links.HTML.Href)()
 							}
 						}},
+						{Label: "Copy Clone SSH", OnSelect: func() tea.Cmd {
+							return func() tea.Msg {
+								r, err := client.Repos(ws).Get(context.Background(), repo)
+								if err != nil {
+									return actionResultMsg{success: false, message: "get repo: " + err.Error()}
+								}
+								url := cloneURL(r, "ssh")
+								if url == "" {
+									return actionResultMsg{success: false, message: "no SSH clone URL available"}
+								}
+								return copyToClipboardCmd("git clone " + url)()
+							}
+						}},
+						{Label: "Copy Clone HTTPS", OnSelect: func() tea.Cmd {
+							return func() tea.Msg {
+								r, err := client.Repos(ws).Get(context.Background(), repo)
+								if err != nil {
+									return actionResultMsg{success: false, message: "get repo: " + err.Error()}
+								}
+								url := cloneURL(r, "https")
+								if url == "" {
+									return actionResultMsg{success: false, message: "no HTTPS clone URL available"}
+								}
+								return copyToClipboardCmd("git clone " + url)()
+							}
+						}},
 						{Label: "Update Description", OnSelect: func() tea.Cmd {
 							return pushViewCmd(newInputView("New Description", "repo description", func(desc string) tea.Cmd {
 								return executeAction(func() error {
@@ -923,6 +949,26 @@ func openURLCmd(url string) tea.Cmd {
 			return actionResultMsg{success: false, message: fmt.Sprintf("open URL: %v", err)}
 		}
 		return nil
+	}
+}
+
+// copyToClipboardCmd copies text to the system clipboard.
+func copyToClipboardCmd(text string) tea.Cmd {
+	return func() tea.Msg {
+		var cmd *exec.Cmd
+		switch runtime.GOOS {
+		case "darwin":
+			cmd = exec.Command("pbcopy")
+		case "linux":
+			cmd = exec.Command("xclip", "-selection", "clipboard")
+		default:
+			return actionResultMsg{success: false, message: "clipboard not supported on " + runtime.GOOS}
+		}
+		cmd.Stdin = strings.NewReader(text)
+		if err := cmd.Run(); err != nil {
+			return actionResultMsg{success: false, message: fmt.Sprintf("copy to clipboard: %v", err)}
+		}
+		return actionResultMsg{success: true, message: "Copied to clipboard"}
 	}
 }
 
