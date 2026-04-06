@@ -218,6 +218,26 @@ type Repo struct {
 	Project     *ProjectRef `json:"project,omitempty"`
 }
 
+// CreateRepoInput is the request body for creating a new repository.
+type CreateRepoInput struct {
+	Scm         string      `json:"scm"`
+	Name        string      `json:"name"`
+	Description string      `json:"description,omitempty"`
+	IsPrivate   bool        `json:"is_private"`
+	Project     *ProjectRef `json:"project,omitempty"`
+}
+
+// ForkRepoInput is the request body for forking a repository.
+type ForkRepoInput struct {
+	Name      string      `json:"name,omitempty"`
+	Workspace *WorkspaceRef `json:"workspace,omitempty"`
+}
+
+// WorkspaceRef is a minimal workspace reference used in fork requests.
+type WorkspaceRef struct {
+	Slug string `json:"slug"`
+}
+
 // Webhook types
 
 type Webhook struct {
