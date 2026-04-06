@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"fmt"
+	"os/exec"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -111,6 +113,9 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 							return render.ProjectDetailString(p)
 						},
 						Actions: []ActionItem{
+							{Label: "Open in browser", OnSelect: func() tea.Cmd {
+								return openURLCmd(p.Links.HTML.Href)
+							}},
 							{Label: "Repos in this project", OnSelect: func() tea.Cmd {
 								return pushViewCmd(newListView(ListConfig{
 									Title:     "Repos: " + p.Key,
@@ -243,8 +248,15 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 				return items, nil
 			}, func(item listItem) tea.Cmd {
 				t := item.data.(bitbucket.Tag)
-				content := render.TagListString([]bitbucket.Tag{t})
-				return pushViewCmd(newTextView("Tag: "+t.Name, content))
+				return pushViewCmd(newDetailView(DetailConfig{
+					Title:   "Tag: " + t.Name,
+					Content: render.TagListString([]bitbucket.Tag{t}),
+					Actions: []ActionItem{
+						{Label: "Open in browser", OnSelect: func() tea.Cmd {
+							return openURLCmd(t.Links.HTML.Href)
+						}},
+					},
+				}))
 			})
 		})},
 		{label: "Issues", description: "Track and manage issues", onSelect: needRepo(func() View {
@@ -478,6 +490,11 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 					ContentFetch: func() string {
 						return render.SnippetDetailString(s)
 					},
+					Actions: []ActionItem{
+						{Label: "Open in browser", OnSelect: func() tea.Cmd {
+							return openURLCmd(s.Links.HTML.Href)
+						}},
+					},
 				}))
 			})
 		}},
@@ -523,7 +540,15 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int)
 					sb.WriteString(fmt.Sprintf("             %s\n", e))
 				}
 				sb.WriteString(fmt.Sprintf("Created:     %s\n", h.CreatedAt))
-				return pushViewCmd(newTextView("Webhook: "+h.URL, sb.String()))
+				return pushViewCmd(newDetailView(DetailConfig{
+					Title:   "Webhook: " + h.URL,
+					Content: sb.String(),
+					Actions: []ActionItem{
+						{Label: "Open URL in browser", OnSelect: func() tea.Cmd {
+							return openURLCmd(h.URL)
+						}},
+					},
+				}))
 			})
 		}},
 		{label: "Deploy Keys", description: "Manage deploy keys", onSelect: func() View {
@@ -644,6 +669,28 @@ func saveHistoryCmd(hist *history.History, path string) tea.Cmd {
 	return func() tea.Msg {
 		if err := hist.Save(path); err != nil {
 			return actionResultMsg{success: false, message: fmt.Sprintf("save history: %v", err)}
+		}
+		return nil
+	}
+}
+
+// openURLCmd opens url in the system default browser.
+func openURLCmd(url string) tea.Cmd {
+	return func() tea.Msg {
+		if url == "" {
+			return nil
+		}
+		var cmd *exec.Cmd
+		switch runtime.GOOS {
+		case "darwin":
+			cmd = exec.Command("open", url)
+		case "linux":
+			cmd = exec.Command("xdg-open", url)
+		default:
+			return actionResultMsg{success: false, message: "open URL: unsupported platform"}
+		}
+		if err := cmd.Start(); err != nil {
+			return actionResultMsg{success: false, message: fmt.Sprintf("open URL: %v", err)}
 		}
 		return nil
 	}
@@ -837,6 +884,9 @@ func newBranchDetailView(client *bitbucket.Client, ws, repo string, b bitbucket.
 			return render.BranchDetailString(b)
 		},
 		Actions: []ActionItem{
+			{Label: "Open in browser", OnSelect: func() tea.Cmd {
+				return openURLCmd(b.Links.HTML.Href)
+			}},
 			{Label: "Commits", Key: &commitsKey, OnSelect: func() tea.Cmd {
 				return pushViewCmd(newListView(ListConfig{
 					Title:    "Commits: " + b.Name,
@@ -914,6 +964,9 @@ func newPRDetailView(client *bitbucket.Client, ws, repo string, pr bitbucket.PR,
 			return render.PRDetailString(pr)
 		},
 		Actions: []ActionItem{
+			{Label: "Open in browser", OnSelect: func() tea.Cmd {
+				return openURLCmd(pr.Links.HTML.Href)
+			}},
 			{Label: "Comments", Key: &commentsKey, OnSelect: func() tea.Cmd {
 				return pushViewCmd(newPRCommentListView(client, ws, repo, pr.ID, pageSize))
 			}},
@@ -1268,7 +1321,15 @@ func newIssueListView(client *bitbucket.Client, ws, repo string, pageSize int) *
 		},
 		OnSelect: func(item listItem) tea.Cmd {
 			issue := item.data.(bitbucket.Issue)
-			return pushViewCmd(newTextView(fmt.Sprintf("Issue #%d", issue.ID), render.IssueDetailString(issue)))
+			return pushViewCmd(newDetailView(DetailConfig{
+				Title:   fmt.Sprintf("Issue #%d", issue.ID),
+				Content: render.IssueDetailString(issue),
+				Actions: []ActionItem{
+					{Label: "Open in browser", OnSelect: func() tea.Cmd {
+						return openURLCmd(issue.Links.HTML.Href)
+					}},
+				},
+			}))
 		},
 	})
 }
