@@ -49,6 +49,7 @@ type CachedProject struct {
 	Key       string `json:"key"`
 	Name      string `json:"name"`
 	IsPrivate bool   `json:"is_private"`
+	URL       string `json:"url,omitempty"`
 }
 
 // HistoryPath returns the history file path derived from the config file path.
