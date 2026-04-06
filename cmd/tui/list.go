@@ -26,6 +26,9 @@ type ListConfig struct {
 	// selected is the item under the cursor (from the filtered view).
 	// Returning non-nil items replaces the full item list in place.
 	OnKey func(msg tea.KeyMsg, selected listItem, items []listItem) ([]listItem, tea.Cmd)
+	// OnRefresh is called synchronously before the refresh fetch begins,
+	// allowing callers to invalidate caches so Fetch goes to the source.
+	OnRefresh func()
 	Filters   []string
 	Shortcuts []key.Binding
 	PageSize  int
@@ -174,6 +177,9 @@ func (m *listModel) updateNavigation(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.search.Focus()
 		return m, textinput.Blink
 	case key.Matches(msg, globalKeys.Refresh):
+		if m.cfg.OnRefresh != nil {
+			m.cfg.OnRefresh()
+		}
 		m.loading = true
 		m.err = nil
 		return m, tea.Batch(m.spinner.Tick, m.fetchItems())
