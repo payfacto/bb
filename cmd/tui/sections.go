@@ -18,6 +18,7 @@ import (
 const (
 	repoFavMarker = "★ "
 	repoMRUMarker = "↺ "
+	projNoMarker  = "  " // aligns plain items with fav/MRU markers
 
 	shortHashLen  = 8  // characters to show for a commit/tag hash abbreviation
 	isoDateLen    = 10 // characters to keep from an ISO-8601 timestamp (YYYY-MM-DD)
@@ -446,6 +447,32 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 				},
 			})
 		}},
+		{label: "Snippets", description: "Workspace snippets", onSelect: func() View {
+			return newSimpleListView("Snippets", ps, func(ctx context.Context, _ string) ([]listItem, error) {
+				snippets, err := client.Snippets(ws).List(ctx)
+				if err != nil {
+					return nil, err
+				}
+				items := make([]listItem, len(snippets))
+				for i, s := range snippets {
+					visibility := "public"
+					if s.IsPrivate {
+						visibility = "private"
+					}
+					title := fmt.Sprintf("[%s] %s", visibility, s.Title)
+					items[i] = listItem{id: s.ID, title: title, data: s}
+				}
+				return items, nil
+			}, func(item listItem) tea.Cmd {
+				s := item.data.(bitbucket.Snippet)
+				return pushViewCmd(newDetailView(DetailConfig{
+					Title: "Snippet: " + s.ID,
+					ContentFetch: func() string {
+						return render.SnippetDetailString(s)
+					},
+				}))
+			})
+		}},
 		{label: "bb Setup", description: "Reconfigure workspace, repo, credentials", onSelect: func() View {
 			return newSetupView(config.DefaultPath(), cfg)
 		}},
@@ -701,9 +728,9 @@ func sortRepoItems(items []listItem, hist *history.History, ws string) []listIte
 // projectBaseTitle returns the display title for a project without any sort marker.
 // The key is shown first so it is always visible without scrolling.
 func projectBaseTitle(p bitbucket.Project) string {
-	title := p.Key + "  " + p.Name
+	title := headerStyle.Render(p.Key) + "  " + p.Name
 	if !p.IsPrivate {
-		title += "  [public]"
+		title += "  " + errorStyle.Render("[public]")
 	}
 	return title
 }
@@ -759,6 +786,7 @@ func sortProjectItems(items []listItem, hist *history.History, ws string) []list
 			item.title = repoMRUMarker + item.title
 			mruOnly = append(mruOnly, item)
 		} else {
+			item.title = projNoMarker + item.title
 			rest = append(rest, item)
 		}
 	}
