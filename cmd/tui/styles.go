@@ -2,6 +2,11 @@ package tui
 
 import "github.com/charmbracelet/lipgloss"
 
+const (
+	viewWidth    = 50 // default content width for separators and layout
+	maxViewWidth = 80 // maximum rendered view width
+)
+
 var (
 	breadcrumbStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#6c7086"))
 	breadcrumbActive    = lipgloss.NewStyle().Foreground(lipgloss.Color("#89b4fa"))

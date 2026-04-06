@@ -2,6 +2,8 @@ package render
 
 import "github.com/charmbracelet/glamour"
 
+const markdownWordWrap = 100
+
 // RenderMarkdown renders a markdown string using glamour with auto theme
 // detection. Falls back to returning the raw input if rendering fails.
 func RenderMarkdown(input string) string {
@@ -10,7 +12,7 @@ func RenderMarkdown(input string) string {
 	}
 	r, err := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(100),
+		glamour.WithWordWrap(markdownWordWrap),
 	)
 	if err != nil {
 		return input

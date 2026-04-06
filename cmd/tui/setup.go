@@ -21,12 +21,17 @@ const (
 	setupFieldCount
 )
 
+const (
+	setupFieldCharLimit    = 100
+	setupPasswordCharLimit = 200
+)
+
 // setupModel is the TUI setup wizard for first-run or reconfiguration.
 type setupModel struct {
-	fields   []textinput.Model
-	focus    int
-	cfgPath  string
-	existing *config.Config
+	fields    []textinput.Model
+	focus     int
+	cfgPath   string
+	existing  *config.Config
 	err       error
 	done      bool
 	message   string
@@ -44,24 +49,24 @@ func newSetupView(cfgPath string, existing *config.Config) *setupModel {
 	fields[setupFieldWorkspace] = textinput.New()
 	fields[setupFieldWorkspace].Placeholder = "workspace slug"
 	fields[setupFieldWorkspace].SetValue(existing.Workspace)
-	fields[setupFieldWorkspace].CharLimit = 100
+	fields[setupFieldWorkspace].CharLimit = setupFieldCharLimit
 	fields[setupFieldWorkspace].Focus()
 
 	fields[setupFieldRepo] = textinput.New()
 	fields[setupFieldRepo].Placeholder = "repo slug (optional)"
 	fields[setupFieldRepo].SetValue(existing.Repo)
-	fields[setupFieldRepo].CharLimit = 100
+	fields[setupFieldRepo].CharLimit = setupFieldCharLimit
 
 	fields[setupFieldUsername] = textinput.New()
 	fields[setupFieldUsername].Placeholder = "username or email"
 	fields[setupFieldUsername].SetValue(existing.Username)
-	fields[setupFieldUsername].CharLimit = 100
+	fields[setupFieldUsername].CharLimit = setupFieldCharLimit
 
 	fields[setupFieldPassword] = textinput.New()
 	fields[setupFieldPassword].Placeholder = "app password"
 	fields[setupFieldPassword].EchoMode = textinput.EchoPassword
 	fields[setupFieldPassword].EchoCharacter = '*'
-	fields[setupFieldPassword].CharLimit = 200
+	fields[setupFieldPassword].CharLimit = setupPasswordCharLimit
 
 	return &setupModel{
 		fields:   fields,

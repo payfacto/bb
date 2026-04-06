@@ -8,6 +8,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+const statusClearDelay = 2 * time.Second // how long status messages remain visible
+
 type appModel struct {
 	stack       navStack
 	width       int
@@ -72,7 +74,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case actionResultMsg:
 		a.statusMsg = msg.message
 		a.statusIsErr = !msg.success
-		return a, tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
+		return a, tea.Tick(statusClearDelay, func(t time.Time) tea.Msg {
 			return clearStatusMsg{}
 		})
 
@@ -111,8 +113,8 @@ func (a *appModel) View() string {
 	}
 
 	maxW := a.width
-	if maxW == 0 || maxW > 80 {
-		maxW = 80
+	if maxW == 0 || maxW > maxViewWidth {
+		maxW = maxViewWidth
 	}
 
 	var sb strings.Builder

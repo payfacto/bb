@@ -1,9 +1,9 @@
 package tui
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type textViewModel struct {
@@ -48,5 +48,5 @@ func (m *textViewModel) View() string {
 
 func (m *textViewModel) Title() string { return m.title }
 func (m *textViewModel) ShortHelp() []key.Binding {
-	return []key.Binding{globalKeys.Up, globalKeys.Down, globalKeys.Back}
+	return []key.Binding{globalKeys.Up, globalKeys.Down, globalKeys.Back, globalKeys.Quit}
 }
