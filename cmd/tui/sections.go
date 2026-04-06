@@ -254,27 +254,50 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 			return newCommitListView(client, ws, repo, ps)
 		})},
 		{label: "Tags", description: "List and manage tags", onSelect: needRepo(func() View {
-			return newSimpleListView("Tags", ps, func(ctx context.Context, _ string) ([]listItem, error) {
-				tags, err := client.Tags(ws, repo).List(ctx)
-				if err != nil {
-					return nil, err
-				}
-				items := make([]listItem, len(tags))
-				for i, t := range tags {
-					items[i] = listItem{id: abbrevHash(t.Target.Hash), title: t.Name, data: t}
-				}
-				return items, nil
-			}, func(item listItem) tea.Cmd {
-				t := item.data.(bitbucket.Tag)
-				return pushViewCmd(newDetailView(DetailConfig{
-					Title:   "Tag: " + t.Name,
-					Content: render.TagListString([]bitbucket.Tag{t}),
-					Actions: []ActionItem{
-						{Label: "Open in browser", OnSelect: func() tea.Cmd {
-							return openURLCmd(t.Links.HTML.Href)
-						}},
-					},
-				}))
+			newTagKey := key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "new tag"))
+			return newListView(ListConfig{
+				Title:     "Tags",
+				PageSize:  ps,
+				Shortcuts: []key.Binding{newTagKey},
+				Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
+					tags, err := client.Tags(ws, repo).List(ctx)
+					if err != nil {
+						return nil, err
+					}
+					items := make([]listItem, len(tags))
+					for i, t := range tags {
+						items[i] = listItem{id: abbrevHash(t.Target.Hash), title: t.Name, data: t}
+					}
+					return items, nil
+				},
+				OnKey: func(msg tea.KeyMsg, _ listItem, items []listItem) ([]listItem, tea.Cmd) {
+					if !key.Matches(msg, newTagKey) {
+						return nil, nil
+					}
+					return nil, pushViewCmd(newInputView("New Tag — Name", "tag-name", func(name string) tea.Cmd {
+						return pushViewCmd(newInputView("New Tag — Target (commit hash or branch)", "HEAD", func(target string) tea.Cmd {
+							if target == "" {
+								target = "HEAD"
+							}
+							return executeAction(func() error {
+								_, err := client.Tags(ws, repo).Create(context.Background(), name, target)
+								return err
+							}, fmt.Sprintf("Tag %q created", name))
+						}))
+					}))
+				},
+				OnSelect: func(item listItem) tea.Cmd {
+					t := item.data.(bitbucket.Tag)
+					return pushViewCmd(newDetailView(DetailConfig{
+						Title:   "Tag: " + t.Name,
+						Content: render.TagListString([]bitbucket.Tag{t}),
+						Actions: []ActionItem{
+							{Label: "Open in browser", OnSelect: func() tea.Cmd {
+								return openURLCmd(t.Links.HTML.Href)
+							}},
+						},
+					}))
+				},
 			})
 		})},
 		{label: "Issues", description: "Track and manage issues", onSelect: needRepo(func() View {
