@@ -163,6 +163,28 @@ var prDeclineCmd = &cobra.Command{
 	},
 }
 
+var (
+	prAddReviewerID        int
+	prAddReviewerAccountID string
+)
+
+var prAddReviewerCmd = &cobra.Command{
+	Use:   "add-reviewer",
+	Short: "Add a reviewer to a pull request",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, r, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		if err := client.PRs(ws, r).AddReviewer(context.Background(), prAddReviewerID, prAddReviewerAccountID); err != nil {
+			return err
+		}
+		return printOutput(map[string]any{"added": true, "pr_id": prAddReviewerID, "account_id": prAddReviewerAccountID}, func() {
+			fmt.Printf("Reviewer %s added to PR #%d\n", prAddReviewerAccountID, prAddReviewerID)
+		})
+	},
+}
+
 var prActivityID int
 
 var prActivityCmd = &cobra.Command{
@@ -201,7 +223,7 @@ var prStatusesCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(prCmd)
-	prCmd.AddCommand(prListCmd, prGetCmd, prCreateCmd, prDiffCmd, prApproveCmd, prMergeCmd, prDeclineCmd, prActivityCmd, prStatusesCmd)
+	prCmd.AddCommand(prListCmd, prGetCmd, prCreateCmd, prDiffCmd, prApproveCmd, prMergeCmd, prDeclineCmd, prActivityCmd, prStatusesCmd, prAddReviewerCmd)
 
 	prListCmd.Flags().StringVarP(&prListState, "state", "s", "OPEN",
 		"filter by state: OPEN, MERGED, DECLINED, SUPERSEDED")
@@ -238,4 +260,9 @@ func init() {
 
 	prStatusesCmd.Flags().IntVarP(&prStatusesID, "pr-id", "p", 0, "pull request ID")
 	prStatusesCmd.MarkFlagRequired("pr-id")
+
+	prAddReviewerCmd.Flags().IntVarP(&prAddReviewerID, "id", "i", 0, "pull request ID (required)")
+	prAddReviewerCmd.Flags().StringVar(&prAddReviewerAccountID, "account-id", "", "reviewer account ID (required)")
+	prAddReviewerCmd.MarkFlagRequired("id")
+	prAddReviewerCmd.MarkFlagRequired("account-id")
 }

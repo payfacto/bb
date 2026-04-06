@@ -83,6 +83,46 @@ var issueCreateCmd = &cobra.Command{
 	},
 }
 
+var issueCloseID int
+
+var issueCloseCmd = &cobra.Command{
+	Use:   "close",
+	Short: "Close an issue (set status to resolved)",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		issue, err := client.Issues(ws, repo).Update(context.Background(), issueCloseID, bitbucket.UpdateIssueInput{Status: "resolved"})
+		if err != nil {
+			return err
+		}
+		return printOutput(issue, func() {
+			fmt.Printf("Issue #%d closed\n", issue.ID)
+		})
+	},
+}
+
+var issueReopenID int
+
+var issueReopenCmd = &cobra.Command{
+	Use:   "reopen",
+	Short: "Reopen an issue (set status to open)",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		issue, err := client.Issues(ws, repo).Update(context.Background(), issueReopenID, bitbucket.UpdateIssueInput{Status: "open"})
+		if err != nil {
+			return err
+		}
+		return printOutput(issue, func() {
+			fmt.Printf("Issue #%d reopened\n", issue.ID)
+		})
+	},
+}
+
 func init() {
 	issueGetCmd.Flags().IntVarP(&issueGetID, "id", "i", 0, "issue ID (required)")
 	issueGetCmd.MarkFlagRequired("id")
@@ -93,6 +133,12 @@ func init() {
 	issueCreateCmd.Flags().StringVar(&issueCreatePriority, "priority", "", "issue priority: trivial, minor, major, critical, blocker")
 	issueCreateCmd.MarkFlagRequired("title")
 
-	issueCmd.AddCommand(issueListCmd, issueGetCmd, issueCreateCmd)
+	issueCloseCmd.Flags().IntVarP(&issueCloseID, "id", "i", 0, "issue ID (required)")
+	issueCloseCmd.MarkFlagRequired("id")
+
+	issueReopenCmd.Flags().IntVarP(&issueReopenID, "id", "i", 0, "issue ID (required)")
+	issueReopenCmd.MarkFlagRequired("id")
+
+	issueCmd.AddCommand(issueListCmd, issueGetCmd, issueCreateCmd, issueCloseCmd, issueReopenCmd)
 	rootCmd.AddCommand(issueCmd)
 }
