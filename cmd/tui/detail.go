@@ -206,7 +206,7 @@ func (m *detailModel) View() string {
 			if i == m.cursor {
 				sb.WriteString(selectedStyle.Render(label))
 			} else if action.Style != nil {
-				sb.WriteString(action.Style.Copy().PaddingLeft(2).Render(label))
+				sb.WriteString((*action.Style).PaddingLeft(2).Render(label))
 			} else {
 				sb.WriteString(normalStyle.Render(label))
 			}
