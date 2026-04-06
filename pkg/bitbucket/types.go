@@ -31,11 +31,18 @@ type Actor struct {
 	DisplayName string `json:"display_name"`
 }
 
+// CloneLink holds a single clone URL (SSH or HTTPS).
+type CloneLink struct {
+	Href string `json:"href"`
+	Name string `json:"name"` // "ssh" or "https"
+}
+
 // Links holds href references returned by the API.
 type Links struct {
 	HTML struct {
 		Href string `json:"href"`
 	} `json:"html"`
+	Clone []CloneLink `json:"clone,omitempty"`
 }
 
 // Comment represents a PR comment.

@@ -12,6 +12,16 @@ type RepoResource struct {
 	workspace string
 }
 
+// Get returns a single repository by slug.
+func (r *RepoResource) Get(ctx context.Context, slug string) (Repo, error) {
+	path := fmt.Sprintf("/repositories/%s/%s", r.workspace, slug)
+	data, err := r.client.do(ctx, "GET", path, nil, nil)
+	if err != nil {
+		return Repo{}, err
+	}
+	return decode[Repo](data)
+}
+
 // List returns all repositories the authenticated user has access to in the workspace.
 func (r *RepoResource) List(ctx context.Context) ([]Repo, error) {
 	path := fmt.Sprintf("/repositories/%s", r.workspace)
