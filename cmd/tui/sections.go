@@ -217,19 +217,37 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 			return newPipelineListView(client, ws, repo, ps)
 		})},
 		{label: "Branches", description: "List and manage branches", onSelect: needRepo(func() View {
-			return newSimpleListView("Branches", ps, func(ctx context.Context, _ string) ([]listItem, error) {
-				branches, err := client.Branches(ws, repo).List(ctx)
-				if err != nil {
-					return nil, err
-				}
-				items := make([]listItem, len(branches))
-				for i, b := range branches {
-					items[i] = listItem{id: abbrevHash(b.Target.Hash), title: b.Name, data: b}
-				}
-				return items, nil
-			}, func(item listItem) tea.Cmd {
-				b := item.data.(bitbucket.Branch)
-				return pushViewCmd(newBranchDetailView(client, ws, repo, b, ps))
+			newBranchKey := key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "new branch"))
+			return newListView(ListConfig{
+				Title:     "Branches",
+				PageSize:  ps,
+				Shortcuts: []key.Binding{newBranchKey},
+				Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
+					branches, err := client.Branches(ws, repo).List(ctx)
+					if err != nil {
+						return nil, err
+					}
+					items := make([]listItem, len(branches))
+					for i, b := range branches {
+						items[i] = listItem{id: abbrevHash(b.Target.Hash), title: b.Name, data: b}
+					}
+					return items, nil
+				},
+				OnKey: func(msg tea.KeyMsg, _ listItem, items []listItem) ([]listItem, tea.Cmd) {
+					if !key.Matches(msg, newBranchKey) {
+						return nil, nil
+					}
+					return nil, pushViewCmd(newInputView("New Branch", "branch-name", func(name string) tea.Cmd {
+						return executeAction(func() error {
+							_, err := client.Branches(ws, repo).Create(context.Background(), name, "HEAD")
+							return err
+						}, fmt.Sprintf("Branch %q created", name))
+					}))
+				},
+				OnSelect: func(item listItem) tea.Cmd {
+					b := item.data.(bitbucket.Branch)
+					return pushViewCmd(newBranchDetailView(client, ws, repo, b, ps))
+				},
 			})
 		})},
 		{label: "Commits", description: "Browse commit history", onSelect: needRepo(func() View {

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -50,4 +51,6 @@ func (m *inputModel) View() string {
 		helpKeyStyle.Render("esc") + "  cancel"
 }
 
-func (m *inputModel) navTitle() string { return m.title }
+func (m *inputModel) Title() string { return m.title }
+
+func (m *inputModel) ShortHelp() []key.Binding { return nil }
