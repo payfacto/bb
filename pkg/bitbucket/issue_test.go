@@ -68,6 +68,32 @@ func TestIssues_Get(t *testing.T) {
 	}
 }
 
+func TestIssues_Update(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			t.Errorf("expected PUT, got %s", r.Method)
+		}
+		if r.URL.Path != "/repositories/testws/testrepo/issues/1" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		if body["status"] != "resolved" {
+			t.Errorf("expected status=resolved, got %v", body["status"])
+		}
+		mustEncodeJSON(t, w, bitbucket.Issue{ID: 1, State: "resolved", Title: "Test"})
+	}))
+	got, err := client.Issues("testws", "testrepo").Update(context.Background(), 1, bitbucket.UpdateIssueInput{Status: "resolved"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.State != "resolved" {
+		t.Errorf("expected resolved, got %q", got.State)
+	}
+}
+
 func TestIssues_Create(t *testing.T) {
 	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
