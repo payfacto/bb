@@ -196,9 +196,11 @@ func (m *listModel) updateNavigation(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.cfg.OnKey != nil && !m.loading && m.cursor < len(m.filtered) {
 		selected := m.filtered[m.cursor]
-		if newItems, cmd := m.cfg.OnKey(msg, selected, m.items); newItems != nil {
-			m.items = newItems
-			m.applySearch()
+		if newItems, cmd := m.cfg.OnKey(msg, selected, m.items); newItems != nil || cmd != nil {
+			if newItems != nil {
+				m.items = newItems
+				m.applySearch()
+			}
 			return m, cmd
 		}
 	}
