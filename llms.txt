@@ -64,6 +64,7 @@ bb pr merge -p ID [--strategy merge_commit|squash|fast_forward]
 bb pr decline -p ID
 bb pr activity -p ID
 bb pr statuses -p ID
+bb pr add-reviewer -p ID --account-id ACCOUNT_ID
 ```
 
 ### PR Comments
@@ -122,6 +123,11 @@ bb file get --ref REF --path PATH
 
 ```
 bb repo list
+bb repo get SLUG
+bb repo update SLUG [--description "..."] [--default-branch BRANCH]
+bb repo delete SLUG
+bb repo create SLUG [--name "..."] [--description "..."] [--private] [--project KEY]
+bb repo fork SLUG [--name "..."] [--workspace SLUG]
 ```
 
 ### Issues
@@ -130,6 +136,16 @@ bb repo list
 bb issue list
 bb issue get -i ID
 bb issue create -T "..." [-d "..."] [-k bug|enhancement|proposal|task] [--priority trivial|minor|major|critical|blocker]
+bb issue close -i ID
+bb issue reopen -i ID
+```
+
+### Pipeline Variables
+
+```
+bb pipeline-var list
+bb pipeline-var create -k KEY -v VALUE [--secured]
+bb pipeline-var delete --uuid UUID
 ```
 
 ### Deployments & Environments
@@ -191,4 +207,5 @@ Pass `-f text` for human-readable styled terminal output.
 - IDs are integers for PRs, tasks, issues, deploy keys, and restrictions. UUIDs (with `{}` braces) for pipelines, steps, environments, and webhooks.
 - The CLI exits non-zero on API errors and prints the error to stderr.
 - Workspace and repo can be omitted from flags if set in `~/.bbcloud.yaml`.
-- All long flags have short equivalents: `-p` (pr-id), `-s` (state), `-b` (branch), `-u` (pipeline-uuid), `-c` (comment-id), `-t` (text), `-T` (title), `-d` (description), `-n` (name), `-i` (id), `-k` (kind), `-x` (hash).
+- All long flags have short equivalents: `-p` (pr-id), `-s` (state), `-b` (branch), `-u` (pipeline-uuid), `-c` (comment-id), `-t` (text), `-T` (title), `-d` (description), `-n` (name), `-i` (id), `-k` (kind or key), `-v` (value), `-x` (hash).
+- Pipeline variable UUIDs are returned as strings with `{}` braces (e.g. `{abc-123}`); pass the full UUID including braces to `--uuid`.
