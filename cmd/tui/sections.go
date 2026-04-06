@@ -126,9 +126,12 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 									},
 									func(item listItem) tea.Cmd {
 										r := item.data.(bitbucket.Repo)
+										hist.AddMRU(ws, r.Slug, r.Name)
+										cache.Invalidate(cacheKey)
 										repoCfg := *cfg
 										repoCfg.Repo = r.Slug
-										return pushViewCmd(newMenuModel(ws, r.Slug, buildMenuItems(client, &repoCfg, hist, cache)))
+										navCmd := pushViewCmd(newMenuModel(ws, r.Slug, buildMenuItems(client, &repoCfg, hist, cache)))
+										return tea.Batch(navCmd, saveHistoryCmd(hist, histPath))
 									},
 								))
 							}},
