@@ -128,8 +128,10 @@ bb pr list --workspace myws --repo myrepo
 | `-T` | `--title` | `pr create`, `issue create` |
 | `-d` | `--description` | `pr create`, `issue create` |
 | `-n` | `--name` | `branch create/delete`, `tag create/delete` |
-| `-i` | `--id` | `issue get`, `deploy-key delete`, `restriction delete` |
+| `-i` | `--id` | `issue get/close/reopen`, `deploy-key delete`, `restriction delete` |
 | `-k` | `--kind` | `issue create` |
+| `-k` | `--key` | `pipeline-var create` |
+| `-v` | `--value` | `pipeline-var create` |
 | `-x` | `--hash` | `commit get` |
 
 ## Commands
@@ -146,6 +148,7 @@ bb pr merge -p ID [--strategy merge_commit|squash|fast_forward]
 bb pr decline -p ID
 bb pr activity -p ID
 bb pr statuses -p ID
+bb pr add-reviewer -p ID --account-id ACCOUNT_ID
 ```
 
 ### PR Comments
@@ -204,6 +207,11 @@ bb file get --ref REF --path PATH
 
 ```
 bb repo list
+bb repo get SLUG
+bb repo update SLUG [--description "..."] [--default-branch BRANCH]
+bb repo delete SLUG
+bb repo create SLUG [--name "..."] [--description "..."] [--private] [--project KEY]
+bb repo fork SLUG [--name "..."] [--workspace SLUG]
 ```
 
 ### Issues
@@ -212,6 +220,16 @@ bb repo list
 bb issue list
 bb issue get -i ID
 bb issue create -T "..." [-d "..."] [-k bug|enhancement|proposal|task] [--priority trivial|minor|major|critical|blocker]
+bb issue close -i ID
+bb issue reopen -i ID
+```
+
+### Pipeline Variables
+
+```
+bb pipeline-var list
+bb pipeline-var create -k KEY -v VALUE [--secured]
+bb pipeline-var delete --uuid UUID
 ```
 
 ### Deployments & Environments
