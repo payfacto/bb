@@ -185,15 +185,37 @@ type User struct {
 	Links       Links  `json:"links"`
 }
 
+// Project types
+
+// Project represents a Bitbucket workspace project.
+type Project struct {
+	UUID                    string `json:"uuid"`
+	Key                     string `json:"key"`
+	Name                    string `json:"name"`
+	Description             string `json:"description"`
+	IsPrivate               bool   `json:"is_private"`
+	HasPubliclyVisibleRepos bool   `json:"has_publicly_visible_repos"`
+	CreatedOn               string `json:"created_on"`
+	UpdatedOn               string `json:"updated_on"`
+	Links                   Links  `json:"links"`
+}
+
+// ProjectRef is the minimal project reference embedded in a Repo.
+type ProjectRef struct {
+	Key  string `json:"key"`
+	Name string `json:"name"`
+}
+
 // Repo type
 
 type Repo struct {
-	Slug        string `json:"slug"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	IsPrivate   bool   `json:"is_private"`
-	FullName    string `json:"full_name"`
-	Links       Links  `json:"links"`
+	Slug        string      `json:"slug"`
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+	IsPrivate   bool        `json:"is_private"`
+	FullName    string      `json:"full_name"`
+	Links       Links       `json:"links"`
+	Project     *ProjectRef `json:"project,omitempty"`
 }
 
 // Webhook types

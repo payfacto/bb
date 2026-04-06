@@ -362,6 +362,54 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 				}))
 			})
 		}},
+		{label: "Projects", description: "Workspace projects", onSelect: func() View {
+			return newSimpleListView("Projects", ps, func(ctx context.Context, _ string) ([]listItem, error) {
+				projects, err := client.Projects(ws).List(ctx)
+				if err != nil {
+					return nil, err
+				}
+				items := make([]listItem, len(projects))
+				for i, p := range projects {
+					title := p.Name
+					if !p.IsPrivate {
+						title += "  [public]"
+					}
+					items[i] = listItem{id: p.Key, title: title, data: p}
+				}
+				return items, nil
+			}, func(item listItem) tea.Cmd {
+				p := item.data.(bitbucket.Project)
+				return pushViewCmd(newDetailView(DetailConfig{
+					Title: "Project: " + p.Key,
+					ContentFetch: func() string {
+						return render.ProjectDetailString(p)
+					},
+					Actions: []ActionItem{
+						{Label: "Repos in this project", OnSelect: func() tea.Cmd {
+							return pushViewCmd(newSimpleListView("Repos: "+p.Key, ps,
+								func(ctx context.Context, _ string) ([]listItem, error) {
+									repos, err := client.Repos(ws).ListByProject(ctx, p.Key)
+									if err != nil {
+										return nil, err
+									}
+									items := make([]listItem, len(repos))
+									for i, r := range repos {
+										items[i] = listItem{title: repoBaseTitle(r), data: r}
+									}
+									return items, nil
+								},
+								func(item listItem) tea.Cmd {
+									r := item.data.(bitbucket.Repo)
+									repoCfg := *cfg
+									repoCfg.Repo = r.Slug
+									return pushViewCmd(newMenuModel(ws, r.Slug, buildMenuItems(client, &repoCfg, hist, cache)))
+								},
+							))
+						}},
+					},
+				}))
+			})
+		}},
 		{label: "bb Setup", description: "Reconfigure workspace, repo, credentials", onSelect: func() View {
 			return newSetupView(config.DefaultPath(), cfg)
 		}},

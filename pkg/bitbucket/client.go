@@ -132,6 +132,11 @@ func (c *Client) Members(workspace string) *MemberResource {
 	return &MemberResource{client: c, workspace: workspace}
 }
 
+// Projects returns a resource for workspace project operations.
+func (c *Client) Projects(workspace string) *ProjectResource {
+	return &ProjectResource{client: c, workspace: workspace}
+}
+
 // Downloads returns a resource for download artifact operations on the given repo.
 func (c *Client) Downloads(workspace, repo string) *DownloadResource {
 	return &DownloadResource{client: c, workspace: workspace, repo: repo}
