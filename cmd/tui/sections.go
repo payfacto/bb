@@ -56,7 +56,7 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 	cacheKey := "repos:" + ws
 	histPath := history.HistoryPath(config.DefaultPath())
 
-	return []menuItem{
+	items := []menuItem{
 		{label: "Projects", description: "Workspace projects", onSelect: func() View {
 			projFavKey := key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "toggle favourite"))
 			projCacheKey := "projects:" + ws
@@ -505,6 +505,56 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 			return newSetupView(config.DefaultPath(), cfg)
 		}},
 	}
+
+	if repo != "" {
+		repoInfo := menuItem{
+			label:       "Repo Info",
+			description: "Details, clone URLs, open in browser",
+			onSelect: func() View {
+				return newDetailView(DetailConfig{
+					Title: repo,
+					ContentFetch: func() string {
+						r, err := client.Repos(ws).Get(context.Background(), repo)
+						if err != nil {
+							return "Error: " + err.Error()
+						}
+						var sb strings.Builder
+						sb.WriteString(fmt.Sprintf("Slug:        %s\n", r.Slug))
+						sb.WriteString(fmt.Sprintf("Full Name:   %s\n", r.FullName))
+						if r.Description != "" {
+							sb.WriteString(fmt.Sprintf("Description: %s\n", r.Description))
+						}
+						visibility := "private"
+						if !r.IsPrivate {
+							visibility = "public"
+						}
+						sb.WriteString(fmt.Sprintf("Visibility:  %s\n", visibility))
+						if ssh := cloneURL(r, "ssh"); ssh != "" {
+							sb.WriteString(fmt.Sprintf("Clone SSH:   %s\n", ssh))
+						}
+						if https := cloneURL(r, "https"); https != "" {
+							sb.WriteString(fmt.Sprintf("Clone HTTPS: %s\n", https))
+						}
+						return sb.String()
+					},
+					Actions: []ActionItem{
+						{Label: "Open in browser", OnSelect: func() tea.Cmd {
+							return func() tea.Msg {
+								r, err := client.Repos(ws).Get(context.Background(), repo)
+								if err != nil {
+									return actionResultMsg{success: false, message: "get repo: " + err.Error()}
+								}
+								return openURLCmd(r.Links.HTML.Href)()
+							}
+						}},
+					},
+				})
+			},
+		}
+		items = append([]menuItem{repoInfo}, items...)
+	}
+
+	return items
 }
 
 func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int) []menuItem {
@@ -704,11 +754,27 @@ func repoBaseTitle(r bitbucket.Repo) string {
 	return r.Name + "  " + errorStyle.Render("[public]")
 }
 
+// cloneURL returns the clone href for the given protocol ("ssh" or "https") from a Repo.
+func cloneURL(r bitbucket.Repo, protocol string) string {
+	for _, cl := range r.Links.Clone {
+		if cl.Name == protocol {
+			return cl.Href
+		}
+	}
+	return ""
+}
+
 // toCachedRepos converts API repos to the minimal form persisted in history.
 func toCachedRepos(repos []bitbucket.Repo) []history.CachedRepo {
 	out := make([]history.CachedRepo, len(repos))
 	for i, r := range repos {
-		out[i] = history.CachedRepo{Slug: r.Slug, Name: r.Name, IsPrivate: r.IsPrivate}
+		out[i] = history.CachedRepo{
+			Slug:       r.Slug,
+			Name:       r.Name,
+			IsPrivate:  r.IsPrivate,
+			CloneSSH:   cloneURL(r, "ssh"),
+			CloneHTTPS: cloneURL(r, "https"),
+		}
 	}
 	return out
 }
@@ -717,7 +783,11 @@ func toCachedRepos(repos []bitbucket.Repo) []history.CachedRepo {
 func repoItemsFromCache(cached []history.CachedRepo, hist *history.History, ws string) []listItem {
 	repos := make([]bitbucket.Repo, len(cached))
 	for i, c := range cached {
-		repos[i] = bitbucket.Repo{Slug: c.Slug, Name: c.Name, IsPrivate: c.IsPrivate}
+		links := bitbucket.Links{Clone: []bitbucket.CloneLink{
+			{Href: c.CloneSSH, Name: "ssh"},
+			{Href: c.CloneHTTPS, Name: "https"},
+		}}
+		repos[i] = bitbucket.Repo{Slug: c.Slug, Name: c.Name, IsPrivate: c.IsPrivate, Links: links}
 	}
 	return repoListItems(repos, hist, ws)
 }

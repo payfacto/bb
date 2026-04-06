@@ -39,9 +39,11 @@ type ProjectMRUEntry struct {
 
 // CachedRepo stores the minimal repo fields needed by the TUI.
 type CachedRepo struct {
-	Slug      string `json:"slug"`
-	Name      string `json:"name"`
-	IsPrivate bool   `json:"is_private"`
+	Slug       string `json:"slug"`
+	Name       string `json:"name"`
+	IsPrivate  bool   `json:"is_private"`
+	CloneSSH   string `json:"clone_ssh,omitempty"`
+	CloneHTTPS string `json:"clone_https,omitempty"`
 }
 
 // CachedProject stores the minimal project fields needed by the TUI.
