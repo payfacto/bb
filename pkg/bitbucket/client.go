@@ -162,6 +162,11 @@ func (c *Client) Restrictions(workspace, repo string) *BranchRestrictionResource
 	return &BranchRestrictionResource{client: c, workspace: workspace, repo: repo}
 }
 
+// PipelineVariables returns a resource for pipeline variable operations on the given repo.
+func (c *Client) PipelineVariables(workspace, repo string) *PipelineVariableResource {
+	return &PipelineVariableResource{client: c, workspace: workspace, repo: repo}
+}
+
 // Webhooks returns a resource for webhook operations on the given repo.
 func (c *Client) Webhooks(workspace, repo string) *WebhookResource {
 	return &WebhookResource{client: c, workspace: workspace, repo: repo}
