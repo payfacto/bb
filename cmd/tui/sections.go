@@ -1269,9 +1269,11 @@ func truncateStr(s string, max int) string {
 // --- Pipeline Section ---
 
 func newPipelineListView(client *bitbucket.Client, ws, repo string, pageSize int) *listModel {
+	triggerKey := key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "trigger pipeline"))
 	return newListView(ListConfig{
-		Title:    "Pipelines",
-		PageSize: pageSize,
+		Title:     "Pipelines",
+		PageSize:  pageSize,
+		Shortcuts: []key.Binding{triggerKey},
 		Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
 			pipelines, err := client.Pipelines(ws, repo).List(ctx)
 			if err != nil {
@@ -1291,6 +1293,17 @@ func newPipelineListView(client *bitbucket.Client, ws, repo string, pageSize int
 			}
 			return items, nil
 		},
+		OnKey: func(msg tea.KeyMsg, _ listItem, items []listItem) ([]listItem, tea.Cmd) {
+			if !key.Matches(msg, triggerKey) {
+				return nil, nil
+			}
+			return nil, pushViewCmd(newInputView("Trigger Pipeline — Branch", "main", func(branch string) tea.Cmd {
+				return executeAction(func() error {
+					_, err := client.Pipelines(ws, repo).Trigger(context.Background(), branch)
+					return err
+				}, fmt.Sprintf("Pipeline triggered on %q", branch))
+			}))
+		},
 		OnSelect: func(item listItem) tea.Cmd {
 			p := item.data.(bitbucket.Pipeline)
 			return pushViewCmd(newPipelineDetailView(client, ws, repo, p, pageSize))
@@ -1299,12 +1312,9 @@ func newPipelineListView(client *bitbucket.Client, ws, repo string, pageSize int
 }
 
 func newPipelineDetailView(client *bitbucket.Client, ws, repo string, p bitbucket.Pipeline, pageSize int) *detailModel {
-	return newDetailView(DetailConfig{
-		Title:   fmt.Sprintf("#%d", p.BuildNumber),
-		Content: render.PipelineDetailString(p),
-		Actions: []ActionItem{
-			{Label: "Steps", OnSelect: func() tea.Cmd {
-				return pushViewCmd(newSimpleListView("Steps", pageSize, func(ctx context.Context, _ string) ([]listItem, error) {
+	actions := []ActionItem{
+		{Label: "Steps", OnSelect: func() tea.Cmd {
+			return pushViewCmd(newSimpleListView("Steps", pageSize, func(ctx context.Context, _ string) ([]listItem, error) {
 					steps, err := client.Pipelines(ws, repo).Steps(ctx, p.UUID)
 					if err != nil {
 						return nil, err
@@ -1341,7 +1351,27 @@ func newPipelineDetailView(client *bitbucket.Client, ws, repo string, p bitbucke
 					})
 				}))
 			}},
-		},
+	}
+
+	if p.State.Name == "IN_PROGRESS" || p.State.Name == "PENDING" {
+		actions = append(actions, ActionItem{
+			Label: "✗ Stop",
+			Style: &actionDangerStyle,
+			Confirm: &ConfirmConfig{
+				Message: fmt.Sprintf("Stop pipeline #%d?", p.BuildNumber),
+				OnYes: func() tea.Cmd {
+					return executeAction(func() error {
+						return client.Pipelines(ws, repo).Stop(context.Background(), p.UUID)
+					}, fmt.Sprintf("Pipeline #%d stopped", p.BuildNumber))
+				},
+			},
+		})
+	}
+
+	return newDetailView(DetailConfig{
+		Title:   fmt.Sprintf("#%d", p.BuildNumber),
+		Content: render.PipelineDetailString(p),
+		Actions: actions,
 	})
 }
 
