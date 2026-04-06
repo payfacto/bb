@@ -112,19 +112,28 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 						},
 						Actions: []ActionItem{
 							{Label: "Repos in this project", OnSelect: func() tea.Cmd {
-								return pushViewCmd(newSimpleListView("Repos: "+p.Key, ps,
-									func(ctx context.Context, _ string) ([]listItem, error) {
+								return pushViewCmd(newListView(ListConfig{
+									Title:     "Repos: " + p.Key,
+									PageSize:  ps,
+									Shortcuts: []key.Binding{favKey},
+									Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
 										repos, err := client.Repos(ws).ListByProject(ctx, p.Key)
 										if err != nil {
 											return nil, err
 										}
-										items := make([]listItem, len(repos))
-										for i, r := range repos {
-											items[i] = listItem{title: repoBaseTitle(r), data: r}
-										}
-										return items, nil
+										return repoListItems(repos, hist, ws), nil
 									},
-									func(item listItem) tea.Cmd {
+									OnKey: func(msg tea.KeyMsg, selected listItem, items []listItem) ([]listItem, tea.Cmd) {
+										if !key.Matches(msg, favKey) {
+											return nil, nil
+										}
+										r := selected.data.(bitbucket.Repo)
+										hist.ToggleFavourite(ws, r.Slug)
+										cache.Invalidate(cacheKey)
+										updated := sortRepoItems(items, hist, ws)
+										return updated, saveHistoryCmd(hist, histPath)
+									},
+									OnSelect: func(item listItem) tea.Cmd {
 										r := item.data.(bitbucket.Repo)
 										hist.AddMRU(ws, r.Slug, r.Name)
 										cache.Invalidate(cacheKey)
@@ -133,7 +142,7 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 										navCmd := pushViewCmd(newMenuModel(ws, r.Slug, buildMenuItems(client, &repoCfg, hist, cache)))
 										return tea.Batch(navCmd, saveHistoryCmd(hist, histPath))
 									},
-								))
+								}))
 							}},
 						},
 					}))
