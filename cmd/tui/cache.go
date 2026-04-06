@@ -27,11 +27,6 @@ func (c *listCache) Get(key string) ([]listItem, bool) {
 	return e.items, true
 }
 
-// Set stores items under key with the given TTL.
-func (c *listCache) Set(key string, items []listItem, ttl time.Duration) {
-	c.entries[key] = cacheEntry{items: items, expiry: time.Now().Add(ttl)}
-}
-
 // Pin stores items under key with no expiry — they persist until explicitly invalidated.
 func (c *listCache) Pin(key string, items []listItem) {
 	c.entries[key] = cacheEntry{items: items}

@@ -28,7 +28,8 @@ type ListConfig struct {
 	OnKey func(msg tea.KeyMsg, selected listItem, items []listItem) ([]listItem, tea.Cmd)
 	// OnRefresh is called synchronously before the refresh fetch begins,
 	// allowing callers to invalidate caches so Fetch goes to the source.
-	OnRefresh func()
+	// Any returned Cmd is batched with the fetch (use it to report side-effect errors).
+	OnRefresh func() tea.Cmd
 	Filters   []string
 	Shortcuts []key.Binding
 	PageSize  int
@@ -177,12 +178,13 @@ func (m *listModel) updateNavigation(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.search.Focus()
 		return m, textinput.Blink
 	case key.Matches(msg, globalKeys.Refresh):
+		var refreshCmd tea.Cmd
 		if m.cfg.OnRefresh != nil {
-			m.cfg.OnRefresh()
+			refreshCmd = m.cfg.OnRefresh()
 		}
 		m.loading = true
 		m.err = nil
-		return m, tea.Batch(m.spinner.Tick, m.fetchItems())
+		return m, tea.Batch(refreshCmd, m.spinner.Tick, m.fetchItems())
 	case key.Matches(msg, tabKey):
 		if len(m.cfg.Filters) > 0 {
 			m.filter = (m.filter + 1) % len(m.cfg.Filters)
