@@ -544,7 +544,7 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int)
 					Title:   "Webhook: " + h.URL,
 					Content: sb.String(),
 					Actions: []ActionItem{
-						{Label: "Open URL in browser", OnSelect: func() tea.Cmd {
+						{Label: "Open in browser", OnSelect: func() tea.Cmd {
 							return openURLCmd(h.URL)
 						}},
 					},
