@@ -216,6 +216,16 @@ type User struct {
 	Links       Links  `json:"links"`
 }
 
+// Workspace types
+
+// Workspace represents a Bitbucket Cloud workspace.
+type Workspace struct {
+	Slug  string `json:"slug"`
+	Name  string `json:"name"`
+	UUID  string `json:"uuid"`
+	Links Links  `json:"links"`
+}
+
 // Project types
 
 // Project represents a Bitbucket workspace project.

@@ -136,6 +136,11 @@ func (c *Client) Projects(workspace string) *ProjectResource {
 	return &ProjectResource{client: c, workspace: workspace}
 }
 
+// Workspaces returns a resource for listing accessible workspaces.
+func (c *Client) Workspaces() *WorkspaceResource {
+	return &WorkspaceResource{client: c}
+}
+
 // Snippets returns a resource for workspace snippet operations.
 func (c *Client) Snippets(workspace string) *SnippetResource {
 	return &SnippetResource{client: c, workspace: workspace}
@@ -244,7 +249,7 @@ func (c *Client) doText(ctx context.Context, path string) ([]byte, error) {
 	}
 
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(data))
+		return nil, parseHTTPError(resp.StatusCode, data)
 	}
 	return data, nil
 }
