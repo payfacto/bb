@@ -158,6 +158,12 @@ bb deployment list
 bb env list
 ```
 
+### Workspaces
+
+```
+bb workspace list
+```
+
 ### Members & Users
 
 ```
