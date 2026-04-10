@@ -10,10 +10,10 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os/exec"
-	"runtime"
 	"strings"
 	"time"
+
+	"github.com/pkg/browser"
 )
 
 const (
@@ -150,7 +150,7 @@ func Login(clientID, clientSecret string) (*Token, error) {
 	fmt.Printf("Opening your browser to:\n  %s\n\n", authURL)
 	fmt.Println("Waiting for authentication... (press Ctrl+C to cancel)")
 
-	if err := openBrowser(authURL); err != nil {
+	if err := browser.OpenURL(authURL); err != nil {
 		fmt.Println("Could not open browser automatically. Please visit the URL above manually.")
 	}
 
@@ -165,18 +165,4 @@ func Login(clientID, clientSecret string) (*Token, error) {
 	case <-ctx.Done():
 		return nil, fmt.Errorf("authentication timed out after 5 minutes")
 	}
-}
-
-// openBrowser attempts to open url in the user's default browser.
-func openBrowser(rawURL string) error {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.Command("open", rawURL)
-	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", rawURL)
-	default:
-		cmd = exec.Command("xdg-open", rawURL)
-	}
-	return cmd.Start()
 }
