@@ -10,6 +10,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/pkg/browser"
 
 	"github.com/payfacto/bb/cmd/render"
 	"github.com/payfacto/bb/internal/config"
@@ -851,16 +852,7 @@ func openURLCmd(url string) tea.Cmd {
 		if url == "" {
 			return nil
 		}
-		var cmd *exec.Cmd
-		switch runtime.GOOS {
-		case "darwin":
-			cmd = exec.Command("open", url)
-		case "linux":
-			cmd = exec.Command("xdg-open", url)
-		default:
-			return actionResultMsg{success: false, message: "open URL: unsupported platform"}
-		}
-		if err := cmd.Start(); err != nil {
+		if err := browser.OpenURL(url); err != nil {
 			return actionResultMsg{success: false, message: fmt.Sprintf("open URL: %v", err)}
 		}
 		return nil
