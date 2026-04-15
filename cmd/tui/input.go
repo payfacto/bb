@@ -56,3 +56,14 @@ func (m *inputModel) View() string {
 func (m *inputModel) Title() string { return m.title }
 
 func (m *inputModel) ShortHelp() []key.Binding { return nil }
+
+// newInputViewPrefilled creates an input view with value already entered,
+// so the user can press Enter immediately to accept the default.
+func newInputViewPrefilled(title, value string, onSubmit func(string) tea.Cmd) *inputModel {
+	ti := textinput.New()
+	ti.CharLimit = inputCharLimit
+	ti.SetValue(value)
+	ti.CursorEnd()
+	ti.Focus()
+	return &inputModel{title: title, input: ti, onSubmit: onSubmit}
+}
