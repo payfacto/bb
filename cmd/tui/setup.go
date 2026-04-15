@@ -24,6 +24,7 @@ const (
 const (
 	setupFieldCharLimit    = 100
 	setupPasswordCharLimit = 200
+	setupLabelWidth        = 14 // column width for field labels in the setup wizard
 )
 
 // setupModel is the TUI setup wizard for first-run or reconfiguration.
@@ -225,15 +226,15 @@ func (m *setupModel) View() string {
 	sb.WriteString("\n")
 	sb.WriteString(subtitleStyle.Render("Configure your Bitbucket Cloud connection"))
 	sb.WriteString("\n")
-	sb.WriteString(separatorStyle.Render(strings.Repeat("─", 50)))
+	sb.WriteString(separatorStyle.Render(strings.Repeat("─", viewWidth)))
 	sb.WriteString("\n\n")
 
 	labels := []string{"Workspace", "Default repo", "Username", "App password"}
 	for i, label := range labels {
 		if i == m.focus {
-			sb.WriteString(helpKeyStyle.Render(fmt.Sprintf("  %-14s ", label)))
+			sb.WriteString(helpKeyStyle.Render(fmt.Sprintf("  %-*s ", setupLabelWidth, label)))
 		} else {
-			sb.WriteString(subtitleStyle.Render(fmt.Sprintf("  %-14s ", label)))
+			sb.WriteString(subtitleStyle.Render(fmt.Sprintf("  %-*s ", setupLabelWidth, label)))
 		}
 		sb.WriteString(m.fields[i].View())
 		sb.WriteString("\n")

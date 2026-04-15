@@ -14,10 +14,11 @@ import (
 )
 
 const (
-	defaultAPIBase = "https://api.bitbucket.org/2.0"
-	pagelenDefault = "50"  // standard page size for most list endpoints
-	pagelenSmall   = "25"  // reduced page size for heavy payloads (pipelines, commits, repos)
-	pagelenLarge   = "100" // larger page size for lightweight items (comments, tasks)
+	defaultAPIBase    = "https://api.bitbucket.org/2.0"
+	defaultHTTPTimeout = 30 * time.Second
+	pagelenDefault    = "50"  // standard page size for most list endpoints
+	pagelenSmall      = "25"  // reduced page size for heavy payloads (pipelines, commits, repos)
+	pagelenLarge      = "100" // larger page size for lightweight items (comments, tasks)
 )
 
 // Client is the Bitbucket Cloud HTTP client.
@@ -35,9 +36,7 @@ func New(cfg *config.Config) *Client {
 		baseURL:  defaultAPIBase,
 		username: cfg.Username,
 		token:    cfg.Token,
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
+		httpClient: &http.Client{Timeout: defaultHTTPTimeout},
 	}
 }
 
@@ -54,7 +53,7 @@ func NewWithBearerToken(token string) *Client {
 	return &Client{
 		baseURL:     defaultAPIBase,
 		bearerToken: token,
-		httpClient:  &http.Client{Timeout: 30 * time.Second},
+		httpClient:  &http.Client{Timeout: defaultHTTPTimeout},
 	}
 }
 
@@ -217,15 +216,7 @@ func (c *Client) do(ctx context.Context, method, path string, body any, query ur
 	}
 
 	if resp.StatusCode >= 400 {
-		var envelope struct {
-			Error struct {
-				Message string `json:"message"`
-			} `json:"error"`
-		}
-		if jsonErr := json.Unmarshal(data, &envelope); jsonErr == nil && envelope.Error.Message != "" {
-			return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, envelope.Error.Message)
-		}
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(data))
+		return nil, parseHTTPError(resp.StatusCode, data)
 	}
 
 	return data, nil
@@ -282,18 +273,24 @@ func (c *Client) doMultipart(ctx context.Context, path string, body io.Reader, c
 	}
 
 	if resp.StatusCode >= 400 {
-		var envelope struct {
-			Error struct {
-				Message string `json:"message"`
-			} `json:"error"`
-		}
-		if jsonErr := json.Unmarshal(data, &envelope); jsonErr == nil && envelope.Error.Message != "" {
-			return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, envelope.Error.Message)
-		}
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(data))
+		return nil, parseHTTPError(resp.StatusCode, data)
 	}
 
 	return data, nil
+}
+
+// parseHTTPError converts a non-2xx HTTP response into an error.
+// It attempts to extract the API's JSON error envelope; falls back to the raw body.
+func parseHTTPError(statusCode int, data []byte) error {
+	var envelope struct {
+		Error struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(data, &envelope); err == nil && envelope.Error.Message != "" {
+		return fmt.Errorf("HTTP %d: %s", statusCode, envelope.Error.Message)
+	}
+	return fmt.Errorf("HTTP %d: %s", statusCode, string(data))
 }
 
 // decode unmarshals JSON data into a typed value T.
@@ -327,15 +324,7 @@ func (c *Client) fetchPage(ctx context.Context, rawURL string) ([]byte, error) {
 	}
 
 	if resp.StatusCode >= 400 {
-		var envelope struct {
-			Error struct {
-				Message string `json:"message"`
-			} `json:"error"`
-		}
-		if jsonErr := json.Unmarshal(data, &envelope); jsonErr == nil && envelope.Error.Message != "" {
-			return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, envelope.Error.Message)
-		}
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(data))
+		return nil, parseHTTPError(resp.StatusCode, data)
 	}
 	return data, nil
 }

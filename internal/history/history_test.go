@@ -127,8 +127,9 @@ func TestRecentSlugs(t *testing.T) {
 }
 
 func TestHistoryPath(t *testing.T) {
-	p := HistoryPath("/home/user/.bbcloud.yaml")
-	want := "/home/user/.bbcloud_history.json"
+	base := filepath.Join("home", "user")
+	p := HistoryPath(filepath.Join(base, ".bbcloud.yaml"))
+	want := filepath.Join(base, ".bbcloud_history.json")
 	if p != want {
 		t.Errorf("expected %q, got %q", want, p)
 	}
