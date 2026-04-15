@@ -197,7 +197,7 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 					r := selected.data.(bitbucket.Repo)
 					switch {
 					case key.Matches(msg, detailKey):
-						return nil, pushViewCmd(newRepoDetailView(client, ws, r.Slug))
+						return nil, pushViewCmd(newRepoDetailView(client, cfg, ws, r.Slug))
 					case key.Matches(msg, favKey):
 						hist.ToggleFavourite(ws, r.Slug)
 						cache.Invalidate(cacheKey)
@@ -559,7 +559,7 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 			label:       "Repo Info",
 			description: "Details, clone URLs, open in browser",
 			onSelect: func() View {
-				return newRepoDetailView(client, ws, repo)
+				return newRepoDetailView(client, cfg, ws, repo)
 			},
 		}
 		// Insert Repo Info after "Repositories" (index 1).
@@ -1014,8 +1014,52 @@ func repoBaseTitle(r bitbucket.Repo) string {
 
 // newRepoDetailView builds the detail view for a repository identified by slug.
 // It is used by both the Repo Info menu item and the space shortcut in the repos list.
-func newRepoDetailView(client *bitbucket.Client, ws, slug string) View {
-	return newDetailView(DetailConfig{
+func newRepoDetailView(client *bitbucket.Client, cfg *config.Config, ws, slug string) *repoDetailModel {
+	cloneMode := cfg.CloneAction != "copy"
+	cloneItems := buildCloneActionItems(client, ws, slug, cloneMode)
+	remainingActions := []ActionItem{
+		{Label: "Open in browser", OnSelect: func() tea.Cmd {
+			return func() tea.Msg {
+				r, err := client.Repos(ws).Get(context.Background(), slug)
+				if err != nil {
+					return actionResultMsg{success: false, message: "get repo: " + err.Error()}
+				}
+				return openURLCmd(r.Links.HTML.Href)()
+			}
+		}},
+		{Label: "Update Description", OnSelect: func() tea.Cmd {
+			return pushViewCmd(newInputView("New Description", "repo description", func(desc string) tea.Cmd {
+				return executeAction(func() error {
+					_, err := client.Repos(ws).Update(context.Background(), slug, bitbucket.UpdateRepoInput{Description: desc})
+					return err
+				}, "Description updated")
+			}))
+		}},
+		{Label: "Set Default Branch", OnSelect: func() tea.Cmd {
+			return pushViewCmd(newInputView("Default Branch Name", "main", func(branch string) tea.Cmd {
+				return executeAction(func() error {
+					_, err := client.Repos(ws).Update(context.Background(), slug, bitbucket.UpdateRepoInput{
+						Mainbranch: &bitbucket.MainbranchRef{Name: branch, Type: "branch"},
+					})
+					return err
+				}, fmt.Sprintf("Default branch set to %q", branch))
+			}))
+		}},
+		{Label: "✗ Delete Repo", Style: &actionDangerStyle, Confirm: &ConfirmConfig{
+			Message: fmt.Sprintf("Permanently delete %q? This cannot be undone.", slug),
+			OnYes: func() tea.Cmd {
+				return tea.Sequence(
+					popView,
+					popView,
+					popView,
+					executeAction(func() error {
+						return client.Repos(ws).Delete(context.Background(), slug)
+					}, fmt.Sprintf("Repository %q deleted", slug)),
+				)
+			},
+		}},
+	}
+	inner := newDetailView(DetailConfig{
 		Title: slug,
 		ContentFetch: func() string {
 			r, err := client.Repos(ws).Get(context.Background(), slug)
@@ -1043,75 +1087,15 @@ func newRepoDetailView(client *bitbucket.Client, ws, slug string) View {
 			}
 			return sb.String()
 		},
-		Actions: []ActionItem{
-			{Label: "Open in browser", OnSelect: func() tea.Cmd {
-				return func() tea.Msg {
-					r, err := client.Repos(ws).Get(context.Background(), slug)
-					if err != nil {
-						return actionResultMsg{success: false, message: "get repo: " + err.Error()}
-					}
-					return openURLCmd(r.Links.HTML.Href)()
-				}
-			}},
-			{Label: "Copy Clone SSH", OnSelect: func() tea.Cmd {
-				return func() tea.Msg {
-					r, err := client.Repos(ws).Get(context.Background(), slug)
-					if err != nil {
-						return actionResultMsg{success: false, message: "get repo: " + err.Error()}
-					}
-					url := cloneURL(r, "ssh")
-					if url == "" {
-						return actionResultMsg{success: false, message: "no SSH clone URL available"}
-					}
-					return copyToClipboardCmd("git clone " + url)()
-				}
-			}},
-			{Label: "Copy Clone HTTPS", OnSelect: func() tea.Cmd {
-				return func() tea.Msg {
-					r, err := client.Repos(ws).Get(context.Background(), slug)
-					if err != nil {
-						return actionResultMsg{success: false, message: "get repo: " + err.Error()}
-					}
-					url := cloneURL(r, "https")
-					if url == "" {
-						return actionResultMsg{success: false, message: "no HTTPS clone URL available"}
-					}
-					return copyToClipboardCmd("git clone " + url)()
-				}
-			}},
-			{Label: "Update Description", OnSelect: func() tea.Cmd {
-				return pushViewCmd(newInputView("New Description", "repo description", func(desc string) tea.Cmd {
-					return executeAction(func() error {
-						_, err := client.Repos(ws).Update(context.Background(), slug, bitbucket.UpdateRepoInput{Description: desc})
-						return err
-					}, "Description updated")
-				}))
-			}},
-			{Label: "Set Default Branch", OnSelect: func() tea.Cmd {
-				return pushViewCmd(newInputView("Default Branch Name", "main", func(branch string) tea.Cmd {
-					return executeAction(func() error {
-						_, err := client.Repos(ws).Update(context.Background(), slug, bitbucket.UpdateRepoInput{
-							Mainbranch: &bitbucket.MainbranchRef{Name: branch, Type: "branch"},
-						})
-						return err
-					}, fmt.Sprintf("Default branch set to %q", branch))
-				}))
-			}},
-			{Label: "✗ Delete Repo", Style: &actionDangerStyle, Confirm: &ConfirmConfig{
-				Message: fmt.Sprintf("Permanently delete %q? This cannot be undone.", slug),
-				OnYes: func() tea.Cmd {
-					return tea.Sequence(
-						popView,
-						popView,
-						popView,
-						executeAction(func() error {
-							return client.Repos(ws).Delete(context.Background(), slug)
-						}, fmt.Sprintf("Repository %q deleted", slug)),
-					)
-				},
-			}},
-		},
+		Actions: append(cloneItems, remainingActions...),
 	})
+	return &repoDetailModel{
+		inner:     inner,
+		cloneMode: cloneMode,
+		client:    client,
+		ws:        ws,
+		slug:      slug,
+	}
 }
 
 // cloneURL returns the clone href for the given protocol ("ssh" or "https") from a Repo.
