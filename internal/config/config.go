@@ -16,6 +16,7 @@ type Config struct {
 	AuthType      string `yaml:"auth_type,omitempty"`
 	OAuthClientID string `yaml:"oauth_client_id,omitempty"`
 	PageSize      int    `yaml:"page_size,omitempty"`
+	CloneAction   string `yaml:"clone_action,omitempty"`
 
 	// Token is never written to disk; loaded from keyring, env var, or CLI flag at runtime.
 	Token string `yaml:"-"`
@@ -54,6 +55,9 @@ func Load(path string) (*Config, error) {
 	}
 	if v := os.Getenv("BITBUCKET_TOKEN"); v != "" {
 		cfg.Token = v
+	}
+	if cfg.CloneAction == "" {
+		cfg.CloneAction = "clone"
 	}
 	return cfg, nil
 }
