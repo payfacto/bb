@@ -18,8 +18,8 @@ type globalKeyMap struct {
 var globalKeys = globalKeyMap{
 	Up:      key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
 	Down:    key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
-	PgUp:    key.NewBinding(key.WithKeys("pgup", "ctrl+u"), key.WithHelp("pgup", "scroll up")),
-	PgDn:    key.NewBinding(key.WithKeys("pgdown", "ctrl+d"), key.WithHelp("pgdn", "scroll down")),
+	PgUp:    key.NewBinding(key.WithKeys("pgup", "ctrl+u"), key.WithHelp("pgup/pgdn", "scroll")),
+	PgDn:    key.NewBinding(key.WithKeys("pgdown", "ctrl+d"), key.WithHelp("", "")),
 	Enter:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "select")),
 	Back:    key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
 	Filter:  key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
