@@ -8,6 +8,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// CloneActionClone is the default; selecting a clone URL runs git clone directly.
+const CloneActionClone = "clone"
+
+// CloneActionCopy makes clone menu items copy the command to the clipboard instead.
+const CloneActionCopy = "copy"
+
 // Config holds all configurable values for bb.
 type Config struct {
 	Workspace     string `yaml:"workspace"`
@@ -57,7 +63,7 @@ func Load(path string) (*Config, error) {
 		cfg.Token = v
 	}
 	if cfg.CloneAction == "" {
-		cfg.CloneAction = "clone"
+		cfg.CloneAction = CloneActionClone
 	}
 	return cfg, nil
 }
