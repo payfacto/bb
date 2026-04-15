@@ -55,13 +55,13 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 		return guardRepo(repo, make)
 	}
 
-	favKey := key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "toggle favourite"))
+	favKey := key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "favourite"))
 	cacheKey := "repos:" + ws
 	histPath := history.HistoryPath(config.DefaultPath())
 
 	items := []menuItem{
 		{label: "Projects", description: "Workspace projects", onSelect: func() View {
-			projFavKey := key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "toggle favourite"))
+			projFavKey := key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "favourite"))
 			projCacheKey := "projects:" + ws
 			return newListView(ListConfig{
 				Title:     "Projects",
@@ -159,7 +159,7 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 			})
 		}},
 		{label: "Repositories", description: "List workspace repos", onSelect: func() View {
-			detailKey := key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "repo info"))
+			detailKey := key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "info"))
 			return newListView(ListConfig{
 				Title:     "Repositories",
 				PageSize:  ps,
@@ -876,71 +876,44 @@ func runCloneCmd(url, dest string) tea.Cmd {
 // detail view. When cloneMode is true the actions run git clone; when false
 // they copy the command to the clipboard.
 func buildCloneActionItems(client *bitbucket.Client, ws, slug string, cloneMode bool) []ActionItem {
-	if cloneMode {
-		return []ActionItem{
-			{Label: "Clone SSH", OnSelect: func() tea.Cmd {
-				return func() tea.Msg {
-					r, err := client.Repos(ws).Get(context.Background(), slug)
-					if err != nil {
-						return actionResultMsg{success: false, message: "get repo: " + err.Error()}
-					}
-					url := cloneURL(r, "ssh")
-					if url == "" {
-						return actionResultMsg{success: false, message: "no SSH clone URL available"}
-					}
-					cwd, _ := os.Getwd()
-					defaultDest := filepath.Join(cwd, slug)
-					return pushViewMsg{view: newInputViewPrefilled("Clone destination", defaultDest, func(dest string) tea.Cmd {
-						return runCloneCmd(url, dest)
-					})}
+	// makeOnSelect fetches the repo, resolves the clone URL for protocol, then
+	// calls handle with the resolved URL. Identical fetch/validate logic is DRY
+	// across both clone and copy variants.
+	makeOnSelect := func(protocol string, handle func(url string) tea.Msg) func() tea.Cmd {
+		return func() tea.Cmd {
+			return func() tea.Msg {
+				r, err := client.Repos(ws).Get(context.Background(), slug)
+				if err != nil {
+					return actionResultMsg{success: false, message: "get repo: " + err.Error()}
 				}
-			}},
-			{Label: "Clone HTTPS", OnSelect: func() tea.Cmd {
-				return func() tea.Msg {
-					r, err := client.Repos(ws).Get(context.Background(), slug)
-					if err != nil {
-						return actionResultMsg{success: false, message: "get repo: " + err.Error()}
-					}
-					url := cloneURL(r, "https")
-					if url == "" {
-						return actionResultMsg{success: false, message: "no HTTPS clone URL available"}
-					}
-					cwd, _ := os.Getwd()
-					defaultDest := filepath.Join(cwd, slug)
-					return pushViewMsg{view: newInputViewPrefilled("Clone destination", defaultDest, func(dest string) tea.Cmd {
-						return runCloneCmd(url, dest)
-					})}
+				u := cloneURL(r, protocol)
+				if u == "" {
+					return actionResultMsg{success: false, message: fmt.Sprintf("no %s clone URL available", strings.ToUpper(protocol))}
 				}
-			}},
+				return handle(u)
+			}
 		}
 	}
+
+	if cloneMode {
+		runClone := func(u string) tea.Msg {
+			cwd, _ := os.Getwd() // failure leaves cwd empty; dest becomes slug name alone
+			dest := filepath.Join(cwd, slug)
+			return pushViewMsg{view: newInputViewPrefilled("Clone destination", dest, func(d string) tea.Cmd {
+				return runCloneCmd(u, d)
+			})}
+		}
+		return []ActionItem{
+			{Label: "Clone SSH", OnSelect: makeOnSelect("ssh", runClone)},
+			{Label: "Clone HTTPS", OnSelect: makeOnSelect("https", runClone)},
+		}
+	}
+	copyClone := func(u string) tea.Msg {
+		return copyToClipboardCmd("git clone " + u)()
+	}
 	return []ActionItem{
-		{Label: "Copy Clone SSH", OnSelect: func() tea.Cmd {
-			return func() tea.Msg {
-				r, err := client.Repos(ws).Get(context.Background(), slug)
-				if err != nil {
-					return actionResultMsg{success: false, message: "get repo: " + err.Error()}
-				}
-				url := cloneURL(r, "ssh")
-				if url == "" {
-					return actionResultMsg{success: false, message: "no SSH clone URL available"}
-				}
-				return copyToClipboardCmd("git clone " + url)()
-			}
-		}},
-		{Label: "Copy Clone HTTPS", OnSelect: func() tea.Cmd {
-			return func() tea.Msg {
-				r, err := client.Repos(ws).Get(context.Background(), slug)
-				if err != nil {
-					return actionResultMsg{success: false, message: "get repo: " + err.Error()}
-				}
-				url := cloneURL(r, "https")
-				if url == "" {
-					return actionResultMsg{success: false, message: "no HTTPS clone URL available"}
-				}
-				return copyToClipboardCmd("git clone " + url)()
-			}
-		}},
+		{Label: "Copy Clone SSH", OnSelect: makeOnSelect("ssh", copyClone)},
+		{Label: "Copy Clone HTTPS", OnSelect: makeOnSelect("https", copyClone)},
 	}
 }
 
@@ -974,9 +947,9 @@ func (m *repoDetailModel) View() string  { return m.inner.View() }
 func (m *repoDetailModel) Title() string { return m.inner.Title() }
 
 func (m *repoDetailModel) ShortHelp() []key.Binding {
-	desc := "toggle copy mode"
+	desc := "copy mode"
 	if !m.cloneMode {
-		desc = "toggle clone mode"
+		desc = "clone mode"
 	}
 	toggleBinding := key.NewBinding(key.WithKeys("t"), key.WithHelp("t", desc))
 	return append(m.inner.ShortHelp(), toggleBinding)
@@ -1015,7 +988,7 @@ func repoBaseTitle(r bitbucket.Repo) string {
 // newRepoDetailView builds the detail view for a repository identified by slug.
 // It is used by both the Repo Info menu item and the space shortcut in the repos list.
 func newRepoDetailView(client *bitbucket.Client, cfg *config.Config, ws, slug string) *repoDetailModel {
-	cloneMode := cfg.CloneAction != "copy"
+	cloneMode := cfg.CloneAction != config.CloneActionCopy
 	cloneItems := buildCloneActionItems(client, ws, slug, cloneMode)
 	remainingActions := []ActionItem{
 		{Label: "Open in browser", OnSelect: func() tea.Cmd {
