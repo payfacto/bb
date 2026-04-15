@@ -3,7 +3,9 @@ package tui
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -859,6 +861,89 @@ func openURLCmd(url string) tea.Cmd {
 	}
 }
 
+// runCloneCmd suspends the TUI and runs "git clone <url> <dest>".
+// On return, the TUI resumes and an actionResultMsg is produced.
+func runCloneCmd(url, dest string) tea.Cmd {
+	return tea.ExecProcess(exec.Command("git", "clone", url, dest), func(err error) tea.Msg {
+		if err != nil {
+			return actionResultMsg{success: false, message: "git clone: " + err.Error()}
+		}
+		return actionResultMsg{success: true, message: "Cloned to " + dest}
+	})
+}
+
+// buildCloneActionItems returns the SSH and HTTPS ActionItems for the repo
+// detail view. When cloneMode is true the actions run git clone; when false
+// they copy the command to the clipboard.
+func buildCloneActionItems(client *bitbucket.Client, ws, slug string, cloneMode bool) []ActionItem {
+	if cloneMode {
+		return []ActionItem{
+			{Label: "Clone SSH", OnSelect: func() tea.Cmd {
+				return func() tea.Msg {
+					r, err := client.Repos(ws).Get(context.Background(), slug)
+					if err != nil {
+						return actionResultMsg{success: false, message: "get repo: " + err.Error()}
+					}
+					url := cloneURL(r, "ssh")
+					if url == "" {
+						return actionResultMsg{success: false, message: "no SSH clone URL available"}
+					}
+					cwd, _ := os.Getwd()
+					defaultDest := filepath.Join(cwd, slug)
+					return pushViewMsg{view: newInputViewPrefilled("Clone destination", defaultDest, func(dest string) tea.Cmd {
+						return runCloneCmd(url, dest)
+					})}
+				}
+			}},
+			{Label: "Clone HTTPS", OnSelect: func() tea.Cmd {
+				return func() tea.Msg {
+					r, err := client.Repos(ws).Get(context.Background(), slug)
+					if err != nil {
+						return actionResultMsg{success: false, message: "get repo: " + err.Error()}
+					}
+					url := cloneURL(r, "https")
+					if url == "" {
+						return actionResultMsg{success: false, message: "no HTTPS clone URL available"}
+					}
+					cwd, _ := os.Getwd()
+					defaultDest := filepath.Join(cwd, slug)
+					return pushViewMsg{view: newInputViewPrefilled("Clone destination", defaultDest, func(dest string) tea.Cmd {
+						return runCloneCmd(url, dest)
+					})}
+				}
+			}},
+		}
+	}
+	return []ActionItem{
+		{Label: "Copy Clone SSH", OnSelect: func() tea.Cmd {
+			return func() tea.Msg {
+				r, err := client.Repos(ws).Get(context.Background(), slug)
+				if err != nil {
+					return actionResultMsg{success: false, message: "get repo: " + err.Error()}
+				}
+				url := cloneURL(r, "ssh")
+				if url == "" {
+					return actionResultMsg{success: false, message: "no SSH clone URL available"}
+				}
+				return copyToClipboardCmd("git clone " + url)()
+			}
+		}},
+		{Label: "Copy Clone HTTPS", OnSelect: func() tea.Cmd {
+			return func() tea.Msg {
+				r, err := client.Repos(ws).Get(context.Background(), slug)
+				if err != nil {
+					return actionResultMsg{success: false, message: "get repo: " + err.Error()}
+				}
+				url := cloneURL(r, "https")
+				if url == "" {
+					return actionResultMsg{success: false, message: "no HTTPS clone URL available"}
+				}
+				return copyToClipboardCmd("git clone " + url)()
+			}
+		}},
+	}
+}
+
 // copyToClipboardCmd copies text to the system clipboard.
 func copyToClipboardCmd(text string) tea.Cmd {
 	return func() tea.Msg {
@@ -868,6 +953,8 @@ func copyToClipboardCmd(text string) tea.Cmd {
 			cmd = exec.Command("pbcopy")
 		case "linux":
 			cmd = exec.Command("xclip", "-selection", "clipboard")
+		case "windows":
+			cmd = exec.Command("clip")
 		default:
 			return actionResultMsg{success: false, message: "clipboard not supported on " + runtime.GOOS}
 		}
