@@ -944,6 +944,44 @@ func buildCloneActionItems(client *bitbucket.Client, ws, slug string, cloneMode 
 	}
 }
 
+// repoDetailModel wraps *detailModel and owns the cloneMode toggle.
+// Pressing t flips between clone mode (runs git clone) and copy mode (copies to clipboard).
+type repoDetailModel struct {
+	inner     *detailModel
+	cloneMode bool
+	client    *bitbucket.Client
+	ws        string
+	slug      string
+}
+
+func (m *repoDetailModel) Init() tea.Cmd { return m.inner.Init() }
+
+func (m *repoDetailModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if km, ok := msg.(tea.KeyMsg); ok && key.Matches(km, cloneToggleKey) {
+		m.cloneMode = !m.cloneMode
+		newItems := buildCloneActionItems(m.client, m.ws, m.slug, m.cloneMode)
+		copy(m.inner.cfg.Actions[:2], newItems)
+		return m, nil
+	}
+	updated, cmd := m.inner.Update(msg)
+	if dm, ok := updated.(*detailModel); ok {
+		m.inner = dm
+	}
+	return m, cmd
+}
+
+func (m *repoDetailModel) View() string  { return m.inner.View() }
+func (m *repoDetailModel) Title() string { return m.inner.Title() }
+
+func (m *repoDetailModel) ShortHelp() []key.Binding {
+	desc := "toggle copy mode"
+	if !m.cloneMode {
+		desc = "toggle clone mode"
+	}
+	toggleBinding := key.NewBinding(key.WithKeys("t"), key.WithHelp("t", desc))
+	return append(m.inner.ShortHelp(), toggleBinding)
+}
+
 // copyToClipboardCmd copies text to the system clipboard.
 func copyToClipboardCmd(text string) tea.Cmd {
 	return func() tea.Msg {

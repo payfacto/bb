@@ -29,3 +29,8 @@ var globalKeys = globalKeyMap{
 }
 
 var tabKey = key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "filter"))
+
+var cloneToggleKey = key.NewBinding(
+	key.WithKeys("t"),
+	key.WithHelp("t", "toggle mode"),
+)
