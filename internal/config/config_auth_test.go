@@ -88,3 +88,31 @@ func TestValidateNoLongerRequiresToken(t *testing.T) {
 		t.Errorf("Validate() should not require token, got: %v", err)
 	}
 }
+
+func TestCloneActionDefaultsToClone(t *testing.T) {
+	dir := t.TempDir()
+	// Load from non-existent file — all fields zero-valued before defaulting.
+	cfg, err := config.Load(filepath.Join(dir, "nonexistent.yaml"))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if cfg.CloneAction != "clone" {
+		t.Errorf("CloneAction default: got %q, want %q", cfg.CloneAction, "clone")
+	}
+}
+
+func TestCloneActionRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	cfg := &config.Config{Workspace: "ws", Username: "user", CloneAction: "copy"}
+	if err := cfg.Save(path); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	loaded, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if loaded.CloneAction != "copy" {
+		t.Errorf("CloneAction round-trip: got %q, want %q", loaded.CloneAction, "copy")
+	}
+}
