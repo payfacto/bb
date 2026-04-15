@@ -57,6 +57,7 @@ Workspace: myworkspace  Repo: myrepo
 - Type-ahead search with `/` to filter any list
 - Press `r` to refresh, `q` to quit
 - Reconfigure credentials from the "Setup" menu item without leaving the TUI
+- From the repo detail view, press `Enter` on **Clone SSH** or **Clone HTTPS** to run `git clone` directly — the TUI suspends, git runs with full terminal output, then the TUI resumes. Press `t` to toggle between clone mode and copy-to-clipboard mode. Default is clone mode; set `clone_action: copy` in `~/.bbcloud.yaml` to default to copy.
 
 **First run:** If no config exists, the TUI automatically shows a setup wizard — no need to run `bb setup` first.
 

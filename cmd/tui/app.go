@@ -158,9 +158,12 @@ func (a *appModel) renderHelpBar() string {
 		return ""
 	}
 	bindings := top.ShortHelp()
-	parts := make([]string, len(bindings))
-	for i, b := range bindings {
-		parts[i] = helpKeyStyle.Render(b.Help().Key) + " " + helpDescStyle.Render(b.Help().Desc)
+	var parts []string
+	for _, b := range bindings {
+		if b.Help().Key == "" {
+			continue
+		}
+		parts = append(parts, helpKeyStyle.Render(b.Help().Key)+" "+helpDescStyle.Render(b.Help().Desc))
 	}
 	return strings.Join(parts, helpSepStyle.String())
 }
