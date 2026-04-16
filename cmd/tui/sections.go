@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pkg/browser"
 
@@ -1320,11 +1322,87 @@ func newBranchDetailView(client *bitbucket.Client, ws, repo string, b bitbucket.
 	})
 }
 
+// prStateStyle returns a theme-aware foreground style for a PR state string.
+func prStateStyle(state string) lipgloss.Style {
+	switch strings.ToUpper(state) {
+	case "OPEN":
+		return lipgloss.NewStyle().Foreground(colGreen)
+	case "MERGED":
+		return lipgloss.NewStyle().Foreground(colYellow)
+	case "DECLINED", "SUPERSEDED":
+		return lipgloss.NewStyle().Foreground(colRed)
+	default:
+		return lipgloss.NewStyle().Foreground(colOverlay0)
+	}
+}
+
+// prTableRenderer renders the visible PR window as a lipgloss table.
+// It is used as ListConfig.TableRenderer for the PR list view.
+func prTableRenderer(filtered []listItem, cursor, offset, pageSize int) string {
+	total := len(filtered)
+	start := offset
+	end := offset + pageSize
+	if end > total {
+		end = total
+	}
+	window := filtered[start:end]
+	selectedInWindow := cursor - start
+
+	rows := make([][]string, len(window))
+	for i, item := range window {
+		pr := item.data.(bitbucket.PR)
+		branch := truncateStr(pr.Source.Branch.Name+" → "+pr.Destination.Branch.Name, 35)
+		rows[i] = []string{
+			item.id,
+			truncateStr(item.title, 45),
+			pr.State,
+			truncateStr(pr.Author.DisplayName, 16),
+			branch,
+		}
+	}
+
+	t := table.New().
+		BorderHeader(true).
+		Border(lipgloss.NormalBorder()).
+		BorderStyle(separatorStyle).
+		Width(maxViewWidth).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			if row == table.HeaderRow {
+				return lipgloss.NewStyle().Foreground(colOverlay0).Bold(true)
+			}
+			if row == selectedInWindow {
+				return lipgloss.NewStyle().Background(colSurface0).Foreground(colText).Bold(true)
+			}
+			if col == 2 { // STATE column
+				return prStateStyle(window[row].data.(bitbucket.PR).State)
+			}
+			if col == 4 { // BRANCH column
+				return lipgloss.NewStyle().Foreground(colBlue)
+			}
+			return lipgloss.NewStyle().Foreground(colText)
+		}).
+		Headers("ID", "TITLE", "STATE", "AUTHOR", "BRANCH").
+		Rows(rows...)
+
+	var sb strings.Builder
+	sb.WriteString("\n")
+	if start > 0 {
+		sb.WriteString(subtitleStyle.Render(fmt.Sprintf("  ↑ %d more above", start)) + "\n")
+	}
+	sb.WriteString(t.Render())
+	if end < total {
+		sb.WriteString("\n" + subtitleStyle.Render(fmt.Sprintf("  ↓ %d more below", total-end)))
+	}
+	sb.WriteString("\n")
+	return sb.String()
+}
+
 func newPRListView(client *bitbucket.Client, ws, repo string, pageSize int) *listModel {
 	return newListView(ListConfig{
-		Title:    "Pull Requests",
-		Filters:  []string{"OPEN", "MERGED", "DECLINED", "SUPERSEDED"},
-		PageSize: pageSize,
+		Title:         "Pull Requests",
+		Filters:       []string{"OPEN", "MERGED", "DECLINED", "SUPERSEDED"},
+		PageSize:      pageSize,
+		TableRenderer: prTableRenderer,
 		Fetch: func(ctx context.Context, filter string) ([]listItem, error) {
 			prs, err := client.PRs(ws, repo).List(ctx, filter)
 			if err != nil {

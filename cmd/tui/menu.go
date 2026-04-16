@@ -55,7 +55,7 @@ func (m *menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *menuModel) View() string {
 	var sb strings.Builder
-	sb.WriteString(headerStyle.Render("bb — Bitbucket Cloud CLI"))
+	sb.WriteString(headerStyle.Render("bb — Bitbucket Cloud TUI"))
 	sb.WriteString("\n")
 	sb.WriteString(subtitleStyle.Render(fmt.Sprintf("Workspace: %s  Repo: %s", m.ws, m.repoSlug)))
 	sb.WriteString("\n")

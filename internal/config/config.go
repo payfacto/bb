@@ -14,6 +14,9 @@ const CloneActionClone = "clone"
 // CloneActionCopy makes clone menu items copy the command to the clipboard instead.
 const CloneActionCopy = "copy"
 
+// ThemeDefault is the colour theme used when none is configured.
+const ThemeDefault = "catppuccin"
+
 // Config holds all configurable values for bb.
 type Config struct {
 	Workspace     string `yaml:"workspace"`
@@ -23,6 +26,7 @@ type Config struct {
 	OAuthClientID string `yaml:"oauth_client_id,omitempty"`
 	PageSize      int    `yaml:"page_size,omitempty"`
 	CloneAction   string `yaml:"clone_action,omitempty"`
+	Theme         string `yaml:"theme,omitempty"`
 
 	// Token is never written to disk; loaded from keyring, env var, or CLI flag at runtime.
 	Token string `yaml:"-"`
@@ -64,6 +68,9 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.CloneAction == "" {
 		cfg.CloneAction = CloneActionClone
+	}
+	if cfg.Theme == "" {
+		cfg.Theme = ThemeDefault
 	}
 	return cfg, nil
 }

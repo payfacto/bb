@@ -29,6 +29,8 @@ func Run(client *bitbucket.Client, cfg *config.Config) error {
 	// with the input loop and can block for several seconds.
 	render.WarmMarkdownRenderer()
 
+	applyTheme(cfg.Theme)
+
 	histPath := history.HistoryPath(config.DefaultPath())
 	hist, histErr := history.Load(histPath)
 	cache := newListCache()

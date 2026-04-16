@@ -54,6 +54,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case rebuildMenuMsg:
 		// Setup completed or reconfigured — replace entire stack with new home menu.
+		applyTheme(msg.cfg.Theme)
 		a.stack = navStack{}
 		items := buildMenuItems(msg.client, msg.cfg, a.hist, a.cache)
 		menu := newMenuModel(msg.cfg.Workspace, msg.cfg.Repo, items)

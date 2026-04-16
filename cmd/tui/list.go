@@ -34,6 +34,10 @@ type ListConfig struct {
 	Shortcuts []key.Binding
 	PageSize  int
 	EmptyMsg  string // optional custom message when no items are returned
+	// TableRenderer, if set, replaces the default per-row rendering with a
+	// single rendered block. It receives the full filtered slice plus
+	// cursor/offset/pageSize so it can handle windowing and selection itself.
+	TableRenderer func(filtered []listItem, cursor, offset, pageSize int) string
 }
 
 const defaultPageSize = 10
@@ -262,6 +266,11 @@ func (m *listModel) View() string {
 		sb.WriteString(fmt.Sprintf("\n  %s\n", msg))
 		return sb.String()
 	}
+	if m.cfg.TableRenderer != nil {
+		sb.WriteString(m.cfg.TableRenderer(m.filtered, m.cursor, m.offset, m.pageSize))
+		return sb.String()
+	}
+
 	total := len(m.filtered)
 	start := m.offset
 	end := m.offset + m.pageSize
