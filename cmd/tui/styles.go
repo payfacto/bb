@@ -7,43 +7,86 @@ const (
 	maxViewWidth = 80 // maximum rendered view width
 )
 
-// adaptive returns an AdaptiveColor that uses the dark value on dark terminals
-// and the light value on light terminals.
-func adaptive(dark, light string) lipgloss.AdaptiveColor {
-	return lipgloss.AdaptiveColor{Dark: dark, Light: light}
+var (
+	colBlue     lipgloss.AdaptiveColor
+	colOverlay0 lipgloss.AdaptiveColor
+	colSurface1 lipgloss.AdaptiveColor
+	colSurface0 lipgloss.AdaptiveColor
+	colText     lipgloss.AdaptiveColor
+	colRed      lipgloss.AdaptiveColor
+	colGreen    lipgloss.AdaptiveColor
+	colGreenBg  lipgloss.AdaptiveColor
+	colYellow   lipgloss.AdaptiveColor
+
+	breadcrumbStyle     lipgloss.Style
+	breadcrumbActive    lipgloss.Style
+	breadcrumbSep       lipgloss.Style
+	selectedStyle       lipgloss.Style
+	normalStyle         lipgloss.Style
+	errorStyle          lipgloss.Style
+	successStyle        lipgloss.Style
+	helpKeyStyle        lipgloss.Style
+	helpDescStyle       lipgloss.Style
+	helpSepStyle        lipgloss.Style
+	filterActiveStyle   lipgloss.Style
+	filterInactiveStyle lipgloss.Style
+	dialogStyle         lipgloss.Style
+	headerStyle         lipgloss.Style
+	subtitleStyle       lipgloss.Style
+	separatorStyle      lipgloss.Style
+
+	actionSuccessStyle lipgloss.Style
+	actionWarnStyle    lipgloss.Style
+	actionDangerStyle  lipgloss.Style
+)
+
+func init() {
+	applyTheme("catppuccin")
 }
 
-var (
-	// Colours — Catppuccin Mocha (dark) / Catppuccin Latte (light)
-	colBlue      = adaptive("#89b4fa", "#1e66f5")
-	colOverlay0  = adaptive("#6c7086", "#9ca0b0")
-	colSurface1  = adaptive("#45475a", "#ccd0da")
-	colSurface0  = adaptive("#313244", "#dce0e8")
-	colText      = adaptive("#cdd6f4", "#4c4f69")
-	colRed       = adaptive("#f38ba8", "#d20f39")
-	colGreen     = adaptive("#a6e3a1", "#40a02b")
-	colGreenBg   = adaptive("#1e3a2a", "#e4f0e8")
-	colYellow    = adaptive("#f9e2af", "#df8e1d")
+// applyTheme reassigns all colour and style vars to match the named palette.
+// It is safe to call at any point during the TUI lifecycle.
+func applyTheme(name string) {
+	pal := paletteFor(name)
 
-	breadcrumbStyle     = lipgloss.NewStyle().Foreground(colOverlay0)
-	breadcrumbActive    = lipgloss.NewStyle().Foreground(colBlue)
-	breadcrumbSep       = lipgloss.NewStyle().Foreground(colSurface1).SetString(" > ")
-	selectedStyle       = lipgloss.NewStyle().Background(colSurface0).Foreground(colText).BorderLeft(true).BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBlue).PaddingLeft(1)
-	normalStyle         = lipgloss.NewStyle().PaddingLeft(2)
-	errorStyle          = lipgloss.NewStyle().Foreground(colRed)
-	successStyle        = lipgloss.NewStyle().Foreground(colGreen)
-	helpKeyStyle        = lipgloss.NewStyle().Foreground(colBlue)
-	helpDescStyle       = lipgloss.NewStyle().Foreground(colOverlay0)
-	helpSepStyle        = lipgloss.NewStyle().Foreground(colSurface1).SetString("  ")
-	filterActiveStyle   = lipgloss.NewStyle().Background(colGreenBg).Foreground(colGreen).Padding(0, 1)
+	colBlue = pal.blue
+	colOverlay0 = pal.overlay0
+	colSurface1 = pal.surface1
+	colSurface0 = pal.surface0
+	colText = pal.text
+	colRed = pal.red
+	colGreen = pal.green
+	colGreenBg = pal.greenBg
+	colYellow = pal.yellow
+
+	breadcrumbStyle = lipgloss.NewStyle().Foreground(colOverlay0)
+	breadcrumbActive = lipgloss.NewStyle().Foreground(colBlue)
+	breadcrumbSep = lipgloss.NewStyle().Foreground(colSurface1).SetString(" > ")
+	selectedStyle = lipgloss.NewStyle().
+		Background(colSurface0).
+		Foreground(colText).
+		BorderLeft(true).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(colBlue).
+		PaddingLeft(1)
+	normalStyle = lipgloss.NewStyle().PaddingLeft(2)
+	errorStyle = lipgloss.NewStyle().Foreground(colRed)
+	successStyle = lipgloss.NewStyle().Foreground(colGreen)
+	helpKeyStyle = lipgloss.NewStyle().Foreground(colBlue)
+	helpDescStyle = lipgloss.NewStyle().Foreground(colOverlay0)
+	helpSepStyle = lipgloss.NewStyle().Foreground(colSurface1).SetString("  ")
+	filterActiveStyle = lipgloss.NewStyle().Background(colGreenBg).Foreground(colGreen).Padding(0, 1)
 	filterInactiveStyle = lipgloss.NewStyle().Foreground(colOverlay0).Padding(0, 1)
-	dialogStyle         = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(colBlue).Padding(1, 2).Width(40)
-	headerStyle         = lipgloss.NewStyle().Foreground(colBlue).Bold(true)
-	subtitleStyle       = lipgloss.NewStyle().Foreground(colOverlay0)
-	separatorStyle      = lipgloss.NewStyle().Foreground(colSurface1)
+	dialogStyle = lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(colBlue).
+		Padding(1, 2).
+		Width(40)
+	headerStyle = lipgloss.NewStyle().Foreground(colBlue).Bold(true)
+	subtitleStyle = lipgloss.NewStyle().Foreground(colOverlay0)
+	separatorStyle = lipgloss.NewStyle().Foreground(colSurface1)
 
-	// Action intent colours
 	actionSuccessStyle = lipgloss.NewStyle().Foreground(colGreen)
-	actionWarnStyle    = lipgloss.NewStyle().Foreground(colYellow)
-	actionDangerStyle  = lipgloss.NewStyle().Foreground(colRed)
-)
+	actionWarnStyle = lipgloss.NewStyle().Foreground(colYellow)
+	actionDangerStyle = lipgloss.NewStyle().Foreground(colRed)
+}

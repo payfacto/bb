@@ -18,10 +18,12 @@ const (
 	setupFieldRepo
 	setupFieldUsername
 	setupFieldPassword
-	setupFieldCount
+	setupFieldTheme
+	setupFieldCount // total navigable slots (text fields + theme)
 )
 
 const (
+	setupTextFieldCount    = setupFieldTheme // number of textinput fields (0..3)
 	setupFieldCharLimit    = 100
 	setupPasswordCharLimit = 200
 	setupLabelWidth        = 14 // column width for field labels in the setup wizard
@@ -29,15 +31,17 @@ const (
 
 // setupModel is the TUI setup wizard for first-run or reconfiguration.
 type setupModel struct {
-	fields    []textinput.Model
-	focus     int
-	cfgPath   string
-	existing  *config.Config
-	err       error
-	done      bool
-	message   string
-	newClient *bitbucket.Client
-	newCfg    *config.Config
+	fields        []textinput.Model
+	focus         int
+	themeIdx      int
+	originalTheme string
+	cfgPath       string
+	existing      *config.Config
+	err           error
+	done          bool
+	message       string
+	newClient     *bitbucket.Client
+	newCfg        *config.Config
 }
 
 func newSetupView(cfgPath string, existing *config.Config) *setupModel {
@@ -45,7 +49,7 @@ func newSetupView(cfgPath string, existing *config.Config) *setupModel {
 		existing = &config.Config{}
 	}
 
-	fields := make([]textinput.Model, setupFieldCount)
+	fields := make([]textinput.Model, setupTextFieldCount)
 
 	fields[setupFieldWorkspace] = textinput.New()
 	fields[setupFieldWorkspace].Placeholder = "workspace slug"
@@ -69,10 +73,14 @@ func newSetupView(cfgPath string, existing *config.Config) *setupModel {
 	fields[setupFieldPassword].EchoCharacter = '*'
 	fields[setupFieldPassword].CharLimit = setupPasswordCharLimit
 
+	idx := themeIndex(existing.Theme)
+
 	return &setupModel{
-		fields:   fields,
-		cfgPath:  cfgPath,
-		existing: existing,
+		fields:        fields,
+		cfgPath:       cfgPath,
+		existing:      existing,
+		themeIdx:      idx,
+		originalTheme: existing.Theme,
 	}
 }
 
@@ -82,7 +90,7 @@ func (m *setupModel) Init() tea.Cmd {
 
 func (m *setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.done {
-		// After save, any key transitions to home menu
+		// After save, any key transitions to home menu.
 		if _, ok := msg.(tea.KeyMsg); ok {
 			return m, func() tea.Msg {
 				return rebuildMenuMsg{client: m.newClient, cfg: m.newCfg}
@@ -94,6 +102,18 @@ func (m *setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.Type {
+		case tea.KeyLeft:
+			if m.focus == setupFieldTheme {
+				m.themeIdx = (m.themeIdx - 1 + len(themeNames)) % len(themeNames)
+				applyTheme(themeNames[m.themeIdx])
+			}
+			return m, nil
+		case tea.KeyRight:
+			if m.focus == setupFieldTheme {
+				m.themeIdx = (m.themeIdx + 1) % len(themeNames)
+				applyTheme(themeNames[m.themeIdx])
+			}
+			return m, nil
 		case tea.KeyTab, tea.KeyDown:
 			return m, m.nextField()
 		case tea.KeyShiftTab, tea.KeyUp:
@@ -104,8 +124,10 @@ func (m *setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, m.nextField()
 		case tea.KeyEscape:
-			// Only allow escape if we have existing valid config
+			// Only allow escape if we have existing valid config.
 			if m.existing.Workspace != "" && m.existing.Username != "" {
+				applyTheme(m.originalTheme)
+				m.themeIdx = themeIndex(m.originalTheme)
 				return m, popView
 			}
 		}
@@ -121,23 +143,34 @@ func (m *setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Forward to focused field
-	var cmd tea.Cmd
-	m.fields[m.focus], cmd = m.fields[m.focus].Update(msg)
-	return m, cmd
+	// Forward to focused text field only.
+	if m.focus < setupTextFieldCount {
+		var cmd tea.Cmd
+		m.fields[m.focus], cmd = m.fields[m.focus].Update(msg)
+		return m, cmd
+	}
+	return m, nil
 }
 
 func (m *setupModel) nextField() tea.Cmd {
-	m.fields[m.focus].Blur()
+	if m.focus < setupTextFieldCount {
+		m.fields[m.focus].Blur()
+	}
 	m.focus = (m.focus + 1) % setupFieldCount
-	m.fields[m.focus].Focus()
+	if m.focus < setupTextFieldCount {
+		m.fields[m.focus].Focus()
+	}
 	return textinput.Blink
 }
 
 func (m *setupModel) prevField() tea.Cmd {
-	m.fields[m.focus].Blur()
+	if m.focus < setupTextFieldCount {
+		m.fields[m.focus].Blur()
+	}
 	m.focus = (m.focus - 1 + setupFieldCount) % setupFieldCount
-	m.fields[m.focus].Focus()
+	if m.focus < setupTextFieldCount {
+		m.fields[m.focus].Focus()
+	}
 	return textinput.Blink
 }
 
@@ -159,6 +192,7 @@ func (m *setupModel) save() tea.Cmd {
 	repo := m.fields[setupFieldRepo].Value()
 	user := m.fields[setupFieldUsername].Value()
 	pass := m.fields[setupFieldPassword].Value()
+	theme := themeNames[m.themeIdx]
 
 	if ws == "" || user == "" {
 		return func() tea.Msg {
@@ -181,6 +215,7 @@ func (m *setupModel) save() tea.Cmd {
 			Username:      user,
 			AuthType:      authType,
 			OAuthClientID: existing.OAuthClientID,
+			Theme:         theme,
 		}
 		if err := updated.Save(cfgPath); err != nil {
 			return saveResultMsg{err: fmt.Errorf("save config: %w", err)}
@@ -192,7 +227,7 @@ func (m *setupModel) save() tea.Cmd {
 			}
 		}
 
-		// Resolve token for client creation
+		// Resolve token for client creation.
 		tok := pass
 		if tok == "" {
 			t, err := auth.GetToken(user)
@@ -240,6 +275,19 @@ func (m *setupModel) View() string {
 		sb.WriteString("\n")
 	}
 
+	// Theme selector row
+	displayName := themeDisplayNames[themeNames[m.themeIdx]]
+	if m.focus == setupFieldTheme {
+		sb.WriteString(helpKeyStyle.Render(fmt.Sprintf("  %-*s ", setupLabelWidth, "Theme")))
+		sb.WriteString(helpKeyStyle.Render("← "))
+		sb.WriteString(helpKeyStyle.Bold(true).Render(displayName))
+		sb.WriteString(helpKeyStyle.Render(" →"))
+	} else {
+		sb.WriteString(subtitleStyle.Render(fmt.Sprintf("  %-*s ", setupLabelWidth, "Theme")))
+		sb.WriteString(subtitleStyle.Render(displayName))
+	}
+	sb.WriteString("\n")
+
 	if m.err != nil {
 		sb.WriteString("\n")
 		sb.WriteString(errorStyle.Render(fmt.Sprintf("  Error: %v", m.err)))
@@ -258,7 +306,15 @@ func (m *setupModel) View() string {
 }
 
 func (m *setupModel) Title() string { return "Setup" }
+
 func (m *setupModel) ShortHelp() []key.Binding {
+	if m.focus == setupFieldTheme {
+		return []key.Binding{
+			key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←/→", "change theme")),
+			key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab/↓", "next field")),
+			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "save")),
+		}
+	}
 	return []key.Binding{
 		key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab/↓", "next field")),
 		key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("shift+tab/↑", "prev field")),

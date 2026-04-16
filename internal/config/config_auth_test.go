@@ -116,3 +116,30 @@ func TestCloneActionRoundTrip(t *testing.T) {
 		t.Errorf("CloneAction round-trip: got %q, want %q", loaded.CloneAction, "copy")
 	}
 }
+
+func TestThemeDefaultsToCatppuccin(t *testing.T) {
+	dir := t.TempDir()
+	cfg, err := config.Load(filepath.Join(dir, "nonexistent.yaml"))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if cfg.Theme != "catppuccin" {
+		t.Errorf("Theme default: got %q, want %q", cfg.Theme, "catppuccin")
+	}
+}
+
+func TestThemeRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	cfg := &config.Config{Workspace: "ws", Username: "user", Theme: "nord"}
+	if err := cfg.Save(path); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	loaded, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if loaded.Theme != "nord" {
+		t.Errorf("Theme round-trip: got %q, want %q", loaded.Theme, "nord")
+	}
+}
