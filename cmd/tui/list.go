@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type listItem struct {
@@ -58,6 +59,8 @@ type listModel struct {
 	filter    int
 	searching bool
 	search    textinput.Model
+	width     int
+	height    int
 }
 
 func newListView(cfg ListConfig) *listModel {
@@ -96,6 +99,10 @@ func (m *listModel) fetchItems() tea.Cmd {
 
 func (m *listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		return m, nil
 	case fetchResultMsg:
 		m.loading = false
 		m.err = msg.err
@@ -221,6 +228,10 @@ func (m *listModel) clampOffset() {
 }
 
 func (m *listModel) View() string {
+	w := m.width
+	if w <= 0 || w > maxViewWidth {
+		w = maxViewWidth
+	}
 	var sb strings.Builder
 	if len(m.cfg.Filters) > 0 {
 		for i, f := range m.cfg.Filters {
@@ -234,7 +245,7 @@ func (m *listModel) View() string {
 			}
 		}
 		sb.WriteString("\n")
-		sb.WriteString(separatorStyle.Render(strings.Repeat("─", viewWidth)))
+		sb.WriteString(separatorStyle.Render(strings.Repeat("─", w)))
 		sb.WriteString("\n")
 	}
 	if m.searching {
@@ -259,11 +270,17 @@ func (m *listModel) View() string {
 		return sb.String()
 	}
 	if len(m.filtered) == 0 {
-		msg := m.cfg.EmptyMsg
-		if msg == "" {
-			msg = fmt.Sprintf("No %s found.", strings.ToLower(m.cfg.Title))
+		emptyMsg := m.cfg.EmptyMsg
+		if emptyMsg == "" {
+			emptyMsg = fmt.Sprintf("No %s found.", strings.ToLower(m.cfg.Title))
 		}
-		sb.WriteString(fmt.Sprintf("\n  %s\n", msg))
+		w := m.width
+		if w <= 0 || w > maxViewWidth {
+			w = maxViewWidth
+		}
+		sb.WriteString(lipgloss.Place(w, m.pageSize, lipgloss.Center, lipgloss.Center,
+			subtitleStyle.Render(emptyMsg)))
+		sb.WriteString("\n")
 		return sb.String()
 	}
 	if m.cfg.TableRenderer != nil {

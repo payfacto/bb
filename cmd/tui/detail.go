@@ -32,14 +32,21 @@ type DetailConfig struct {
 	Actions      []ActionItem
 }
 
+// actionsColWidth is the fixed width of the right-hand actions panel in side-by-side mode.
+const actionsColWidth = 28
+
+// sideBySideMinWidth is the minimum total view width required for side-by-side layout.
+const sideBySideMinWidth = 60
+
 type detailModel struct {
-	cfg     DetailConfig
-	cursor  int
-	width   int // terminal width, clamped to maxViewWidth; used for separators
-	vp      viewport.Model
-	vpReady bool
-	spinner spinner.Model
-	loading bool
+	cfg      DetailConfig
+	cursor   int
+	width    int // terminal width, clamped to maxViewWidth; used for separators
+	contentW int // viewport content width (= width in stacked, = width-actionsColWidth-1 in side-by-side)
+	vp       viewport.Model
+	vpReady  bool
+	spinner  spinner.Model
+	loading  bool
 }
 
 type detailContentMsg struct{ content string }
@@ -86,16 +93,24 @@ func (m *detailModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			w = maxViewWidth
 		}
 		m.width = w
-		// Reserve lines: 1 separator + 2 "ACTIONS" header + len(actions) + 2 padding
+
+		sideBySide := w >= sideBySideMinWidth && len(m.cfg.Actions) > 0
+		if sideBySide {
+			m.contentW = w - actionsColWidth - 1
+		} else {
+			m.contentW = w
+		}
+
+		// In stacked mode, reserve vertical space for the actions list.
 		actionsH := 0
-		if len(m.cfg.Actions) > 0 {
+		if !sideBySide && len(m.cfg.Actions) > 0 {
 			actionsH = len(m.cfg.Actions) + 3
 		}
 		contentH := msg.Height - 4 - actionsH // 4 = breadcrumb+sep+help bar
 		if contentH < 3 {
 			contentH = 3
 		}
-		m.vp = viewport.New(msg.Width, contentH)
+		m.vp = viewport.New(m.contentW, contentH)
 		m.vp.SetContent(m.cfg.Content)
 		m.vpReady = true
 		return m, nil
@@ -163,31 +178,66 @@ func (m *detailModel) executeAction(idx int) (tea.Model, tea.Cmd) {
 }
 
 func (m *detailModel) View() string {
-	var sb strings.Builder
+	sideBySide := m.width >= sideBySideMinWidth && len(m.cfg.Actions) > 0
+
+	// --- Content panel ---
+	var contentSB strings.Builder
 	if m.loading {
-		sb.WriteString("\n  " + m.spinner.View() + " Loading...\n")
+		contentSB.WriteString("\n  " + m.spinner.View() + " Loading...\n")
 	} else if m.vpReady {
-		sb.WriteString(m.vp.View())
+		contentSB.WriteString(m.vp.View())
 		if pct := m.vp.ScrollPercent(); pct >= 0 {
 			var scrollHint string
 			switch {
 			case m.vp.AtTop() && m.vp.AtBottom():
 				// fits on screen — no hint needed
 			case m.vp.AtTop():
-				scrollHint = subtitleStyle.Render(fmt.Sprintf("↓ scroll down (%d%%)", int(pct*100)))
+				scrollHint = subtitleStyle.Render(fmt.Sprintf("↓ %d%%", int(pct*100)))
 			case m.vp.AtBottom():
-				scrollHint = subtitleStyle.Render("↑ scroll up  (end)")
+				scrollHint = subtitleStyle.Render("↑ end")
 			default:
-				scrollHint = subtitleStyle.Render(fmt.Sprintf("↑↓ %d%% — ctrl+u/d to scroll", int(pct*100)))
+				scrollHint = subtitleStyle.Render(fmt.Sprintf("↑↓ %d%%", int(pct*100)))
 			}
 			if scrollHint != "" {
-				sb.WriteString("\n")
-				sb.WriteString(scrollHint)
+				contentSB.WriteString("\n")
+				contentSB.WriteString(scrollHint)
 			}
 		}
 	} else {
-		sb.WriteString(m.cfg.Content)
+		contentSB.WriteString(m.cfg.Content)
 	}
+
+	if sideBySide {
+		// --- Actions panel (right column) ---
+		var actSB strings.Builder
+		actSB.WriteString(subtitleStyle.Render("ACTIONS") + "\n")
+		for i, action := range m.cfg.Actions {
+			label := truncateStr(action.Label, actionsColWidth-3)
+			if i == m.cursor {
+				actSB.WriteString(selectedStyle.Render(label))
+			} else if action.Style != nil {
+				actSB.WriteString((*action.Style).PaddingLeft(1).Render(label))
+			} else {
+				actSB.WriteString(normalStyle.Render(label))
+			}
+			actSB.WriteString("\n")
+		}
+
+		contentCol := lipgloss.NewStyle().Width(m.contentW).Render(contentSB.String())
+		actionsCol := lipgloss.NewStyle().
+			Width(actionsColWidth).
+			BorderLeft(true).
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(colSurface1).
+			PaddingLeft(1).
+			Render(actSB.String())
+
+		return lipgloss.JoinHorizontal(lipgloss.Top, contentCol, actionsCol) + "\n"
+	}
+
+	// --- Stacked layout (narrow terminals or no actions) ---
+	var sb strings.Builder
+	sb.WriteString(contentSB.String())
 	sb.WriteString("\n")
 	sepWidth := m.width
 	if sepWidth == 0 {
