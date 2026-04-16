@@ -11,6 +11,16 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// actionsKey opens the actions popup from any detail view.
+var actionsKey = key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "actions"))
+
+// popupColW is the inner content width for each column in the actions popup.
+const popupColW = 22
+
+// popupTwoCols switches to a two-column popup layout when there are more
+// than this many actions.
+const popupTwoCols = 5
+
 type ActionItem struct {
 	Label    string
 	Info     string
@@ -32,21 +42,16 @@ type DetailConfig struct {
 	Actions      []ActionItem
 }
 
-// actionsColWidth is the fixed width of the right-hand actions panel in side-by-side mode.
-const actionsColWidth = 28
-
-// sideBySideMinWidth is the minimum total view width required for side-by-side layout.
-const sideBySideMinWidth = 60
-
 type detailModel struct {
-	cfg      DetailConfig
-	cursor   int
-	width    int // terminal width, clamped to maxViewWidth; used for separators
-	contentW int // viewport content width (= width in stacked, = width-actionsColWidth-1 in side-by-side)
-	vp       viewport.Model
-	vpReady  bool
-	spinner  spinner.Model
-	loading  bool
+	cfg       DetailConfig
+	cursor    int
+	width     int // terminal width, clamped to maxViewWidth
+	height    int // terminal height
+	vp        viewport.Model
+	vpReady   bool
+	spinner   spinner.Model
+	loading   bool
+	popupOpen bool
 }
 
 type detailContentMsg struct{ content string }
@@ -75,7 +80,7 @@ func (m *detailModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		m.cfg.Content = msg.content
 		if m.vpReady {
-			m.vp.SetContent(m.cfg.Content)
+			m.vp.SetContent(wrapAtWidth(m.cfg.Content, m.width))
 		}
 		return m, nil
 
@@ -93,71 +98,75 @@ func (m *detailModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			w = maxViewWidth
 		}
 		m.width = w
-
-		sideBySide := w >= sideBySideMinWidth && len(m.cfg.Actions) > 0
-		if sideBySide {
-			m.contentW = w - actionsColWidth - 1
-		} else {
-			m.contentW = w
-		}
-
-		// In stacked mode, reserve vertical space for the actions list.
-		actionsH := 0
-		if !sideBySide && len(m.cfg.Actions) > 0 {
-			actionsH = len(m.cfg.Actions) + 3
-		}
-		contentH := msg.Height - 4 - actionsH // 4 = breadcrumb+sep+help bar
+		m.height = msg.Height
+		contentH := msg.Height - 4 // 4 = breadcrumb+sep+help bar
 		if contentH < 3 {
 			contentH = 3
 		}
-		m.vp = viewport.New(m.contentW, contentH)
-		m.vp.SetContent(m.cfg.Content)
+		m.vp = viewport.New(w, contentH)
+		m.vp.SetContent(wrapAtWidth(m.cfg.Content, w))
 		m.vpReady = true
 		return m, nil
 
 	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, globalKeys.Up):
-			if len(m.cfg.Actions) > 0 {
-				if m.cursor > 0 {
-					m.cursor--
-				}
-			} else if m.vpReady {
-				var cmd tea.Cmd
-				m.vp, cmd = m.vp.Update(msg)
-				return m, cmd
+		if m.popupOpen {
+			return m.updatePopup(msg)
+		}
+		return m.updateContent(msg)
+	}
+	return m, nil
+}
+
+func (m *detailModel) updatePopup(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, globalKeys.Back), key.Matches(msg, actionsKey):
+		m.popupOpen = false
+	case key.Matches(msg, globalKeys.Up):
+		if m.cursor > 0 {
+			m.cursor--
+		}
+	case key.Matches(msg, globalKeys.Down):
+		if m.cursor < len(m.cfg.Actions)-1 {
+			m.cursor++
+		}
+	case key.Matches(msg, globalKeys.Enter):
+		return m.executeAction(m.cursor)
+	}
+	return m, nil
+}
+
+func (m *detailModel) updateContent(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, actionsKey):
+		if len(m.cfg.Actions) > 0 {
+			m.popupOpen = true
+			m.cursor = 0
+		}
+	case key.Matches(msg, globalKeys.PgUp), key.Matches(msg, globalKeys.PgDn):
+		if m.vpReady {
+			var cmd tea.Cmd
+			m.vp, cmd = m.vp.Update(msg)
+			return m, cmd
+		}
+	case key.Matches(msg, globalKeys.Up), key.Matches(msg, globalKeys.Down):
+		if m.vpReady {
+			var cmd tea.Cmd
+			m.vp, cmd = m.vp.Update(msg)
+			return m, cmd
+		}
+	case key.Matches(msg, globalKeys.Back):
+		return m, popView
+	default:
+		// Action key shortcuts (e.g. 'd' for diff).
+		for i, action := range m.cfg.Actions {
+			if action.Key != nil && key.Matches(msg, *action.Key) {
+				return m.executeAction(i)
 			}
-		case key.Matches(msg, globalKeys.Down):
-			if len(m.cfg.Actions) > 0 {
-				if m.cursor < len(m.cfg.Actions)-1 {
-					m.cursor++
-				}
-			} else if m.vpReady {
-				var cmd tea.Cmd
-				m.vp, cmd = m.vp.Update(msg)
-				return m, cmd
-			}
-		case key.Matches(msg, globalKeys.PgUp), key.Matches(msg, globalKeys.PgDn):
-			if m.vpReady {
-				var cmd tea.Cmd
-				m.vp, cmd = m.vp.Update(msg)
-				return m, cmd
-			}
-		case key.Matches(msg, globalKeys.Enter):
-			return m.executeAction(m.cursor)
-		case key.Matches(msg, globalKeys.Back):
-			return m, popView
-		default:
-			for i, action := range m.cfg.Actions {
-				if action.Key != nil && key.Matches(msg, *action.Key) {
-					return m.executeAction(i)
-				}
-			}
-			if m.vpReady {
-				var cmd tea.Cmd
-				m.vp, cmd = m.vp.Update(msg)
-				return m, cmd
-			}
+		}
+		if m.vpReady {
+			var cmd tea.Cmd
+			m.vp, cmd = m.vp.Update(msg)
+			return m, cmd
 		}
 	}
 	return m, nil
@@ -178,14 +187,15 @@ func (m *detailModel) executeAction(idx int) (tea.Model, tea.Cmd) {
 }
 
 func (m *detailModel) View() string {
-	sideBySide := m.width >= sideBySideMinWidth && len(m.cfg.Actions) > 0
+	if m.popupOpen {
+		return m.renderActionsPopup()
+	}
 
-	// --- Content panel ---
-	var contentSB strings.Builder
+	var sb strings.Builder
 	if m.loading {
-		contentSB.WriteString("\n  " + m.spinner.View() + " Loading...\n")
+		sb.WriteString("\n  " + m.spinner.View() + " Loading...\n")
 	} else if m.vpReady {
-		contentSB.WriteString(m.vp.View())
+		sb.WriteString(m.vp.View())
 		if pct := m.vp.ScrollPercent(); pct >= 0 {
 			var scrollHint string
 			switch {
@@ -199,85 +209,100 @@ func (m *detailModel) View() string {
 				scrollHint = subtitleStyle.Render(fmt.Sprintf("↑↓ %d%%", int(pct*100)))
 			}
 			if scrollHint != "" {
-				contentSB.WriteString("\n")
-				contentSB.WriteString(scrollHint)
+				sb.WriteString("\n")
+				sb.WriteString(scrollHint)
 			}
 		}
 	} else {
-		contentSB.WriteString(m.cfg.Content)
+		sb.WriteString(m.cfg.Content)
 	}
-
-	if sideBySide {
-		// --- Actions panel (right column) ---
-		var actSB strings.Builder
-		actSB.WriteString(subtitleStyle.Render("ACTIONS") + "\n")
-		for i, action := range m.cfg.Actions {
-			label := truncateStr(action.Label, actionsColWidth-3)
-			if i == m.cursor {
-				actSB.WriteString(selectedStyle.Render(label))
-			} else if action.Style != nil {
-				actSB.WriteString((*action.Style).PaddingLeft(1).Render(label))
-			} else {
-				actSB.WriteString(normalStyle.Render(label))
-			}
-			actSB.WriteString("\n")
-		}
-
-		contentCol := lipgloss.NewStyle().Width(m.contentW).Render(contentSB.String())
-		actionsCol := lipgloss.NewStyle().
-			Width(actionsColWidth).
-			BorderLeft(true).
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(colSurface1).
-			PaddingLeft(1).
-			Render(actSB.String())
-
-		return lipgloss.JoinHorizontal(lipgloss.Top, contentCol, actionsCol) + "\n"
-	}
-
-	// --- Stacked layout (narrow terminals or no actions) ---
-	var sb strings.Builder
-	sb.WriteString(contentSB.String())
 	sb.WriteString("\n")
-	sepWidth := m.width
-	if sepWidth == 0 {
-		sepWidth = viewWidth
-	}
-	sb.WriteString(separatorStyle.Render(strings.Repeat("─", sepWidth)))
-	sb.WriteString("\n\n")
-	if len(m.cfg.Actions) > 0 {
-		sb.WriteString(subtitleStyle.Render("ACTIONS"))
-		sb.WriteString("\n")
-		for i, action := range m.cfg.Actions {
-			label := action.Label
-			if action.Info != "" {
-				label += " " + subtitleStyle.Render(action.Info)
-			}
-			if i == m.cursor {
-				sb.WriteString(selectedStyle.Render(label))
-			} else if action.Style != nil {
-				sb.WriteString((*action.Style).PaddingLeft(2).Render(label))
-			} else {
-				sb.WriteString(normalStyle.Render(label))
-			}
-			sb.WriteString("\n")
-		}
-	}
 	return sb.String()
 }
 
-func (m *detailModel) Title() string { return m.cfg.Title }
-func (m *detailModel) ShortHelp() []key.Binding {
-	bindings := []key.Binding{globalKeys.Up, globalKeys.Down, globalKeys.Enter, globalKeys.Back, globalKeys.Quit}
-	if m.vpReady && len(m.cfg.Actions) > 0 {
-		bindings = append([]key.Binding{globalKeys.PgUp, globalKeys.PgDn}, bindings...)
+func (m *detailModel) renderActionsPopup() string {
+	actions := m.cfg.Actions
+	twoCols := len(actions) > popupTwoCols
+
+	var rows []string
+	if twoCols {
+		half := (len(actions) + 1) / 2
+		for i := 0; i < half; i++ {
+			left := m.renderActionCell(i, popupColW)
+			var right string
+			if i+half < len(actions) {
+				right = m.renderActionCell(i+half, popupColW)
+			} else {
+				right = normalStyle.Render(strings.Repeat(" ", popupColW))
+			}
+			rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top,
+				left,
+				separatorStyle.Render(" │ "),
+				right,
+			))
+		}
+	} else {
+		for i := range actions {
+			rows = append(rows, m.renderActionCell(i, popupColW))
+		}
 	}
+
+	title := headerStyle.Render("ACTIONS")
+	body := title + "\n" + strings.Join(rows, "\n")
+	popup := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(colBlue).
+		Padding(0, 1).
+		Render(body)
+
+	h := m.height - 4
+	if h < 1 {
+		h = 12
+	}
+	return lipgloss.Place(m.width, h, lipgloss.Center, lipgloss.Center, popup)
+}
+
+func (m *detailModel) renderActionCell(idx, colW int) string {
+	if idx >= len(m.cfg.Actions) {
+		return normalStyle.Render(strings.Repeat(" ", colW))
+	}
+	action := m.cfg.Actions[idx]
+	label := truncateStr(action.Label, colW)
+	if idx == m.cursor {
+		return selectedStyle.Render(fmt.Sprintf("%-*s", colW, label))
+	}
+	if action.Style != nil {
+		return (*action.Style).PaddingLeft(1).Render(label)
+	}
+	return normalStyle.Render(label)
+}
+
+func (m *detailModel) Title() string { return m.cfg.Title }
+
+func (m *detailModel) ShortHelp() []key.Binding {
+	if m.popupOpen {
+		return []key.Binding{globalKeys.Up, globalKeys.Down, globalKeys.Enter, globalKeys.Back}
+	}
+	bindings := []key.Binding{globalKeys.PgUp, globalKeys.PgDn, globalKeys.Up, globalKeys.Down}
+	if len(m.cfg.Actions) > 0 {
+		bindings = append(bindings, actionsKey)
+	}
+	bindings = append(bindings, globalKeys.Back, globalKeys.Quit)
 	for _, action := range m.cfg.Actions {
 		if action.Key != nil {
 			bindings = append(bindings, *action.Key)
 		}
 	}
 	return bindings
+}
+
+// wrapAtWidth pre-wraps s so that lines longer than width are soft-wrapped
+// rather than clipped by the viewport. lipgloss handles ANSI sequences correctly.
+func wrapAtWidth(s string, width int) string {
+	if width <= 0 {
+		return s
+	}
+	return lipgloss.NewStyle().Width(width).Render(s)
 }
 
 type showConfirmMsg struct{ cfg ConfirmConfig }

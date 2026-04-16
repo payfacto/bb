@@ -1370,22 +1370,11 @@ func prTableRenderer(filtered []listItem, cursor, offset, pageSize int) string {
 			if row == table.HeaderRow {
 				return lipgloss.NewStyle().Foreground(colOverlay0).Bold(true)
 			}
-			pr := window[row].data.(bitbucket.PR)
-			closed := strings.ToUpper(pr.State) == "MERGED" ||
-				strings.ToUpper(pr.State) == "DECLINED" ||
-				strings.ToUpper(pr.State) == "SUPERSEDED"
 			if row == selectedInWindow {
-				s := lipgloss.NewStyle().Background(colSurface0).Foreground(colText).Bold(true)
-				if col == 1 && closed {
-					return s.Strikethrough(true)
-				}
-				return s
-			}
-			if col == 1 && closed {
-				return lipgloss.NewStyle().Foreground(colOverlay0).Strikethrough(true)
+				return lipgloss.NewStyle().Background(colSurface0).Foreground(colText).Bold(true)
 			}
 			if col == 2 { // STATE column
-				return prStateStyle(pr.State)
+				return prStateStyle(window[row].data.(bitbucket.PR).State)
 			}
 			if col == 4 { // BRANCH column
 				return lipgloss.NewStyle().Foreground(colBlue)
@@ -1433,7 +1422,6 @@ func newPRListView(client *bitbucket.Client, ws, repo string, pageSize int) *lis
 }
 
 func newPRDetailView(client *bitbucket.Client, ws, repo string, pr bitbucket.PR, pageSize int) *detailModel {
-	commentsKey := key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "comments"))
 	diffKey := key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "diff"))
 
 	return newDetailView(DetailConfig{
@@ -1445,7 +1433,7 @@ func newPRDetailView(client *bitbucket.Client, ws, repo string, pr bitbucket.PR,
 			{Label: "Open in browser", OnSelect: func() tea.Cmd {
 				return openURLCmd(pr.Links.HTML.Href)
 			}},
-			{Label: "Comments", Key: &commentsKey, OnSelect: func() tea.Cmd {
+			{Label: "Comments", OnSelect: func() tea.Cmd {
 				return pushViewCmd(newPRCommentListView(client, ws, repo, pr.ID, pageSize))
 			}},
 			{Label: "Activity", OnSelect: func() tea.Cmd {
@@ -1462,7 +1450,11 @@ func newPRDetailView(client *bitbucket.Client, ws, repo string, pr bitbucket.PR,
 			}},
 			{Label: "Diff", Key: &diffKey, OnSelect: func() tea.Cmd {
 				return fetchAndPushText(fmt.Sprintf("Diff (#%d)", pr.ID), func() (string, error) {
-					return client.PRs(ws, repo).Diff(context.Background(), pr.ID)
+					raw, err := client.PRs(ws, repo).Diff(context.Background(), pr.ID)
+					if err != nil {
+						return "", err
+					}
+					return highlightDiff(raw), nil
 				})
 			}},
 			{Label: "Tasks", OnSelect: func() tea.Cmd {
@@ -1626,6 +1618,40 @@ func newPRActivityListView(client *bitbucket.Client, ws, repo string, prID, page
 			return nil
 		},
 	})
+}
+
+// highlightDiff applies theme-aware ANSI colour to a unified diff string.
+// It colours added lines green, removed lines red, hunk headers blue, and
+// file-header lines (diff/index/---/+++) with the overlay colour.
+// Lines that start with "---" or "+++" are treated as file headers, not
+// removed/added lines, so they are not coloured red/green.
+func highlightDiff(diff string) string {
+	lines := strings.Split(diff, "\n")
+	var sb strings.Builder
+	addStyle := lipgloss.NewStyle().Foreground(colGreen)
+	delStyle := lipgloss.NewStyle().Foreground(colRed)
+	hunkStyle := lipgloss.NewStyle().Foreground(colBlue)
+	headerStyle := lipgloss.NewStyle().Foreground(colOverlay0)
+	for i, line := range lines {
+		switch {
+		case strings.HasPrefix(line, "@@"):
+			sb.WriteString(hunkStyle.Render(line))
+		case strings.HasPrefix(line, "---"), strings.HasPrefix(line, "+++"),
+			strings.HasPrefix(line, "diff "), strings.HasPrefix(line, "index "),
+			strings.HasPrefix(line, "new file"), strings.HasPrefix(line, "deleted file"):
+			sb.WriteString(headerStyle.Render(line))
+		case strings.HasPrefix(line, "+"):
+			sb.WriteString(addStyle.Render(line))
+		case strings.HasPrefix(line, "-"):
+			sb.WriteString(delStyle.Render(line))
+		default:
+			sb.WriteString(line)
+		}
+		if i < len(lines)-1 {
+			sb.WriteByte('\n')
+		}
+	}
+	return sb.String()
 }
 
 // truncateStr shortens s to max runes with an ellipsis — mirrors render.truncate locally
