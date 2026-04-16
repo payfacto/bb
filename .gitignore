@@ -29,6 +29,7 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+.crush/
 
 # AI / Claude
 docs/

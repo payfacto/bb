@@ -46,6 +46,30 @@ func abbrevHash(h string) string {
 	return h
 }
 
+// renderKVBlock renders a set of label+value pairs with aligned values.
+// Labels are rendered in subtitleStyle; values in plain text.
+// Empty values are omitted from the output.
+func renderKVBlock(pairs [][2]string) string {
+	maxLen := 0
+	for _, p := range pairs {
+		if p[1] != "" && len(p[0]) > maxLen {
+			maxLen = len(p[0])
+		}
+	}
+	var sb strings.Builder
+	for _, p := range pairs {
+		if p[1] == "" {
+			continue
+		}
+		label := fmt.Sprintf("%-*s", maxLen, p[0])
+		sb.WriteString(subtitleStyle.Render(label))
+		sb.WriteString("  ")
+		sb.WriteString(p[1])
+		sb.WriteString("\n")
+	}
+	return sb.String()
+}
+
 func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.History, cache *listCache) []menuItem {
 	ws := cfg.Workspace
 	repo := cfg.Repo
@@ -304,6 +328,18 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 							{Label: "Open in browser", OnSelect: func() tea.Cmd {
 								return openURLCmd(t.Links.HTML.Href)
 							}},
+							{Label: "✗ Delete", Style: &actionDangerStyle, Confirm: &ConfirmConfig{
+								Message: fmt.Sprintf("Delete tag %q?", t.Name),
+								OnYes: func() tea.Cmd {
+									return tea.Sequence(
+										popView,
+										popView,
+										executeAction(func() error {
+											return client.Tags(ws, repo).Delete(context.Background(), t.Name)
+										}, fmt.Sprintf("Tag %q deleted", t.Name)),
+									)
+								},
+							}},
 						},
 					}))
 				},
@@ -313,46 +349,44 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 			return newIssueListView(client, ws, repo, ps)
 		})},
 		{label: "Deployments", description: "View deployments", onSelect: needRepo(func() View {
-			return newSimpleListView("Deployments", ps, func(ctx context.Context, _ string) ([]listItem, error) {
-				deps, err := client.Deployments(ws, repo).List(ctx)
-				if err != nil {
-					return nil, err
-				}
-				// build environment UUID → name lookup (best-effort, ignore error)
-				envNames := map[string]string{}
-				if envs, err := client.Environments(ws, repo).List(ctx); err == nil {
-					for _, e := range envs {
-						envNames[e.UUID] = e.Name
+			return newListView(ListConfig{
+				Title:         "Deployments",
+				PageSize:      ps,
+				TableRenderer: deploymentsTableRenderer,
+				Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
+					deps, err := client.Deployments(ws, repo).List(ctx)
+					if err != nil {
+						return nil, err
 					}
-				}
-				items := make([]listItem, len(deps))
-				for i, d := range deps {
-					status := d.State.Name
-					if d.State.Status != nil && d.State.Status.Name != "" {
-						status = d.State.Status.Name
+					// build environment UUID → name lookup (best-effort, ignore error)
+					envNames := map[string]string{}
+					if envs, err := client.Environments(ws, repo).List(ctx); err == nil {
+						for _, e := range envs {
+							envNames[e.UUID] = e.Name
+						}
 					}
-					date := d.LastUpdateTime
-					if len(date) > isoDateLen {
-						date = date[:isoDateLen]
+					items := make([]listItem, len(deps))
+					for i, d := range deps {
+						status := d.State.Name
+						if d.State.Status != nil && d.State.Status.Name != "" {
+							status = d.State.Status.Name
+						}
+						envName := envNames[d.Environment.UUID]
+						items[i] = listItem{
+							title:    status, // used as fallback; table renderer reads data directly
+							subtitle: envName,
+							data:     d,
+						}
 					}
-					title := render.StateBadge(status)
-					if date != "" {
-						title += "  " + date
-					}
-					if name := envNames[d.Environment.UUID]; name != "" {
-						title += "  " + name
-					}
-					if d.Deployable.Commit != nil {
-						title += "  " + abbrevHash(d.Deployable.Commit.Hash)
-					}
-					items[i] = listItem{title: title, data: d}
-				}
-				return items, nil
-			}, func(item listItem) tea.Cmd {
+					return items, nil
+				},
+				OnSelect: func(item listItem) tea.Cmd {
 				d := item.data.(bitbucket.Deployment)
-				state := d.State.Name
-				if d.State.Status != nil {
-					state += "/" + d.State.Status.Name
+				// Render phase + result as side-by-side colored pills instead
+				// of raw "COMPLETED/SUCCESSFUL" text.
+				state := prStateBadge(d.State.Name)
+				if d.State.Status != nil && d.State.Status.Name != "" {
+					state += "  " + prStateBadge(d.State.Status.Name)
 				}
 				// build actions for commit and pipeline navigation
 				var actions []ActionItem
@@ -395,21 +429,25 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 								}
 							}
 						}
-						var sb strings.Builder
-						sb.WriteString(fmt.Sprintf("State:       %s\n", state))
-						sb.WriteString(fmt.Sprintf("Environment: %s\n", envName))
+						var commitHash, pipelineUUID string
 						if d.Deployable.Commit != nil {
-							sb.WriteString(fmt.Sprintf("Commit:      %s\n", d.Deployable.Commit.Hash))
+							commitHash = d.Deployable.Commit.Hash
 						}
 						if d.Deployable.Pipeline != nil {
-							sb.WriteString(fmt.Sprintf("Pipeline:    %s\n", d.Deployable.Pipeline.UUID))
+							pipelineUUID = d.Deployable.Pipeline.UUID
 						}
-						sb.WriteString(fmt.Sprintf("Updated:     %s\n", d.LastUpdateTime))
-						return sb.String()
+						return renderKVBlock([][2]string{
+							{"State", state},
+							{"Environment", envName},
+							{"Commit", commitHash},
+							{"Pipeline", pipelineUUID},
+							{"Updated", d.LastUpdateTime},
+						})
 					},
 					Actions: actions,
 				}))
-			})
+			},
+		})
 		})},
 		{label: "Members", description: "Workspace members", onSelect: func() View {
 			return newSimpleListView("Members", ps, func(ctx context.Context, _ string) ([]listItem, error) {
@@ -417,11 +455,23 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 				if err != nil {
 					return nil, err
 				}
+				// Pad display names so the "(nickname)" column aligns
+				// across rows instead of starting wherever the name ends.
+				nameWidth := 0
+				for _, m := range members {
+					if w := lipgloss.Width(m.User.DisplayName); w > nameWidth {
+						nameWidth = w
+					}
+				}
 				items := make([]listItem, len(members))
 				for i, m := range members {
 					title := m.User.DisplayName
 					if m.User.Nickname != "" && m.User.Nickname != m.User.DisplayName {
-						title += "  (" + m.User.Nickname + ")"
+						pad := nameWidth - lipgloss.Width(m.User.DisplayName)
+						if pad < 0 {
+							pad = 0
+						}
+						title += strings.Repeat(" ", pad) + "  (" + m.User.Nickname + ")"
 					}
 					items[i] = listItem{title: title, data: m}
 				}
@@ -508,8 +558,11 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 					})
 				}
 
-				content := fmt.Sprintf("Display Name: %s\nNickname:     %s\nAccount ID:   %s\n",
-					displayName, nickname, m.User.AccountID)
+				content := renderKVBlock([][2]string{
+					{"Display Name", displayName},
+					{"Nickname", nickname},
+					{"Account ID", m.User.AccountID},
+				})
 				return pushViewCmd(newDetailView(DetailConfig{
 					Title:   displayName,
 					Content: content,
@@ -543,6 +596,18 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 					Actions: []ActionItem{
 						{Label: "Open in browser", OnSelect: func() tea.Cmd {
 							return openURLCmd(s.Links.HTML.Href)
+						}},
+						{Label: "✗ Delete", Style: &actionDangerStyle, Confirm: &ConfirmConfig{
+							Message: fmt.Sprintf("Delete snippet %q?", s.Title),
+							OnYes: func() tea.Cmd {
+								return tea.Sequence(
+									popView,
+									popView,
+									executeAction(func() error {
+										return client.Snippets(ws).Delete(context.Background(), s.ID)
+									}, fmt.Sprintf("Snippet %q deleted", s.Title)),
+								)
+							},
 						}},
 					},
 				}))
@@ -585,9 +650,9 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int)
 				}
 				items := make([]listItem, len(hooks))
 				for i, h := range hooks {
-					activeBadge := render.StateBadge("INACTIVE")
+					activeBadge := prStateBadge("INACTIVE")
 					if h.Active {
-						activeBadge = render.StateBadge("ACTIVE")
+						activeBadge = prStateBadge("ACTIVE")
 					}
 					items[i] = listItem{title: activeBadge + " " + h.URL, data: h}
 				}
@@ -598,19 +663,18 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int)
 				if h.Active {
 					active = "ACTIVE"
 				}
-				var sb strings.Builder
-				sb.WriteString(fmt.Sprintf("UUID:        %s\n", h.UUID))
-				sb.WriteString(fmt.Sprintf("URL:         %s\n", h.URL))
-				sb.WriteString(fmt.Sprintf("Description: %s\n", h.Description))
-				sb.WriteString(fmt.Sprintf("Status:      %s\n", render.StateBadge(active)))
-				sb.WriteString("Events:\n")
-				for _, e := range h.Events {
-					sb.WriteString(fmt.Sprintf("             %s\n", e))
-				}
-				sb.WriteString(fmt.Sprintf("Created:     %s\n", h.CreatedAt))
+				events := strings.Join(h.Events, "\n")
+				content := renderKVBlock([][2]string{
+					{"UUID", h.UUID},
+					{"URL", h.URL},
+					{"Description", h.Description},
+					{"Status", prStateBadge(active)},
+					{"Events", events},
+					{"Created", h.CreatedAt},
+				})
 				return pushViewCmd(newDetailView(DetailConfig{
 					Title:   "Webhook: " + h.URL,
-					Content: sb.String(),
+					Content: content,
 					Actions: []ActionItem{
 						{Label: "Open in browser", OnSelect: func() tea.Cmd {
 							return openURLCmd(h.URL)
@@ -678,11 +742,22 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int)
 				if err != nil {
 					return nil, err
 				}
+				// Pad env names so the Type column lines up across rows.
+				nameWidth := 0
+				for _, e := range envs {
+					if w := lipgloss.Width(e.Name); w > nameWidth {
+						nameWidth = w
+					}
+				}
 				items := make([]listItem, len(envs))
 				for i, e := range envs {
 					title := e.Name
 					if e.EnvironmentType.Name != "" {
-						title += "  " + e.EnvironmentType.Name
+						pad := nameWidth - lipgloss.Width(e.Name)
+						if pad < 0 {
+							pad = 0
+						}
+						title += strings.Repeat(" ", pad) + "  " + e.EnvironmentType.Name
 					}
 					if e.Lock.Name == "LOCKED" {
 						title += "  " + actionDangerStyle.Render("[LOCKED]")
@@ -692,8 +767,12 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int)
 				return items, nil
 			}, func(item listItem) tea.Cmd {
 				e := item.data.(bitbucket.Environment)
-				content := fmt.Sprintf("UUID:  %s\nName:  %s\nType:  %s\nLock:  %s\n",
-					e.UUID, e.Name, e.EnvironmentType.Name, render.StateBadge(e.Lock.Name))
+				content := renderKVBlock([][2]string{
+					{"Name", e.Name},
+					{"Type", e.EnvironmentType.Name},
+					{"Lock", prStateBadge(e.Lock.Name)},
+					{"UUID", e.UUID},
+				})
 				return pushViewCmd(newTextView("Environment: "+e.Name, content))
 			})
 		}},
@@ -723,11 +802,13 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int)
 						valueStr = fmt.Sprintf("%d", *r.Value)
 					}
 				}
-				content := fmt.Sprintf("ID:      %d\nKind:    %s\nMatch:   %s\nPattern: %s\n",
-					r.ID, r.Kind, r.BranchMatchKind, r.Pattern)
-				if valueStr != "" {
-					content += fmt.Sprintf("Value:   %s\n", valueStr)
-				}
+				content := renderKVBlock([][2]string{
+					{"ID", fmt.Sprintf("%d", r.ID)},
+					{"Kind", r.Kind},
+					{"Match", r.BranchMatchKind},
+					{"Pattern", r.Pattern},
+					{"Value", valueStr},
+				})
 				return pushViewCmd(newDetailView(DetailConfig{
 					Title:   fmt.Sprintf("Restriction #%d", r.ID),
 					Content: content,
@@ -761,8 +842,28 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int)
 				return items, nil
 			}, func(item listItem) tea.Cmd {
 				d := item.data.(bitbucket.Download)
-				content := fmt.Sprintf("Name: %s\nSize: %d bytes\n", d.Name, d.Size)
-				return pushViewCmd(newTextView("Download: "+d.Name, content))
+				content := renderKVBlock([][2]string{
+					{"Name", d.Name},
+					{"Size", fmt.Sprintf("%d bytes", d.Size)},
+				})
+				return pushViewCmd(newDetailView(DetailConfig{
+					Title:   "Download: " + d.Name,
+					Content: content,
+					Actions: []ActionItem{
+						{Label: "✗ Delete", Style: &actionDangerStyle, Confirm: &ConfirmConfig{
+							Message: fmt.Sprintf("Delete download %q?", d.Name),
+							OnYes: func() tea.Cmd {
+								return tea.Sequence(
+									popView,
+									popView,
+									executeAction(func() error {
+										return client.Downloads(ws, repo).Delete(context.Background(), d.Name)
+									}, fmt.Sprintf("Download %q deleted", d.Name)),
+								)
+							},
+						}},
+					},
+				}))
 			})
 		}},
 		{label: "Pipeline Variables", description: "Repo-level pipeline variables", onSelect: func() View {
@@ -771,7 +872,8 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int)
 				Title:     "Pipeline Variables",
 				PageSize:  pageSize,
 				EmptyMsg:  "No pipeline variables found.",
-				Shortcuts: []key.Binding{newVarKey},
+				Shortcuts:     []key.Binding{newVarKey},
+				TableRenderer: pipelineVarsTableRenderer,
 				Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
 					vars, err := client.PipelineVariables(ws, repo).List(ctx)
 					if err != nil {
@@ -779,11 +881,7 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int)
 					}
 					items := make([]listItem, len(vars))
 					for i, v := range vars {
-						title := v.Key
-						if v.Secured {
-							title += "  [secured]"
-						}
-						items[i] = listItem{id: v.UUID, title: title, data: v}
+						items[i] = listItem{id: v.UUID, title: v.Key, data: v}
 					}
 					return items, nil
 				},
@@ -809,8 +907,12 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int)
 					if v.Secured {
 						value = "[secured — value not shown]"
 					}
-					content := fmt.Sprintf("Key:     %s\nValue:   %s\nSecured: %v\nUUID:    %s\n",
-						v.Key, value, v.Secured, v.UUID)
+					content := renderKVBlock([][2]string{
+						{"Key", v.Key},
+						{"Value", value},
+						{"Secured", fmt.Sprintf("%v", v.Secured)},
+						{"UUID", v.UUID},
+					})
 					return pushViewCmd(newDetailView(DetailConfig{
 						Title:   "Variable: " + v.Key,
 						Content: content,
@@ -1041,26 +1143,22 @@ func newRepoDetailView(client *bitbucket.Client, cfg *config.Config, ws, slug st
 			if err != nil {
 				return "Error: " + err.Error()
 			}
-			var sb strings.Builder
-			sb.WriteString(fmt.Sprintf("Slug:        %s\n", r.Slug))
-			sb.WriteString(fmt.Sprintf("Full Name:   %s\n", r.FullName))
 			desc := r.Description
 			if desc == "" {
 				desc = "(none)"
 			}
-			sb.WriteString(fmt.Sprintf("Description: %s\n", desc))
 			visibility := "private"
 			if !r.IsPrivate {
 				visibility = "public"
 			}
-			sb.WriteString(fmt.Sprintf("Visibility:  %s\n", visibility))
-			if ssh := cloneURL(r, "ssh"); ssh != "" {
-				sb.WriteString(fmt.Sprintf("Clone SSH:   %s\n", ssh))
-			}
-			if https := cloneURL(r, "https"); https != "" {
-				sb.WriteString(fmt.Sprintf("Clone HTTPS: %s\n", https))
-			}
-			return sb.String()
+			return renderKVBlock([][2]string{
+				{"Slug", r.Slug},
+				{"Full Name", r.FullName},
+				{"Description", desc},
+				{"Visibility", visibility},
+				{"Clone SSH", cloneURL(r, "ssh")},
+				{"Clone HTTPS", cloneURL(r, "https")},
+			})
 		},
 		Actions: append(cloneItems, remainingActions...),
 	})
@@ -1323,6 +1421,7 @@ func newBranchDetailView(client *bitbucket.Client, ws, repo string, b bitbucket.
 }
 
 // prStateStyle returns a theme-aware foreground style for a PR state string.
+// Used for filter tabs and other places that need just a foreground tint.
 func prStateStyle(state string) lipgloss.Style {
 	switch strings.ToUpper(state) {
 	case "OPEN":
@@ -1336,17 +1435,145 @@ func prStateStyle(state string) lipgloss.Style {
 	}
 }
 
-// prTableRenderer renders the visible PR window as a lipgloss table.
-// It is used as ListConfig.TableRenderer for the PR list view.
-func prTableRenderer(filtered []listItem, cursor, offset, pageSize int) string {
+// prStateBadge renders a compact state pill with background colour for use in tables.
+func prStateBadge(state string) string {
+	badge := lipgloss.NewStyle().Padding(0, 1)
+	switch strings.ToUpper(state) {
+	// Green: successful / active
+	case "OPEN", "SUCCESSFUL", "ACTIVE", "NEW", "RESOLVED", "UNLOCKED":
+		return badge.Background(colGreenBg).Foreground(colGreen).Render(state)
+	// Yellow: in-progress / paused / terminal-but-not-error
+	case "MERGED", "PENDING", "IN_PROGRESS", "RUNNING", "PAUSED", "STOPPED", "ON_HOLD":
+		return badge.Background(colYellowBg).Foreground(colYellow).Render(state)
+	// Red: failed / declined / blocked
+	case "DECLINED", "SUPERSEDED", "FAILED", "ERROR", "INVALID", "LOCKED", "INACTIVE":
+		return badge.Background(colRedBg).Foreground(colRed).Render(state)
+	default:
+		return badge.Foreground(colOverlay0).Render(state)
+	}
+}
+
+// tableWindow is a helper shared by list table renderers that returns the
+// visible window slice and the index of the selected row within it.
+func tableWindow(filtered []listItem, cursor, offset, pageSize int) (window []listItem, selectedInWindow, start, end int) {
 	total := len(filtered)
-	start := offset
-	end := offset + pageSize
+	start = offset
+	end = offset + pageSize
 	if end > total {
 		end = total
 	}
-	window := filtered[start:end]
-	selectedInWindow := cursor - start
+	return filtered[start:end], cursor - start, start, end
+}
+
+// renderSimpleTable wraps lipgloss/table rendering with above/below hints.
+func renderSimpleTable(t *table.Table, total, start, end int) string {
+	var sb strings.Builder
+	sb.WriteString("\n")
+	if start > 0 {
+		sb.WriteString(subtitleStyle.Render(fmt.Sprintf("  ↑ %d more above", start)) + "\n")
+	}
+	sb.WriteString(t.Render())
+	if end < total {
+		sb.WriteString("\n" + subtitleStyle.Render(fmt.Sprintf("  ↓ %d more below", total-end)))
+	}
+	sb.WriteString("\n")
+	return sb.String()
+}
+
+// deploymentsTableRenderer renders the deployments list as a lipgloss table.
+func deploymentsTableRenderer(filtered []listItem, cursor, offset, pageSize int) string {
+	window, selectedInWindow, start, end := tableWindow(filtered, cursor, offset, pageSize)
+	rows := make([][]string, len(window))
+	for i, item := range window {
+		d := item.data.(bitbucket.Deployment)
+		status := d.State.Name
+		if d.State.Status != nil && d.State.Status.Name != "" {
+			status = d.State.Status.Name
+		}
+		date := d.LastUpdateTime
+		if len(date) > isoDateLen {
+			date = date[:isoDateLen]
+		}
+		env := d.Environment.UUID // may be replaced by name at fetch time via item.subtitle
+		if item.subtitle != "" {
+			env = item.subtitle
+		}
+		commit := ""
+		if d.Deployable.Commit != nil {
+			commit = abbrevHash(d.Deployable.Commit.Hash)
+		}
+		rows[i] = []string{prStateBadge(status), date, env, commit}
+	}
+	t := table.New().
+		BorderHeader(true).
+		Border(lipgloss.NormalBorder()).
+		BorderStyle(separatorStyle).
+		Width(maxViewWidth).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			if row == table.HeaderRow {
+				return lipgloss.NewStyle().Foreground(colOverlay0).Bold(true)
+			}
+			if row == selectedInWindow {
+				return lipgloss.NewStyle().Background(colSurface0).Foreground(colText).Bold(true)
+			}
+			if col == 2 {
+				return lipgloss.NewStyle().Foreground(colBlue)
+			}
+			if col == 3 {
+				return lipgloss.NewStyle().Foreground(colOverlay0)
+			}
+			return lipgloss.NewStyle().Foreground(colText)
+		}).
+		Headers("STATUS", "DATE", "ENVIRONMENT", "COMMIT").
+		Rows(rows...)
+	return renderSimpleTable(t, len(filtered), start, end)
+}
+
+// pipelineVarsTableRenderer renders the pipeline variables list as a table.
+func pipelineVarsTableRenderer(filtered []listItem, cursor, offset, pageSize int) string {
+	window, selectedInWindow, start, end := tableWindow(filtered, cursor, offset, pageSize)
+	securedBadge := lipgloss.NewStyle().
+		Background(colRedBg).
+		Foreground(colRed).
+		Padding(0, 1).
+		Render("secured")
+	rows := make([][]string, len(window))
+	for i, item := range window {
+		v := item.data.(bitbucket.PipelineVariable)
+		// Secured values are never returned by the API — show the badge
+		// in the VALUE cell itself instead of a dedicated column.
+		value := truncateStr(v.Value, 60)
+		if v.Secured {
+			value = securedBadge
+		}
+		rows[i] = []string{v.Key, value}
+	}
+	t := table.New().
+		BorderHeader(true).
+		Border(lipgloss.NormalBorder()).
+		BorderStyle(separatorStyle).
+		Width(maxViewWidth).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			if row == table.HeaderRow {
+				return lipgloss.NewStyle().Foreground(colOverlay0).Bold(true)
+			}
+			if row == selectedInWindow {
+				return lipgloss.NewStyle().Background(colSurface0).Foreground(colText).Bold(true)
+			}
+			if col == 0 {
+				return lipgloss.NewStyle().Foreground(colBlue)
+			}
+			return lipgloss.NewStyle().Foreground(colText)
+		}).
+		Headers("KEY", "VALUE").
+		Rows(rows...)
+	return renderSimpleTable(t, len(filtered), start, end)
+}
+
+// prTableRenderer renders the visible PR window as a lipgloss table.
+// It is used as ListConfig.TableRenderer for the PR list view.
+func prTableRenderer(filtered []listItem, cursor, offset, pageSize int) string {
+	window, selectedInWindow, start, end := tableWindow(filtered, cursor, offset, pageSize)
 
 	rows := make([][]string, len(window))
 	for i, item := range window {
@@ -1355,7 +1582,7 @@ func prTableRenderer(filtered []listItem, cursor, offset, pageSize int) string {
 		rows[i] = []string{
 			item.id,
 			truncateStr(item.title, 45),
-			pr.State,
+			prStateBadge(pr.State), // pre-rendered pill; StyleFunc leaves this cell unstyled
 			truncateStr(pr.Author.DisplayName, 16),
 			branch,
 		}
@@ -1373,9 +1600,6 @@ func prTableRenderer(filtered []listItem, cursor, offset, pageSize int) string {
 			if row == selectedInWindow {
 				return lipgloss.NewStyle().Background(colSurface0).Foreground(colText).Bold(true)
 			}
-			if col == 2 { // STATE column
-				return prStateStyle(window[row].data.(bitbucket.PR).State)
-			}
 			if col == 4 { // BRANCH column
 				return lipgloss.NewStyle().Foreground(colBlue)
 			}
@@ -1383,18 +1607,7 @@ func prTableRenderer(filtered []listItem, cursor, offset, pageSize int) string {
 		}).
 		Headers("ID", "TITLE", "STATE", "AUTHOR", "BRANCH").
 		Rows(rows...)
-
-	var sb strings.Builder
-	sb.WriteString("\n")
-	if start > 0 {
-		sb.WriteString(subtitleStyle.Render(fmt.Sprintf("  ↑ %d more above", start)) + "\n")
-	}
-	sb.WriteString(t.Render())
-	if end < total {
-		sb.WriteString("\n" + subtitleStyle.Render(fmt.Sprintf("  ↓ %d more below", total-end)))
-	}
-	sb.WriteString("\n")
-	return sb.String()
+	return renderSimpleTable(t, len(filtered), start, end)
 }
 
 func newPRListView(client *bitbucket.Client, ws, repo string, pageSize int) *listModel {
@@ -1403,6 +1616,7 @@ func newPRListView(client *bitbucket.Client, ws, repo string, pageSize int) *lis
 		Filters:       []string{"OPEN", "MERGED", "DECLINED", "SUPERSEDED"},
 		PageSize:      pageSize,
 		TableRenderer: prTableRenderer,
+		FilterStyle:   prStateStyle,
 		Fetch: func(ctx context.Context, filter string) ([]listItem, error) {
 			prs, err := client.PRs(ws, repo).List(ctx, filter)
 			if err != nil {
@@ -1423,6 +1637,10 @@ func newPRListView(client *bitbucket.Client, ws, repo string, pageSize int) *lis
 
 func newPRDetailView(client *bitbucket.Client, ws, repo string, pr bitbucket.PR, pageSize int) *detailModel {
 	diffKey := key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "diff"))
+
+	// Approve / Merge / Decline are only applicable while the PR is OPEN.
+	// Bitbucket rejects merge/decline on closed PRs and approve is a no-op.
+	closed := strings.ToUpper(pr.State) != "OPEN"
 
 	return newDetailView(DetailConfig{
 		Title: fmt.Sprintf("#%d", pr.ID),
@@ -1467,12 +1685,12 @@ func newPRDetailView(client *bitbucket.Client, ws, repo string, pr bitbucket.PR,
 					}, "Reviewer added")
 				}))
 			}},
-			{Label: "✓ Approve", Style: &actionSuccessStyle, OnSelect: func() tea.Cmd {
+			{Label: "✓ Approve", Style: &actionSuccessStyle, Disabled: closed, OnSelect: func() tea.Cmd {
 				return executeAction(func() error {
 					return client.PRs(ws, repo).Approve(context.Background(), pr.ID)
 				}, fmt.Sprintf("PR #%d approved", pr.ID))
 			}},
-			{Label: "⤓ Merge", Style: &actionWarnStyle, Confirm: &ConfirmConfig{
+			{Label: "⤓ Merge", Style: &actionWarnStyle, Disabled: closed, Confirm: &ConfirmConfig{
 				Message: fmt.Sprintf("Merge PR #%d into %s?", pr.ID, pr.Destination.Branch.Name),
 				OnYes: func() tea.Cmd {
 					return tea.Sequence(
@@ -1483,7 +1701,7 @@ func newPRDetailView(client *bitbucket.Client, ws, repo string, pr bitbucket.PR,
 					)
 				},
 			}},
-			{Label: "✗ Decline", Style: &actionDangerStyle, Confirm: &ConfirmConfig{
+			{Label: "✗ Decline", Style: &actionDangerStyle, Disabled: closed, Confirm: &ConfirmConfig{
 				Message: fmt.Sprintf("Decline PR #%d?", pr.ID),
 				OnYes: func() tea.Cmd {
 					return tea.Sequence(
@@ -1683,9 +1901,9 @@ func newPipelineListView(client *bitbucket.Client, ws, repo string, pageSize int
 				// otherwise show the state badge (IN_PROGRESS/PENDING).
 				var badge string
 				if p.State.Result != nil && p.State.Result.Name != "" {
-					badge = render.StateBadge(p.State.Result.Name)
+					badge = prStateBadge(p.State.Result.Name)
 				} else {
-					badge = render.StateBadge(p.State.Name)
+					badge = prStateBadge(p.State.Name)
 				}
 				items[i] = listItem{id: fmt.Sprintf("#%d", p.BuildNumber), title: badge, subtitle: p.Target.RefName, data: p}
 			}
@@ -1721,9 +1939,9 @@ func newPipelineDetailView(client *bitbucket.Client, ws, repo string, p bitbucke
 					for i, s := range steps {
 						var badge string
 						if s.State.Result != nil && s.State.Result.Name != "" {
-							badge = render.StateBadge(s.State.Result.Name)
+							badge = prStateBadge(s.State.Result.Name)
 						} else {
-							badge = render.StateBadge(s.State.Name)
+							badge = prStateBadge(s.State.Name)
 						}
 						items[i] = listItem{id: s.UUID, title: s.Name, subtitle: badge, data: s}
 					}
@@ -1766,9 +1984,28 @@ func newPipelineDetailView(client *bitbucket.Client, ws, repo string, p bitbucke
 		})
 	}
 
+	// Render State as phase + result pills (e.g. COMPLETED  FAILED).
+	state := prStateBadge(p.State.Name)
+	if p.State.Result != nil && p.State.Result.Name != "" {
+		state += "  " + prStateBadge(p.State.Result.Name)
+	}
+	commit := ""
+	if p.Target.Commit != nil {
+		commit = p.Target.Commit.Hash
+	}
+	content := renderKVBlock([][2]string{
+		{"Build", fmt.Sprintf("#%d", p.BuildNumber)},
+		{"UUID", p.UUID},
+		{"State", state},
+		{"Branch", p.Target.RefName},
+		{"Commit", commit},
+		{"Created", p.CreatedOn},
+		{"Completed", p.CompletedOn},
+	})
+
 	return newDetailView(DetailConfig{
 		Title:   fmt.Sprintf("#%d", p.BuildNumber),
-		Content: render.PipelineDetailString(p),
+		Content: content,
 		Actions: actions,
 	})
 }

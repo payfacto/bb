@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type menuItem struct {
@@ -13,6 +14,10 @@ type menuItem struct {
 	description string
 	onSelect    func() View
 }
+
+// version holds the CLI version for display in the TUI header.
+// Set by Run() from the value passed in by the cmd package.
+var version string
 
 type menuModel struct {
 	items    []menuItem
@@ -56,8 +61,16 @@ func (m *menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *menuModel) View() string {
 	var sb strings.Builder
 	sb.WriteString(headerStyle.Render("bb — Bitbucket Cloud TUI"))
+	if version != "" {
+		sb.WriteString(" ")
+		sb.WriteString(subtitleStyle.Render(version))
+	}
 	sb.WriteString("\n")
-	sb.WriteString(subtitleStyle.Render(fmt.Sprintf("Workspace: %s  Repo: %s", m.ws, m.repoSlug)))
+	valueStyle := lipgloss.NewStyle().Foreground(colBlue).Bold(true)
+	sb.WriteString(subtitleStyle.Render("Workspace: "))
+	sb.WriteString(valueStyle.Render(m.ws))
+	sb.WriteString(subtitleStyle.Render("  Repo: "))
+	sb.WriteString(valueStyle.Render(m.repoSlug))
 	sb.WriteString("\n")
 	sb.WriteString(separatorStyle.Render(strings.Repeat("─", viewWidth)))
 	sb.WriteString("\n\n")

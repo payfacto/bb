@@ -26,10 +26,18 @@ var (
 	client *bitbucket.Client
 )
 
+// Version is the CLI version. Set at build time via:
+//
+//	go build -ldflags "-X 'github.com/payfacto/bb/cmd.Version=v1.2.3'" .
+//
+// Defaults to "dev" for local builds.
+var Version = "dev"
+
 var rootCmd = &cobra.Command{
-	Use:   "bb",
-	Short: "Bitbucket Cloud CLI",
-	Long:  "A CLI for Bitbucket Cloud REST API 2.0. Run 'bb setup' to configure.",
+	Use:     "bb",
+	Short:   "Bitbucket Cloud CLI",
+	Long:    "A CLI for Bitbucket Cloud REST API 2.0. Run 'bb setup' to configure.",
+	Version: Version,
 	// RunE is called when no subcommand is given — launches TUI.
 	// Loads config but skips validation — TUI handles missing config with a setup wizard.
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -56,7 +64,7 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		return tui.Run(client, cfg)
+		return tui.Run(client, cfg, Version)
 	},
 	// PersistentPreRunE runs before every subcommand except those that override it.
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {

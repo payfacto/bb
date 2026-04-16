@@ -8,15 +8,17 @@ const (
 )
 
 var (
-	colBlue     lipgloss.AdaptiveColor
-	colOverlay0 lipgloss.AdaptiveColor
-	colSurface1 lipgloss.AdaptiveColor
-	colSurface0 lipgloss.AdaptiveColor
-	colText     lipgloss.AdaptiveColor
-	colRed      lipgloss.AdaptiveColor
-	colGreen    lipgloss.AdaptiveColor
-	colGreenBg  lipgloss.AdaptiveColor
-	colYellow   lipgloss.AdaptiveColor
+	colBlue     lipgloss.Color
+	colOverlay0 lipgloss.Color
+	colSurface1 lipgloss.Color
+	colSurface0 lipgloss.Color
+	colText     lipgloss.Color
+	colRed      lipgloss.Color
+	colRedBg    lipgloss.Color
+	colGreen    lipgloss.Color
+	colGreenBg  lipgloss.Color
+	colYellow   lipgloss.Color
+	colYellowBg lipgloss.Color
 
 	breadcrumbStyle     lipgloss.Style
 	breadcrumbActive    lipgloss.Style
@@ -45,19 +47,24 @@ func init() {
 }
 
 // applyTheme reassigns all colour and style vars to match the named palette.
+// Colors are resolved to lipgloss.Color (concrete hex strings) using the
+// palette's own isDark flag, bypassing unreliable terminal background detection.
 // It is safe to call at any point during the TUI lifecycle.
 func applyTheme(name string) {
 	pal := paletteFor(name)
+	r := func(p colorPair) lipgloss.Color { return resolve(pal.isDark, p) }
 
-	colBlue = pal.blue
-	colOverlay0 = pal.overlay0
-	colSurface1 = pal.surface1
-	colSurface0 = pal.surface0
-	colText = pal.text
-	colRed = pal.red
-	colGreen = pal.green
-	colGreenBg = pal.greenBg
-	colYellow = pal.yellow
+	colBlue = r(pal.blue)
+	colOverlay0 = r(pal.overlay0)
+	colSurface1 = r(pal.surface1)
+	colSurface0 = r(pal.surface0)
+	colText = r(pal.text)
+	colRed = r(pal.red)
+	colRedBg = r(pal.redBg)
+	colGreen = r(pal.green)
+	colGreenBg = r(pal.greenBg)
+	colYellow = r(pal.yellow)
+	colYellowBg = r(pal.yellowBg)
 
 	breadcrumbStyle = lipgloss.NewStyle().Foreground(colOverlay0)
 	breadcrumbActive = lipgloss.NewStyle().Foreground(colBlue)
