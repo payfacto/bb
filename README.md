@@ -4,9 +4,9 @@
 [![Go](https://img.shields.io/badge/Go-1.25-blue)](go.mod)
 [![Go Report Card](https://goreportcard.com/badge/github.com/payfacto/bb)](https://goreportcard.com/report/github.com/payfacto/bb)
 
-# bb — Bitbucket Cloud CLI
+# bb — Bitbucket Cloud CLI & TUI
 
-A Go CLI for the Bitbucket Cloud REST API v2.0. Designed AI agent consumption, but humans can use it too!
+A Go CLI for the Bitbucket Cloud REST API v2.0. Designed AI agent consumption, but humans can use it too. Now with a fun TUI interface!
 
 > **Disclaimer:** `bb` is an unofficial tool and is not affiliated with or endorsed by Atlassian or Bitbucket.
 
@@ -35,7 +35,7 @@ bb pr get -p 42             # get a specific PR as JSON
 Running `bb` with no arguments launches a full-screen interactive terminal UI.
 
 ```
-bb — Bitbucket Cloud CLI
+bb — Bitbucket Cloud TUI
 Workspace: myworkspace  Repo: myrepo
 ──────────────────────────────────────────────────
 ▸ Pull Requests    List, review, approve, merge PRs
@@ -89,13 +89,16 @@ bb auth logout    # remove stored credentials
 bb auth token     # print raw token (useful for scripts)
 ```
 
-### Option B — App Password
+### Option B — API Token *(replaces App Passwords)*
+
+> **Note:** Bitbucket App Passwords are being phased out by Atlassian. Generate an **API token** (or a scoped token) instead.
+> See [Bitbucket API tokens](https://support.atlassian.com/bitbucket-cloud/docs/api-tokens/) for instructions.
 
 ```bash
 bb setup
 ```
 
-Prompts for workspace, username, and a [Bitbucket App Password](https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/). The app password is stored in the OS keyring (not in `~/.bbcloud.yaml`).
+Prompts for workspace, username, and a Bitbucket API token. The token is stored in the OS keyring (not in `~/.bbcloud.yaml`).
 
 ### CI/CD environments
 
@@ -103,7 +106,7 @@ For environments without an OS keyring (headless Linux, CI):
 
 ```bash
 export BITBUCKET_USER=myusername
-export BITBUCKET_TOKEN=myapppassword
+export BITBUCKET_TOKEN=myapitoken
 bb pr list --workspace myws --repo myrepo
 ```
 
@@ -306,9 +309,137 @@ Key notes:
 ## Development
 
 ```bash
-go build -o bb .       # build
-go test ./...          # run all tests
+go build -o bb .          # build (version reports as "dev")
+go test ./...             # run all tests
 go test ./pkg/bitbucket/  # client tests only
 ```
 
 Tests use `net/http/httptest` — no external API calls required.
+
+## For Maintainers
+
+### Version info
+
+`bb` embeds a version string via Go's `-ldflags -X`. The variable lives at
+`github.com/payfacto/bb/cmd.Version` and defaults to `"dev"` for plain
+`go build` invocations.
+
+Check the compiled version:
+
+```bash
+bb --version
+# bb version v1.2.3
+```
+
+The version is also shown in the TUI home header (`bb — Bitbucket Cloud TUI v1.2.3`).
+
+### Building with a version stamp
+
+The `Makefile` derives the version from the nearest git tag:
+
+```bash
+make build        # -> ./bb, version from `git describe --tags --always --dirty`
+make install      # installs to $GOPATH/bin with the same version
+make test         # go test ./...
+make clean        # removes bb / bb.exe
+```
+
+Override the version explicitly if needed:
+
+```bash
+make build VERSION=v1.2.3
+```
+
+Equivalent raw `go build` command (what `make build` runs under the hood):
+
+```bash
+go build -ldflags "-X 'github.com/payfacto/bb/cmd.Version=v1.2.3'" -o bb .
+```
+
+### Cutting a release (step-by-step)
+
+Releases are fully automated by GitHub Actions
+(`.github/workflows/release.yml`) + [GoReleaser](https://goreleaser.com/)
+(`.goreleaser.yaml`). Pushing a tag that starts with `v` triggers a build for
+Linux/macOS/Windows (amd64 + arm64), uploads the archives to a GitHub Release,
+and bumps the [Homebrew tap](https://github.com/payfacto/homebrew-tap).
+
+Dummy-proof checklist:
+
+1. **Make sure `main` is clean and green.**
+   ```bash
+   git checkout main
+   git pull
+   go test ./...
+   ```
+
+2. **Pick the next version.** We use [Semantic Versioning](https://semver.org/):
+   - `vMAJOR.MINOR.PATCH` — e.g. `v1.2.3`
+   - Breaking changes → bump MAJOR
+   - New features → bump MINOR
+   - Bug fixes only → bump PATCH
+   - **The `v` prefix is required** (GoReleaser and the release workflow both
+     key off tags matching `v*`).
+
+   See existing tags for reference:
+   ```bash
+   git tag --list --sort=-v:refname | head
+   ```
+
+3. **Create an annotated tag.** Annotated tags (`-a`) carry a message and
+   author and are what GoReleaser expects:
+   ```bash
+   git tag -a v1.2.3 -m "Release v1.2.3"
+   ```
+
+4. **Push the tag** (this is what fires the workflow):
+   ```bash
+   git push origin v1.2.3
+   ```
+   You can also push all tags at once with `git push --tags`, but pushing the
+   specific tag is safer.
+
+5. **Watch the build.** Go to the repo's **Actions** tab on GitHub. The
+   `Release` workflow should run `go test`, then `goreleaser release --clean`.
+   When it's green, a new entry appears under **Releases** with platform
+   archives and a `checksums.txt`.
+
+6. **Verify the published version:**
+   ```bash
+   # via Homebrew (macOS / Linux)
+   brew update && brew upgrade bb
+   bb --version
+
+   # or download an archive from the GitHub Release page and run it
+   ```
+
+### Fixing a broken tag
+
+If something went wrong and the release needs redoing for the *same* version
+(rare — prefer bumping PATCH instead):
+
+```bash
+git tag -d v1.2.3                      # delete locally
+git push --delete origin v1.2.3        # delete on remote
+# also delete the GitHub Release via the UI, then re-tag and re-push
+```
+
+### CI secrets
+
+The release workflow needs `HOMEBREW_TAP_TOKEN` configured as a repo secret —
+a fine-grained PAT with `contents:write` on `payfacto/homebrew-tap`. Without
+it the Homebrew publish step fails but the GitHub Release itself still
+succeeds.
+
+### Version-stamp wiring (how it plumbs through the code)
+
+- `cmd/root.go` declares `var Version = "dev"` and assigns it to
+  `rootCmd.Version` so `bb --version` works.
+- `cmd.Execute()` passes `Version` into `tui.Run(client, cfg, version)`.
+- `cmd/tui/run.go` stores it in a package-level `version` var.
+- `cmd/tui/menu.go` renders it in the home header using `subtitleStyle`.
+- `.goreleaser.yaml` injects the tag value via
+  `-X 'github.com/payfacto/bb/cmd.Version=v{{.Version}}'` at release time.
+
+If you rename the variable or move it to another package, update **both** the
+`Makefile` and `.goreleaser.yaml` to match.

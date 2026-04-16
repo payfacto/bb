@@ -5,13 +5,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-go build -o bb .          # Build the CLI binary
+go build -o bb .          # Build the CLI binary (version = "dev")
+make build                # Build with git-derived version stamp
+make test                 # go test ./...
 go test ./...             # Run all tests
 go test ./pkg/bitbucket/  # Run client-layer tests only
 go test -run TestName ./pkg/bitbucket/  # Run a single test
 ```
 
-No Makefile or linter is configured. Standard `go fmt` and `go vet` apply.
+Standard `go fmt` and `go vet` apply. No linter is configured.
+
+## Versioning
+
+Version is injected via `-ldflags -X 'github.com/payfacto/bb/cmd.Version=...'`.
+
+- `cmd/root.go` defines `var Version = "dev"` and wires it into `rootCmd.Version`
+  (enables `bb --version`).
+- `cmd.Execute` forwards `Version` to `tui.Run(client, cfg, version)`; the TUI
+  stashes it in the `tui.version` package-level var and renders it in the home
+  header via `subtitleStyle` (`cmd/tui/menu.go`).
+- `Makefile` derives the version from `git describe --tags --always --dirty`.
+- `.goreleaser.yaml` injects `v{{.Version}}` at release time; the
+  `.github/workflows/release.yml` workflow runs GoReleaser on any pushed tag
+  matching `v*`.
+
+When renaming/moving the `Version` variable, update both `Makefile` and
+`.goreleaser.yaml` ldflags targets.
 
 ## Architecture
 

@@ -24,17 +24,20 @@ bb auth logout   # remove stored credentials
 bb auth token    # print raw token for scripts
 ```
 
-### Option B — App Password
+### Option B — API Token *(replaces App Passwords)*
+
+App Passwords are being phased out by Atlassian. Use an API token or scoped token instead.
+See: https://support.atlassian.com/bitbucket-cloud/docs/api-tokens/
 
 ```bash
-bb setup         # interactive wizard, stores credentials in OS keyring
+bb setup         # interactive wizard, stores API token in OS keyring
 ```
 
 ### Option C — Environment variables (CI/CD)
 
 ```bash
 export BITBUCKET_USER=myusername
-export BITBUCKET_TOKEN=myapppassword
+export BITBUCKET_TOKEN=myapitoken
 bb pr list -w myws -r myrepo
 ```
 

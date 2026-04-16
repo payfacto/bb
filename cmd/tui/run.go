@@ -15,7 +15,8 @@ import (
 
 // Run starts the TUI application. If client is nil (no credentials), the setup
 // wizard is shown first.
-func Run(client *bitbucket.Client, cfg *config.Config) error {
+func Run(client *bitbucket.Client, cfg *config.Config, ver string) error {
+	version = ver
 	if !term.IsTerminal(int(os.Stdout.Fd())) {
 		return fmt.Errorf("TUI requires a terminal — use 'bb <command>' for non-interactive use")
 	}

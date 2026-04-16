@@ -39,6 +39,10 @@ type ListConfig struct {
 	// single rendered block. It receives the full filtered slice plus
 	// cursor/offset/pageSize so it can handle windowing and selection itself.
 	TableRenderer func(filtered []listItem, cursor, offset, pageSize int) string
+	// FilterStyle, if set, returns a style for a filter tab label. Applied to
+	// both active and inactive tabs so callers can color-code filter values.
+	// The active tab gets a background highlight on top; inactive gets dimmed.
+	FilterStyle func(filter string) lipgloss.Style
 }
 
 const defaultPageSize = 10
@@ -236,9 +240,19 @@ func (m *listModel) View() string {
 	if len(m.cfg.Filters) > 0 {
 		for i, f := range m.cfg.Filters {
 			if i == m.filter {
-				sb.WriteString(filterActiveStyle.Render(f))
+				if m.cfg.FilterStyle != nil {
+					st := m.cfg.FilterStyle(f)
+					sb.WriteString(st.Background(colSurface0).Bold(true).Padding(0, 1).Render(f))
+				} else {
+					sb.WriteString(filterActiveStyle.Render(f))
+				}
 			} else {
-				sb.WriteString(filterInactiveStyle.Render(f))
+				if m.cfg.FilterStyle != nil {
+					st := m.cfg.FilterStyle(f)
+					sb.WriteString(st.Faint(true).Padding(0, 1).Render(f))
+				} else {
+					sb.WriteString(filterInactiveStyle.Render(f))
+				}
 			}
 			if i < len(m.cfg.Filters)-1 {
 				sb.WriteString(separatorStyle.Render(" | "))
