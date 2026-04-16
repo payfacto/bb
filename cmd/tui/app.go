@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/payfacto/bb/internal/history"
 )
@@ -148,23 +149,36 @@ func (a *appModel) View() string {
 	sb.WriteString("\n")
 	sb.WriteString(separatorStyle.Render(strings.Repeat("─", maxW)))
 	sb.WriteString("\n")
-	sb.WriteString(a.renderHelpBar())
+	sb.WriteString(a.renderHelpBar(maxW))
 
 	return sb.String()
 }
 
-func (a *appModel) renderHelpBar() string {
+func (a *appModel) renderHelpBar(maxW int) string {
 	top := a.stack.Top()
 	if top == nil {
 		return ""
 	}
-	bindings := top.ShortHelp()
+	sep := helpSepStyle.String()
+	sepW := lipgloss.Width(sep)
+
 	var parts []string
-	for _, b := range bindings {
+	usedW := 0
+	for _, b := range top.ShortHelp() {
 		if b.Help().Key == "" {
 			continue
 		}
-		parts = append(parts, helpKeyStyle.Render(b.Help().Key)+" "+helpDescStyle.Render(b.Help().Desc))
+		part := helpKeyStyle.Render(b.Help().Key) + " " + helpDescStyle.Render(b.Help().Desc)
+		partW := lipgloss.Width(part)
+		needed := partW
+		if len(parts) > 0 {
+			needed += sepW
+		}
+		if usedW+needed > maxW {
+			break
+		}
+		parts = append(parts, part)
+		usedW += needed
 	}
-	return strings.Join(parts, helpSepStyle.String())
+	return strings.Join(parts, sep)
 }

@@ -1370,11 +1370,22 @@ func prTableRenderer(filtered []listItem, cursor, offset, pageSize int) string {
 			if row == table.HeaderRow {
 				return lipgloss.NewStyle().Foreground(colOverlay0).Bold(true)
 			}
+			pr := window[row].data.(bitbucket.PR)
+			closed := strings.ToUpper(pr.State) == "MERGED" ||
+				strings.ToUpper(pr.State) == "DECLINED" ||
+				strings.ToUpper(pr.State) == "SUPERSEDED"
 			if row == selectedInWindow {
-				return lipgloss.NewStyle().Background(colSurface0).Foreground(colText).Bold(true)
+				s := lipgloss.NewStyle().Background(colSurface0).Foreground(colText).Bold(true)
+				if col == 1 && closed {
+					return s.Strikethrough(true)
+				}
+				return s
+			}
+			if col == 1 && closed {
+				return lipgloss.NewStyle().Foreground(colOverlay0).Strikethrough(true)
 			}
 			if col == 2 { // STATE column
-				return prStateStyle(window[row].data.(bitbucket.PR).State)
+				return prStateStyle(pr.State)
 			}
 			if col == 4 { // BRANCH column
 				return lipgloss.NewStyle().Foreground(colBlue)
