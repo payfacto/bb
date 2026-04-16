@@ -22,8 +22,12 @@ func WarmMarkdownRenderer() {
 }
 
 func buildRenderer() {
+	// WithAutoStyle() queries the terminal background via OSC; on some terminals
+	// (notably Windows) it may incorrectly detect "light" mode, producing
+	// low-contrast link colours (purple backgrounds). We use the "dark" preset
+	// directly since bb is a TUI app that ships its own dark-first palette.
 	r, err := glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
+		glamour.WithStandardStyle("dark"),
 		glamour.WithWordWrap(markdownWordWrap),
 	)
 	if err == nil {

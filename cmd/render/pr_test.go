@@ -98,10 +98,11 @@ func TestPRDetailString_withDescription(t *testing.T) {
 	pr.Description = "## Summary\n\nSome changes here."
 
 	out := render.PRDetailString(pr)
-	if !strings.Contains(out, "Summary") {
+	plain := stripANSI(out)
+	if !strings.Contains(plain, "Summary") {
 		t.Errorf("expected markdown heading text in output, got:\n%s", out)
 	}
-	if !strings.Contains(out, "Some changes here") {
+	if !strings.Contains(plain, "Some changes here") {
 		t.Errorf("expected description body in output, got:\n%s", out)
 	}
 }
