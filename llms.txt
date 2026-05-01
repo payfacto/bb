@@ -6,6 +6,14 @@ It is designed to be used by AI agents, but humans can use it too!
 ## Installation
 
 ```bash
+# macOS / Linux via Homebrew
+brew tap payfacto/tap
+brew install payfacto/tap/bb
+
+# Pre-built binaries (Linux/macOS/Windows, amd64+arm64)
+# Download an archive from https://github.com/payfacto/bb/releases
+# and place the `bb` binary on your PATH.
+
 # Go developers
 go install github.com/payfacto/bb@latest
 
