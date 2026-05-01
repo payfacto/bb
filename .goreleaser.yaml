@@ -43,6 +43,7 @@ brews:
   - repository:
       owner: payfacto
       name: homebrew-tap
+    directory: Formula
     homepage: https://github.com/payfacto/bb
     description: Bitbucket Cloud CLI — manage PRs, pipelines, branches, and more
     license: MIT
