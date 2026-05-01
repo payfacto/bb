@@ -12,11 +12,25 @@ A Go CLI for the Bitbucket Cloud REST API v2.0. Designed AI agent consumption, b
 
 ## Install
 
+### Homebrew (macOS / Linux)
+
 ```bash
-# From source
+brew tap payfacto/tap
+brew install payfacto/tap/bb
+```
+
+### Pre-built binaries
+
+Download an archive for your OS and architecture from the
+[Releases page](https://github.com/payfacto/bb/releases), extract it, and
+place the `bb` binary somewhere on your `PATH`.
+
+### From source
+
+```bash
 go install github.com/payfacto/bb@latest
 
-# Build locally
+# Or build locally
 go build -o bb .
 ```
 
