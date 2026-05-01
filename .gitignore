@@ -33,7 +33,13 @@ Thumbs.db
 
 # AI / Claude
 docs/
+.agent/
 .claude/
+.superpowers/
+AGENTS.md
+HANDOFF.md
+TECHSTACK.md
+*REVIEW*.md
 
 # Git worktrees
 .worktrees/
