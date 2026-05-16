@@ -23,7 +23,7 @@ func TestPRs_List(t *testing.T) {
 		}
 		mustEncodeJSON(t, w, map[string]any{"values": want})
 	}))
-	got, err := c.PRs("ws", "repo").List(context.Background(), "OPEN")
+	got, err := c.PRs("ws", "repo").List(context.Background(), "OPEN", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -32,6 +32,49 @@ func TestPRs_List(t *testing.T) {
 	}
 	if got[0].ID != 1 || got[1].ID != 2 {
 		t.Errorf("unexpected PRs: %+v", got)
+	}
+}
+
+func TestPRs_List_SourceBranchFilter(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if got, want := q.Get("state"), "OPEN"; got != want {
+			t.Errorf("state: got %q, want %q", got, want)
+		}
+		if got, want := q.Get("q"), `source.branch.name="feat/x"`; got != want {
+			t.Errorf("q: got %q, want %q", got, want)
+		}
+		mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.PR{{ID: 7}}})
+	}))
+	got, err := c.PRs("ws", "repo").List(context.Background(), "OPEN", "feat/x")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != 7 {
+		t.Errorf("unexpected PRs: %+v", got)
+	}
+}
+
+func TestPRs_Create_Draft(t *testing.T) {
+	var receivedBody map[string]any
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&receivedBody); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		w.WriteHeader(http.StatusCreated)
+		mustEncodeJSON(t, w, bitbucket.PR{ID: 1})
+	}))
+	input := bitbucket.CreatePRInput{
+		Title:       "draft pr",
+		Source:      bitbucket.NewEndpoint("feature/foo"),
+		Destination: bitbucket.NewEndpoint("main"),
+		Draft:       true,
+	}
+	if _, err := c.PRs("ws", "repo").Create(context.Background(), input); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := receivedBody["draft"], true; got != want {
+		t.Errorf("draft: got %v, want %v", got, want)
 	}
 }
 

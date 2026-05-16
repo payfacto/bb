@@ -93,6 +93,7 @@ type CreatePRInput struct {
 	Source            Endpoint `json:"source"`
 	Destination       Endpoint `json:"destination"`
 	CloseSourceBranch bool     `json:"close_source_branch"`
+	Draft             bool     `json:"draft,omitempty"`
 }
 
 // AddCommentInput holds the request body for adding a comment.
