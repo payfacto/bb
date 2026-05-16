@@ -15,7 +15,10 @@ var prCmd = &cobra.Command{
 	Short: "Manage pull requests",
 }
 
-var prListState string
+var (
+	prListState        string
+	prListSourceBranch string
+)
 
 var prListCmd = &cobra.Command{
 	Use:   "list",
@@ -25,7 +28,7 @@ var prListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		prs, err := client.PRs(ws, r).List(context.Background(), prListState)
+		prs, err := client.PRs(ws, r).List(context.Background(), prListState, prListSourceBranch)
 		if err != nil {
 			return err
 		}
@@ -57,6 +60,7 @@ var (
 	prCreateToBranch    string
 	prCreateDescription string
 	prCreateCloseSource bool
+	prCreateDraft       bool
 )
 
 var prCreateCmd = &cobra.Command{
@@ -73,6 +77,7 @@ var prCreateCmd = &cobra.Command{
 			Source:            bitbucket.NewEndpoint(prCreateFromBranch),
 			Destination:       bitbucket.NewEndpoint(prCreateToBranch),
 			CloseSourceBranch: prCreateCloseSource,
+			Draft:             prCreateDraft,
 		}
 		pr, err := client.PRs(ws, r).Create(context.Background(), input)
 		if err != nil {
@@ -227,6 +232,8 @@ func init() {
 
 	prListCmd.Flags().StringVarP(&prListState, "state", "s", "OPEN",
 		"filter by state: OPEN, MERGED, DECLINED, SUPERSEDED")
+	prListCmd.Flags().StringVar(&prListSourceBranch, "source-branch", "",
+		"filter to PRs whose source branch matches this name exactly")
 
 	prGetCmd.Flags().IntVarP(&prGetID, "pr-id", "p", 0, "pull request ID")
 	prGetCmd.MarkFlagRequired("pr-id")
@@ -237,6 +244,8 @@ func init() {
 	prCreateCmd.Flags().StringVarP(&prCreateDescription, "description", "d", "", "PR description")
 	prCreateCmd.Flags().BoolVar(&prCreateCloseSource, "close-source-branch", false,
 		"close source branch after merge")
+	prCreateCmd.Flags().BoolVar(&prCreateDraft, "draft", false,
+		"create as a draft PR (no reviewer notifications)")
 	prCreateCmd.MarkFlagRequired("title")
 	prCreateCmd.MarkFlagRequired("from-branch")
 	prCreateCmd.MarkFlagRequired("to-branch")

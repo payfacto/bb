@@ -78,7 +78,7 @@ bb                    (no args → launches TUI)
 Resources are scoped structs returned by the client:
 
 ```go
-client.PRs(workspace, repo).List(ctx, state)
+client.PRs(workspace, repo).List(ctx, state, sourceBranch)
 client.Comments(workspace, repo, prID).Add(ctx, input)
 client.Tasks(workspace, repo, prID).Complete(ctx, taskID)
 ```

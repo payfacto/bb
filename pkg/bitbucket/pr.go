@@ -18,8 +18,13 @@ func (r *PRResource) prPath(prID int) string {
 }
 
 // List returns pull requests filtered by state (e.g. "OPEN", "MERGED").
-func (r *PRResource) List(ctx context.Context, state string) ([]PR, error) {
+// If sourceBranch is non-empty, results are further filtered to PRs whose
+// source branch name matches it exactly (Bitbucket BBQL).
+func (r *PRResource) List(ctx context.Context, state, sourceBranch string) ([]PR, error) {
 	q := url.Values{"state": {state}, "pagelen": {pagelenDefault}}
+	if sourceBranch != "" {
+		q.Set("q", fmt.Sprintf(`source.branch.name="%s"`, sourceBranch))
+	}
 	data, err := r.client.do(ctx, "GET", repoPath(r.workspace, r.repo)+"/pullrequests", nil, q)
 	if err != nil {
 		return nil, err
