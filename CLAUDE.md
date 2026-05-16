@@ -99,6 +99,18 @@ The generic `decode[T]()` function handles all JSON unmarshaling. HTTP errors (4
 
 Tests live only in `pkg/bitbucket/`. They use stdlib `net/http/httptest` via `newTestClient()` (in `testhelpers_test.go`) — no mock frameworks. `cmd/` is intentionally untested (thin Cobra wiring).
 
+### Documentation sync — REQUIRED on every command change
+
+Whenever a command or flag is **added, removed, renamed, or its signature changes**, update **all three** of these in the same commit:
+
+1. **`README.md`** — the "Commands" reference block (look for `bb pr list ...`, `bb pr create ...`, etc.) and any narrative examples that reference the changed shape.
+2. **`llms.txt`** — the condensed command reference. Keep flag shapes in sync with README; this file is what agents read.
+3. **`CLAUDE.md`** (this file) — the "Command hierarchy" tree near the top and any code example using the affected client method.
+
+Also update the relevant example in the "Client pattern" code block if a `pkg/bitbucket` method signature changed (e.g. `client.PRs(ws, repo).List(ctx, state, sourceBranch)`).
+
+PRs that touch `cmd/` or `pkg/bitbucket/*.go` public APIs without updating these three files should be considered incomplete.
+
 ## Key dependencies
 
 Direct dependencies only (`go.mod` `require` block):

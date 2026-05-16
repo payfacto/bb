@@ -157,9 +157,9 @@ bb pr list --workspace myws --repo myrepo
 ### Pull Requests
 
 ```
-bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED]
+bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED] [--source-branch BRANCH]
 bb pr get -p ID
-bb pr create --title "..." --from-branch BRANCH --to-branch BRANCH [-d "..."] [--close-source-branch]
+bb pr create --title "..." --from-branch BRANCH --to-branch BRANCH [-d "..."] [--close-source-branch] [--draft]
 bb pr diff -p ID
 bb pr approve -p ID
 bb pr merge -p ID [--strategy merge_commit|squash|fast_forward]
