@@ -83,7 +83,8 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 
 	favKey := key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "favourite"))
 	cacheKey := "repos:" + ws
-	histPath := history.HistoryPath(config.DefaultPath())
+	cfgPath := config.DefaultPath()
+	histPath := history.HistoryPath(cfgPath)
 
 	items := []menuItem{
 		{label: "Projects", description: "Workspace projects", onSelect: func() View {
@@ -174,7 +175,7 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 										repoCfg := *cfg
 										repoCfg.Repo = r.Slug
 										navCmd := pushViewCmd(newMenuModel(ws, r.Slug, buildMenuItems(client, &repoCfg, hist, cache)))
-										return tea.Batch(navCmd, saveHistoryCmd(hist, histPath))
+										return tea.Batch(navCmd, saveHistoryCmd(hist, histPath), saveConfigCmd(&repoCfg, cfgPath))
 									},
 								}))
 							}},
@@ -239,7 +240,7 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 					repoCfg := *cfg
 					repoCfg.Repo = r.Slug
 					navCmd := pushViewCmd(newMenuModel(ws, r.Slug, buildMenuItems(client, &repoCfg, hist, cache)))
-					return tea.Batch(navCmd, saveHistoryCmd(hist, histPath))
+					return tea.Batch(navCmd, saveHistoryCmd(hist, histPath), saveConfigCmd(&repoCfg, cfgPath))
 				},
 			})
 		}},
@@ -947,6 +948,17 @@ func saveHistoryCmd(hist *history.History, path string) tea.Cmd {
 	return func() tea.Msg {
 		if err := hist.Save(path); err != nil {
 			return actionResultMsg{success: false, message: fmt.Sprintf("save history: %v", err)}
+		}
+		return nil
+	}
+}
+
+// saveConfigCmd returns a tea.Cmd that persists cfg to path and reports any
+// error via actionResultMsg so it surfaces in the TUI status bar.
+func saveConfigCmd(cfg *config.Config, path string) tea.Cmd {
+	return func() tea.Msg {
+		if err := cfg.Save(path); err != nil {
+			return actionResultMsg{success: false, message: fmt.Sprintf("save config: %v", err)}
 		}
 		return nil
 	}
