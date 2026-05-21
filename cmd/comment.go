@@ -69,13 +69,25 @@ var commentAddCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		input := bitbucket.AddCommentInput{
-			Content: bitbucket.Content{Raw: commentAddText},
+		var input bitbucket.AddCommentInput
+		consumed, err := stdinInputOr(&input, func() bitbucket.AddCommentInput {
+			body := bitbucket.AddCommentInput{
+				Content: bitbucket.Content{Raw: commentAddText},
+			}
+			if commentAddFile != "" {
+				body.Inline = &bitbucket.Inline{
+					Path: commentAddFile,
+					To:   commentAddLine,
+				}
+			}
+			return body
+		})
+		if err != nil {
+			return err
 		}
-		if commentAddFile != "" {
-			input.Inline = &bitbucket.Inline{
-				Path: commentAddFile,
-				To:   commentAddLine,
+		if !consumed {
+			if err := requireFlag("text", commentAddText); err != nil {
+				return err
 			}
 		}
 		c, err := client.Comments(ws, r, commentAddPRID).Add(context.Background(), input)
@@ -130,7 +142,7 @@ func init() {
 	commentAddCmd.Flags().StringVar(&commentAddFile, "file", "", "file path for inline comment")
 	commentAddCmd.Flags().IntVar(&commentAddLine, "line", 0, "line number for inline comment")
 	commentAddCmd.MarkFlagRequired("pr-id")
-	commentAddCmd.MarkFlagRequired("text")
+	// no MarkFlagRequired on "text" — comment add accepts JSON on stdin.
 
 	commentReplyCmd.Flags().IntVarP(&commentReplyPRID, "pr-id", "p", 0, "pull request ID")
 	commentReplyCmd.Flags().IntVarP(&commentReplyCommentID, "comment-id", "c", 0, "parent comment ID")

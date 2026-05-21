@@ -58,15 +58,45 @@ bb pr list -w myws -r myrepo
 All commands accept:
 - `-w`, `--workspace SLUG` — Bitbucket workspace slug
 - `-r`, `--repo SLUG` — repository slug
-- `-f`, `--format json|text` — output format (default: json)
+- `-f`, `--format json|text` — output format (default: json; piped stdout forces json)
 - `--config PATH` — path to config file
+- `--describe` — emit a JSON capability manifest (commands, flags, schemas) and exit (no auth required)
+
+## Capability manifest (`--describe`)
+
+`bb --describe` prints a JSON document describing every command, its flags, its action class (`read | write | destructive`), an example invocation, the output Go type name, and an auto-generated JSON Schema for both output and stdin input (when supported). Use this to discover the surface programmatically instead of parsing `--help`. The manifest is sorted by command path and stable across runs.
+
+The top-level `manifest_schema_version` field (currently `"1"`) is bumped independently of the CLI version when the manifest shape changes. Branch on it, not on the CLI's semver. Stdin entries carry a `behavior` enum (`"replaces_flags"` today) describing how piped JSON interacts with flags.
+
+## Error format
+
+On failure, `bb` writes a single JSON object to **stderr** and exits non-zero. stdout is never mixed with errors. The shape is:
+
+```json
+{"error": {"code": "not_found", "message": "HTTP 404: ...", "details": {"http_status": 404, "response_body": "..."}}}
+```
+
+Codes are a fixed enum: `config_missing`, `auth_failed`, `not_found`, `validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`.
+
+For API errors, `details.response_body` is **redacted by default** (only `details.response_body_redacted: true` appears) because Bitbucket 4xx responses sometimes echo back request fragments. Set `BB_DEBUG=1` to include the raw response body for local troubleshooting. For required-flag failures, `details.missing_flags` is a `[]string` of the flags Cobra is complaining about.
+
+## Stdin input
+
+Create and update commands accept a JSON body on stdin as an alternative to flags. When stdin is piped and non-empty, it replaces all flag values (no merging — `stdin.behavior` enum is `"replaces_flags"`). Stdin input is capped at 1 MiB; oversized input is rejected as `validation_failed`. The manifest's `stdin.schema` field shows the expected shape. Examples:
+
+```bash
+echo '{"title":"fix","source":{"branch":{"name":"feat/x"}},"destination":{"branch":{"name":"main"}}}' | bb pr create
+echo '{"key":"API_KEY","value":"secret","secured":true}' | bb pipeline-var create
+```
+
+Stdin-capable commands: `pr create`, `pr comment add`, `branch create`, `tag create`, `repo create`, `repo update`, `repo fork`, `issue create`, `webhook create`, `deploy-key add`, `pipeline-var create`, `restriction create`.
 
 ## Commands
 
 ### Pull Requests
 
 ```
-bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED] [--source-branch BRANCH]
+bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED] [--source-branch BRANCH] [--sort FIELD]
 bb pr get -p ID
 bb pr create -T "..." --from-branch BRANCH --to-branch BRANCH [-d "..."] [--close-source-branch] [--draft]
 bb pr diff -p ID
@@ -98,7 +128,7 @@ bb pr task reopen -p ID --task-id ID
 ### Pipelines
 
 ```
-bb pipeline list
+bb pipeline list [--sort FIELD]
 bb pipeline get -u UUID
 bb pipeline trigger -b BRANCH
 bb pipeline stop -u UUID
@@ -109,7 +139,7 @@ bb pipeline log -u UUID --step-uuid UUID
 ### Branches
 
 ```
-bb branch list
+bb branch list [--sort FIELD]
 bb branch create -n BRANCH --from COMMIT_OR_BRANCH
 bb branch delete -n BRANCH
 ```
@@ -117,7 +147,7 @@ bb branch delete -n BRANCH
 ### Tags
 
 ```
-bb tag list
+bb tag list [--sort FIELD]
 bb tag create -n TAG --from COMMIT
 bb tag delete -n TAG
 ```
@@ -125,7 +155,7 @@ bb tag delete -n TAG
 ### Commits
 
 ```
-bb commit list -b BRANCH
+bb commit list -b BRANCH [--sort FIELD]
 bb commit get -x HASH
 bb file get --ref REF --path PATH
 ```
@@ -133,7 +163,7 @@ bb file get --ref REF --path PATH
 ### Repositories
 
 ```
-bb repo list
+bb repo list [--sort FIELD]
 bb repo get SLUG
 bb repo update SLUG [--description "..."] [--default-branch BRANCH]
 bb repo delete SLUG
@@ -144,7 +174,7 @@ bb repo fork SLUG [--name "..."] [--workspace SLUG]
 ### Issues
 
 ```
-bb issue list
+bb issue list [--sort FIELD]
 bb issue get -i ID
 bb issue create -T "..." [-d "..."] [-k bug|enhancement|proposal|task] [--priority trivial|minor|major|critical|blocker]
 bb issue close -i ID
@@ -213,16 +243,20 @@ bb download delete --name FILENAME
 
 ## Output
 
-Default output is newline-terminated JSON (machine-readable).
+Default output is newline-terminated JSON on **stdout** (machine-readable).
 Pass `-f text` for human-readable styled terminal output.
 `bb pr diff` and `bb pipeline log` always output plain text regardless of `-f`.
+When stdout is not a TTY, `-f` defaults to `json` regardless of any future default change.
+Errors are emitted as JSON on **stderr** — see "Error format" above.
 
 ## Notes for AI agents
 
 - Always use `bb <command>` with explicit subcommands. Running bare `bb` launches an interactive TUI meant for humans — agents should never do this.
 - All list commands return JSON arrays; single-resource commands return a JSON object.
 - IDs are integers for PRs, tasks, issues, deploy keys, and restrictions. UUIDs (with `{}` braces) for pipelines, steps, environments, and webhooks.
-- The CLI exits non-zero on API errors and prints the error to stderr.
+- The CLI exits non-zero on errors and writes structured JSON `{"error": {"code", "message", "details"}}` to stderr (see "Error format").
+- Use `bb --describe` to enumerate every command, flag, action class, and JSON Schema in a single call.
+- `--sort` is available on `pr list`, `pipeline list`, `branch list`, `tag list`, `commit list`, `repo list`, and `issue list`. Other list commands do not accept `--sort` because the underlying Bitbucket endpoint does not — sort their JSON output client-side if you need deterministic ordering.
 - Workspace and repo can be omitted from flags if set in `~/.bbcloud.yaml`.
 - All long flags have short equivalents: `-p` (pr-id), `-s` (state), `-b` (branch), `-u` (pipeline-uuid), `-c` (comment-id), `-t` (text), `-T` (title), `-d` (description), `-n` (name), `-i` (id), `-k` (kind or key), `-v` (value), `-x` (hash).
 - Pipeline variable UUIDs are returned as strings with `{}` braces (e.g. `{abc-123}`); pass the full UUID including braces to `--uuid`.

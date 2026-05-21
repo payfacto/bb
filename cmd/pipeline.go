@@ -14,6 +14,8 @@ var pipelineCmd = &cobra.Command{
 	Short: "Manage Bitbucket Pipelines",
 }
 
+var pipelineListSort string
+
 var pipelineListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List recent pipelines, newest first",
@@ -22,7 +24,7 @@ var pipelineListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		pipelines, err := client.Pipelines(ws, repo).List(context.Background())
+		pipelines, err := client.Pipelines(ws, repo).List(context.Background(), pipelineListSort)
 		if err != nil {
 			return err
 		}
@@ -129,6 +131,9 @@ var pipelineLogCmd = &cobra.Command{
 }
 
 func init() {
+	pipelineListCmd.Flags().StringVar(&pipelineListSort, "sort", "",
+		"sort by Bitbucket field, prefix with - for descending (default -created_on)")
+
 	pipelineGetCmd.Flags().StringVarP(&pipelineGetUUID, "pipeline-uuid", "u", "", "pipeline UUID (required)")
 	pipelineGetCmd.MarkFlagRequired("pipeline-uuid")
 

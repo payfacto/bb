@@ -14,11 +14,11 @@ import (
 )
 
 const (
-	defaultAPIBase    = "https://api.bitbucket.org/2.0"
+	defaultAPIBase     = "https://api.bitbucket.org/2.0"
 	defaultHTTPTimeout = 30 * time.Second
-	pagelenDefault    = "50"  // standard page size for most list endpoints
-	pagelenSmall      = "25"  // reduced page size for heavy payloads (pipelines, commits, repos)
-	pagelenLarge      = "100" // larger page size for lightweight items (comments, tasks)
+	pagelenDefault     = "50"  // standard page size for most list endpoints
+	pagelenSmall       = "25"  // reduced page size for heavy payloads (pipelines, commits, repos)
+	pagelenLarge       = "100" // larger page size for lightweight items (comments, tasks)
 )
 
 // Client is the Bitbucket Cloud HTTP client.
@@ -33,9 +33,9 @@ type Client struct {
 // New creates a Client from cfg using the live Bitbucket API.
 func New(cfg *config.Config) *Client {
 	return &Client{
-		baseURL:  defaultAPIBase,
-		username: cfg.Username,
-		token:    cfg.Token,
+		baseURL:    defaultAPIBase,
+		username:   cfg.Username,
+		token:      cfg.Token,
 		httpClient: &http.Client{Timeout: defaultHTTPTimeout},
 	}
 }
@@ -284,18 +284,38 @@ func (c *Client) doMultipart(ctx context.Context, path string, body io.Reader, c
 	return data, nil
 }
 
-// parseHTTPError converts a non-2xx HTTP response into an error.
+// APIError is returned for any non-2xx HTTP response from the Bitbucket API.
+// Callers can use errors.As to inspect Status and Body.
+type APIError struct {
+	Status  int    // HTTP status code (e.g. 404, 429)
+	Message string // extracted from the API's JSON error envelope when present
+	Body    string // raw response body (truncated to 4KB to bound memory)
+}
+
+func (e *APIError) Error() string {
+	if e.Message != "" {
+		return fmt.Sprintf("HTTP %d: %s", e.Status, e.Message)
+	}
+	return fmt.Sprintf("HTTP %d: %s", e.Status, e.Body)
+}
+
+// parseHTTPError converts a non-2xx HTTP response into an *APIError.
 // It attempts to extract the API's JSON error envelope; falls back to the raw body.
 func parseHTTPError(statusCode int, data []byte) error {
+	const maxBody = 4096
+	body := string(data)
+	if len(body) > maxBody {
+		body = body[:maxBody]
+	}
 	var envelope struct {
 		Error struct {
 			Message string `json:"message"`
 		} `json:"error"`
 	}
 	if err := json.Unmarshal(data, &envelope); err == nil && envelope.Error.Message != "" {
-		return fmt.Errorf("HTTP %d: %s", statusCode, envelope.Error.Message)
+		return &APIError{Status: statusCode, Message: envelope.Error.Message, Body: body}
 	}
-	return fmt.Errorf("HTTP %d: %s", statusCode, string(data))
+	return &APIError{Status: statusCode, Body: body}
 }
 
 // decode unmarshals JSON data into a typed value T.

@@ -157,7 +157,7 @@ bb pr list --workspace myws --repo myrepo
 ### Pull Requests
 
 ```
-bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED] [--source-branch BRANCH]
+bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED] [--source-branch BRANCH] [--sort FIELD]
 bb pr get -p ID
 bb pr create --title "..." --from-branch BRANCH --to-branch BRANCH [-d "..."] [--close-source-branch] [--draft]
 bb pr diff -p ID
@@ -189,7 +189,7 @@ bb pr task reopen -p ID --task-id ID
 ### Pipelines
 
 ```
-bb pipeline list
+bb pipeline list [--sort FIELD]
 bb pipeline get -u UUID
 bb pipeline trigger -b BRANCH
 bb pipeline stop -u UUID
@@ -200,7 +200,7 @@ bb pipeline log -u UUID --step-uuid UUID
 ### Branches
 
 ```
-bb branch list
+bb branch list [--sort FIELD]
 bb branch create -n BRANCH --from COMMIT_OR_BRANCH
 bb branch delete -n BRANCH
 ```
@@ -208,7 +208,7 @@ bb branch delete -n BRANCH
 ### Tags
 
 ```
-bb tag list
+bb tag list [--sort FIELD]
 bb tag create -n TAG --from COMMIT
 bb tag delete -n TAG
 ```
@@ -216,7 +216,7 @@ bb tag delete -n TAG
 ### Commits
 
 ```
-bb commit list -b BRANCH
+bb commit list -b BRANCH [--sort FIELD]
 bb commit get -x HASH
 bb file get --ref REF --path PATH
 ```
@@ -224,7 +224,7 @@ bb file get --ref REF --path PATH
 ### Repositories
 
 ```
-bb repo list
+bb repo list [--sort FIELD]
 bb repo get SLUG
 bb repo update SLUG [--description "..."] [--default-branch BRANCH]
 bb repo delete SLUG
@@ -235,7 +235,7 @@ bb repo fork SLUG [--name "..."] [--workspace SLUG]
 ### Issues
 
 ```
-bb issue list
+bb issue list [--sort FIELD]
 bb issue get -i ID
 bb issue create -T "..." [-d "..."] [-k bug|enhancement|proposal|task] [--priority trivial|minor|major|critical|blocker]
 bb issue close -i ID
@@ -315,10 +315,15 @@ Errors are written to stderr with a non-zero exit code.
 See [`llms.txt`](llms.txt) for a compact machine-readable reference.
 
 Key notes:
+
+- `bb --describe` emits a JSON capability manifest covering every command, its flags, action class (`read | write | destructive`), output Go type, and an auto-generated JSON Schema for both output and stdin input where applicable. Use this for discovery instead of parsing `--help`.
 - All list commands return JSON arrays; single-resource commands return a JSON object.
+- Create and update commands accept a JSON body on stdin (`echo '{...}' | bb pr create`) as an alternative to flags. When stdin is piped and non-empty, it replaces all flag values.
 - IDs are integers for PRs, tasks, and issues. UUIDs (with `{}` braces) for pipelines, steps, and environments.
 - `workspace` and `repo` can be omitted from flags if set in `~/.bbcloud.yaml`.
-- The CLI exits non-zero on API errors and prints the error to stderr.
+- On failure the CLI exits non-zero and writes a single JSON object to stderr: `{"error": {"code": "...", "message": "...", "details": {...}}}`. Codes are a fixed enum: `config_missing`, `auth_failed`, `not_found`, `validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`. stdout is never mixed with errors. API-error details include `http_status`; the raw `response_body` is redacted by default (Bitbucket sometimes echoes request fragments back) — set `BB_DEBUG=1` to include it. Required-flag failures include `details.missing_flags`.
+- The manifest exposes `manifest_schema_version` (currently `"1"`) at the top level; bump-detection on this field is cheaper than diffing the whole document. Stdin entries carry `behavior: "replaces_flags"` (the only value today) describing how piped JSON interacts with flags. Stdin is capped at 1 MiB.
+- `--sort` is supported on `pr list`, `pipeline list`, `branch list`, `tag list`, `commit list`, `repo list`, and `issue list`. List commands without `--sort` use the Bitbucket API's default ordering — sort client-side from the JSON if you need a guaranteed order.
 
 ## Development
 

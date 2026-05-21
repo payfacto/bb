@@ -18,6 +18,7 @@ var prCmd = &cobra.Command{
 var (
 	prListState        string
 	prListSourceBranch string
+	prListSort         string
 )
 
 var prListCmd = &cobra.Command{
@@ -28,7 +29,7 @@ var prListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		prs, err := client.PRs(ws, r).List(context.Background(), prListState, prListSourceBranch)
+		prs, err := client.PRs(ws, r).List(context.Background(), prListState, prListSourceBranch, prListSort)
 		if err != nil {
 			return err
 		}
@@ -71,13 +72,30 @@ var prCreateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		input := bitbucket.CreatePRInput{
-			Title:             prCreateTitle,
-			Description:       prCreateDescription,
-			Source:            bitbucket.NewEndpoint(prCreateFromBranch),
-			Destination:       bitbucket.NewEndpoint(prCreateToBranch),
-			CloseSourceBranch: prCreateCloseSource,
-			Draft:             prCreateDraft,
+		var input bitbucket.CreatePRInput
+		consumed, err := stdinInputOr(&input, func() bitbucket.CreatePRInput {
+			return bitbucket.CreatePRInput{
+				Title:             prCreateTitle,
+				Description:       prCreateDescription,
+				Source:            bitbucket.NewEndpoint(prCreateFromBranch),
+				Destination:       bitbucket.NewEndpoint(prCreateToBranch),
+				CloseSourceBranch: prCreateCloseSource,
+				Draft:             prCreateDraft,
+			}
+		})
+		if err != nil {
+			return err
+		}
+		if !consumed {
+			if err := requireFlag("title", prCreateTitle); err != nil {
+				return err
+			}
+			if err := requireFlag("from-branch", prCreateFromBranch); err != nil {
+				return err
+			}
+			if err := requireFlag("to-branch", prCreateToBranch); err != nil {
+				return err
+			}
 		}
 		pr, err := client.PRs(ws, r).Create(context.Background(), input)
 		if err != nil {
@@ -234,6 +252,8 @@ func init() {
 		"filter by state: OPEN, MERGED, DECLINED, SUPERSEDED")
 	prListCmd.Flags().StringVar(&prListSourceBranch, "source-branch", "",
 		"filter to PRs whose source branch matches this name exactly")
+	prListCmd.Flags().StringVar(&prListSort, "sort", "",
+		"sort by Bitbucket field, prefix with - for descending (e.g. -updated_on); empty preserves API default")
 
 	prGetCmd.Flags().IntVarP(&prGetID, "pr-id", "p", 0, "pull request ID")
 	prGetCmd.MarkFlagRequired("pr-id")
@@ -246,9 +266,8 @@ func init() {
 		"close source branch after merge")
 	prCreateCmd.Flags().BoolVar(&prCreateDraft, "draft", false,
 		"create as a draft PR (no reviewer notifications)")
-	prCreateCmd.MarkFlagRequired("title")
-	prCreateCmd.MarkFlagRequired("from-branch")
-	prCreateCmd.MarkFlagRequired("to-branch")
+	// no MarkFlagRequired — pr create accepts JSON on stdin as an alternative
+	// to flags. RunE validates required fields when stdin is not consumed.
 
 	prDiffCmd.Flags().IntVarP(&prDiffID, "pr-id", "p", 0, "pull request ID")
 	prDiffCmd.MarkFlagRequired("pr-id")

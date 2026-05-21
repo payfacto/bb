@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/payfacto/bb/cmd/render"
+	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
 var deployKeyCmd = &cobra.Command{
@@ -43,7 +44,25 @@ var deployKeyAddCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		k, err := client.DeployKeys(ws, repo).Add(context.Background(), deployKeyAddLabel, deployKeyAddKey)
+		var input bitbucket.AddDeployKeyInput
+		consumed, err := stdinInputOr(&input, func() bitbucket.AddDeployKeyInput {
+			return bitbucket.AddDeployKeyInput{
+				Label: deployKeyAddLabel,
+				Key:   deployKeyAddKey,
+			}
+		})
+		if err != nil {
+			return err
+		}
+		if !consumed {
+			if err := requireFlag("label", deployKeyAddLabel); err != nil {
+				return err
+			}
+			if err := requireFlag("key", deployKeyAddKey); err != nil {
+				return err
+			}
+		}
+		k, err := client.DeployKeys(ws, repo).Add(context.Background(), input.Label, input.Key)
 		if err != nil {
 			return err
 		}
@@ -75,8 +94,7 @@ var deployKeyDeleteCmd = &cobra.Command{
 func init() {
 	deployKeyAddCmd.Flags().StringVar(&deployKeyAddLabel, "label", "", "label for the deploy key (required)")
 	deployKeyAddCmd.Flags().StringVar(&deployKeyAddKey, "key", "", "SSH public key string (required)")
-	deployKeyAddCmd.MarkFlagRequired("label")
-	deployKeyAddCmd.MarkFlagRequired("key")
+	// no MarkFlagRequired — deploy-key add accepts JSON on stdin.
 
 	deployKeyDeleteCmd.Flags().IntVarP(&deployKeyDeleteID, "id", "i", 0, "deploy key ID to delete (required)")
 	deployKeyDeleteCmd.MarkFlagRequired("id")

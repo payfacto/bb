@@ -26,7 +26,7 @@ func TestIssues_List(t *testing.T) {
 		}
 		mustEncodeJSON(t, w, map[string]any{"values": issues})
 	}))
-	got, err := client.Issues("testws", "testrepo").List(context.Background())
+	got, err := client.Issues("testws", "testrepo").List(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -13,8 +13,11 @@ type CommitResource struct {
 	repo      string
 }
 
-// List returns commits, newest first. If branch is empty, returns commits from the repo's default branch.
-func (r *CommitResource) List(ctx context.Context, branch string) ([]Commit, error) {
+// List returns commits, newest first by default. If branch is empty, returns
+// commits from the repo's default branch. sort is a Bitbucket field name
+// (optionally "-" prefixed for descending order); empty preserves the
+// endpoint default (chronological).
+func (r *CommitResource) List(ctx context.Context, branch, sort string) ([]Commit, error) {
 	var path string
 	if branch == "" {
 		path = fmt.Sprintf("%s/commits", repoPath(r.workspace, r.repo))
@@ -22,6 +25,9 @@ func (r *CommitResource) List(ctx context.Context, branch string) ([]Commit, err
 		path = fmt.Sprintf("%s/commits/%s", repoPath(r.workspace, r.repo), url.PathEscape(branch))
 	}
 	q := url.Values{"pagelen": {pagelenSmall}}
+	if sort != "" {
+		q.Set("sort", sort)
+	}
 	data, err := r.client.do(ctx, "GET", path, nil, q)
 	if err != nil {
 		return nil, err

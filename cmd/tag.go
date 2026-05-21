@@ -7,12 +7,15 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/payfacto/bb/cmd/render"
+	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
 var tagCmd = &cobra.Command{
 	Use:   "tag",
 	Short: "Manage repository tags",
 }
+
+var tagListSort string
 
 var tagListCmd = &cobra.Command{
 	Use:   "list",
@@ -22,7 +25,7 @@ var tagListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		tags, err := client.Tags(ws, repo).List(context.Background())
+		tags, err := client.Tags(ws, repo).List(context.Background(), tagListSort)
 		if err != nil {
 			return err
 		}
@@ -43,7 +46,25 @@ var tagCreateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		tag, err := client.Tags(ws, repo).Create(context.Background(), tagCreateName, tagCreateFrom)
+		var input bitbucket.CreateTagInput
+		consumed, err := stdinInputOr(&input, func() bitbucket.CreateTagInput {
+			return bitbucket.CreateTagInput{
+				Name:   tagCreateName,
+				Target: bitbucket.BranchTarget{Hash: tagCreateFrom},
+			}
+		})
+		if err != nil {
+			return err
+		}
+		if !consumed {
+			if err := requireFlag("name", tagCreateName); err != nil {
+				return err
+			}
+			if err := requireFlag("from", tagCreateFrom); err != nil {
+				return err
+			}
+		}
+		tag, err := client.Tags(ws, repo).Create(context.Background(), input.Name, input.Target.Hash)
 		if err != nil {
 			return err
 		}
@@ -75,8 +96,10 @@ var tagDeleteCmd = &cobra.Command{
 func init() {
 	tagCreateCmd.Flags().StringVarP(&tagCreateName, "name", "n", "", "tag name (required)")
 	tagCreateCmd.Flags().StringVar(&tagCreateFrom, "from", "", "commit hash or branch name to tag (required)")
-	tagCreateCmd.MarkFlagRequired("name")
-	tagCreateCmd.MarkFlagRequired("from")
+	// no MarkFlagRequired — tag create accepts JSON on stdin.
+
+	tagListCmd.Flags().StringVar(&tagListSort, "sort", "",
+		"sort by Bitbucket field, prefix with - for descending (e.g. -target.date); empty preserves API default")
 
 	tagDeleteCmd.Flags().StringVarP(&tagDeleteName, "name", "n", "", "tag name to delete (required)")
 	tagDeleteCmd.MarkFlagRequired("name")

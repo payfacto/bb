@@ -20,10 +20,16 @@ func (r *PRResource) prPath(prID int) string {
 // List returns pull requests filtered by state (e.g. "OPEN", "MERGED").
 // If sourceBranch is non-empty, results are further filtered to PRs whose
 // source branch name matches it exactly (Bitbucket BBQL).
-func (r *PRResource) List(ctx context.Context, state, sourceBranch string) ([]PR, error) {
+// sort is the Bitbucket field name to sort by, optionally prefixed with "-"
+// for descending order (e.g. "-updated_on"). An empty string preserves the
+// endpoint's default ordering.
+func (r *PRResource) List(ctx context.Context, state, sourceBranch, sort string) ([]PR, error) {
 	q := url.Values{"state": {state}, "pagelen": {pagelenDefault}}
 	if sourceBranch != "" {
 		q.Set("q", fmt.Sprintf(`source.branch.name="%s"`, sourceBranch))
+	}
+	if sort != "" {
+		q.Set("sort", sort)
 	}
 	data, err := r.client.do(ctx, "GET", repoPath(r.workspace, r.repo)+"/pullrequests", nil, q)
 	if err != nil {

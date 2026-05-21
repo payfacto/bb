@@ -27,7 +27,7 @@ func TestTags_List(t *testing.T) {
 		}
 		mustEncodeJSON(t, w, map[string]any{"values": tags})
 	}))
-	got, err := client.Tags("testws", "testrepo").List(context.Background())
+	got, err := client.Tags("testws", "testrepo").List(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -78,12 +78,25 @@ bb                    (no args → launches TUI)
 Resources are scoped structs returned by the client:
 
 ```go
-client.PRs(workspace, repo).List(ctx, state, sourceBranch)
+client.PRs(workspace, repo).List(ctx, state, sourceBranch, sort)
+client.Repos(workspace).List(ctx, sort)
+client.Branches(workspace, repo).List(ctx, sort)
+client.Tags(workspace, repo).List(ctx, sort)
+client.Commits(workspace, repo).List(ctx, branch, sort)
+client.Issues(workspace, repo).List(ctx, sort)
+client.Pipelines(workspace, repo).List(ctx, sort)
 client.Comments(workspace, repo, prID).Add(ctx, input)
 client.Tasks(workspace, repo, prID).Complete(ctx, taskID)
 ```
 
-The generic `decode[T]()` function handles all JSON unmarshaling. HTTP errors (4xx/5xx) are checked and wrapped before returning.
+List methods whose Bitbucket endpoint accepts a `sort=` query parameter take
+a trailing `sort string` argument. Pass `""` to preserve the endpoint's
+default ordering. The CLI surfaces this via `--sort` on the corresponding
+list command.
+
+The generic `decode[T]()` function handles all JSON unmarshaling. HTTP errors
+(4xx/5xx) are wrapped into `*bitbucket.APIError{Status, Message, Body}` so
+callers (`cmd/errors.go`) can map them to stable CLI error codes.
 
 ### Configuration precedence (low → high)
 
@@ -93,7 +106,39 @@ The generic `decode[T]()` function handles all JSON unmarshaling. HTTP errors (4
 
 ### Output
 
-`printOutput(v, textFn)` in `cmd/root.go` handles dual-mode output. Default is JSON (machine-readable); `--format text` invokes a per-command `textFn`. New commands should follow this pattern.
+`printOutput(v, textFn)` in `cmd/root.go` handles dual-mode output. Default is
+JSON (machine-readable); `--format text` invokes a per-command `textFn`. New
+commands should follow this pattern. When stdout is not a TTY, `--format`
+defaults to `json` regardless of any future default change (root sets this in
+`PersistentPreRunE`).
+
+Errors go through `mapError` + `emitError` in `cmd/errors.go` and are written
+as a single JSON object to stderr: `{"error": {"code", "message", "details"}}`.
+Codes are a fixed enum (`config_missing`, `auth_failed`, `not_found`,
+`validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`).
+Subcommands return `*CLIError` directly for typed errors, or plain `error` for
+default mapping. `rootCmd.SilenceErrors = true` keeps Cobra's prose error
+printer from interleaving with the JSON output.
+
+### Agent affordances
+
+- `bb --describe` (root-level boolean flag) walks the Cobra tree and emits a
+  JSON capability manifest covering every command, flag, action class
+  (`read | write | destructive`), output Go type, and JSON Schema. Wiring:
+  `cmd/describe.go` holds the walker, types, and reflection;
+  `cmd/manifest_registry.go` holds the `commandRegistry` (data) and
+  `typeRegistry` (Go zero values for schema reflection). The registry MUST
+  contain every leaf — `TestEveryLeafIsRegistered` enforces this; the
+  reverse `TestRegistryReferencesOnlyRealCommands` catches stale entries.
+  When adding a new leaf, also add an entry to `commandRegistry` and (if it
+  returns a new type) `typeRegistry`. Bump `manifestSchemaVersion` in
+  `cmd/describe.go` if you change the manifest's wire shape.
+- The manifest's structural shape is locked by `TestManifestSnapshot` against
+  `cmd/testdata/manifest.golden.json`. Run `go test ./cmd/ -update` after
+  intentional manifest changes.
+- Create and update commands accept JSON on stdin via `stdinInputOr` in
+  `cmd/stdin.go`. Stdin-capable commands drop `MarkFlagRequired` calls and
+  validate required fields manually inside RunE via `requireFlag`.
 
 ### Testing
 
@@ -107,7 +152,9 @@ Whenever a command or flag is **added, removed, renamed, or its signature change
 2. **`llms.txt`** — the condensed command reference. Keep flag shapes in sync with README; this file is what agents read.
 3. **`CLAUDE.md`** (this file) — the "Command hierarchy" tree near the top and any code example using the affected client method.
 
-Also update the relevant example in the "Client pattern" code block if a `pkg/bitbucket` method signature changed (e.g. `client.PRs(ws, repo).List(ctx, state, sourceBranch)`).
+Also update the relevant example in the "Client pattern" code block if a `pkg/bitbucket` method signature changed (e.g. `client.PRs(ws, repo).List(ctx, state, sourceBranch, sort)`).
+
+When adding a new leaf command, also add an entry to `commandRegistry` (and `typeRegistry` if a new type) in `cmd/describe.go`. The `TestEveryLeafIsRegistered` invariant fails the build if you forget.
 
 PRs that touch `cmd/` or `pkg/bitbucket/*.go` public APIs without updating these three files should be considered incomplete.
 
@@ -119,7 +166,8 @@ Direct dependencies only (`go.mod` `require` block):
 |---|---|
 | `github.com/spf13/cobra` | CLI framework |
 | `gopkg.in/yaml.v3` | Config file parsing |
-| `golang.org/x/term` | Masked password input in `bb setup` |
+| `golang.org/x/term` | Masked password input in `bb setup`; TTY detection for piped stdout/stdin |
+| `github.com/invopop/jsonschema` | JSON Schema reflection for the `--describe` manifest |
 | `github.com/zalando/go-keyring` | OS keyring storage for credentials (macOS Keychain, Windows Credential Manager, Linux libsecret) |
 | `github.com/charmbracelet/bubbletea` | TUI framework (Elm-style model/update/view) |
 | `github.com/charmbracelet/bubbles` | TUI components — list, spinner, viewport, text input, table |

@@ -32,7 +32,7 @@ func TestPipelines_List(t *testing.T) {
 		}
 		mustEncodeJSON(t, w, map[string]any{"values": pipelines})
 	}))
-	got, err := client.Pipelines("testws", "testrepo").List(context.Background())
+	got, err := client.Pipelines("testws", "testrepo").List(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
