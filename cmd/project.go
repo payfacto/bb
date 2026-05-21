@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -18,9 +17,9 @@ var projectListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all projects in the workspace",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ws := cfg.Workspace
-		if ws == "" {
-			return fmt.Errorf("no workspace configured — run 'bb setup' or pass --workspace")
+		ws, err := workspaceOnly()
+		if err != nil {
+			return err
 		}
 		projects, err := client.Projects(ws).List(context.Background())
 		if err != nil {
@@ -35,9 +34,9 @@ var projectGetCmd = &cobra.Command{
 	Short: "Get a project by its key",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ws := cfg.Workspace
-		if ws == "" {
-			return fmt.Errorf("no workspace configured — run 'bb setup' or pass --workspace")
+		ws, err := workspaceOnly()
+		if err != nil {
+			return err
 		}
 		project, err := client.Projects(ws).Get(context.Background(), args[0])
 		if err != nil {

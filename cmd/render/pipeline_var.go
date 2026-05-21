@@ -37,7 +37,9 @@ func PipelineVariableListString(vars []bitbucket.PipelineVariable) string {
 }
 
 // PipelineVariableList prints the formatted pipeline variable list to stdout.
-func PipelineVariableList(vars []bitbucket.PipelineVariable) { fmt.Print(PipelineVariableListString(vars)) }
+func PipelineVariableList(vars []bitbucket.PipelineVariable) {
+	fmt.Print(PipelineVariableListString(vars))
+}
 
 // PipelineVariableDetailString returns the full detail string for a single pipeline variable.
 func PipelineVariableDetailString(v bitbucket.PipelineVariable) string {

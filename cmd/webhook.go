@@ -46,11 +46,26 @@ var webhookCreateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		input := bitbucket.CreateWebhookInput{
-			Description: webhookCreateDescription,
-			URL:         webhookCreateURL,
-			Active:      webhookCreateActive,
-			Events:      webhookCreateEvents,
+		var input bitbucket.CreateWebhookInput
+		consumed, err := stdinInputOr(&input, func() bitbucket.CreateWebhookInput {
+			return bitbucket.CreateWebhookInput{
+				Description: webhookCreateDescription,
+				URL:         webhookCreateURL,
+				Active:      webhookCreateActive,
+				Events:      webhookCreateEvents,
+			}
+		})
+		if err != nil {
+			return err
+		}
+		if !consumed {
+			if err := requireFlag("url", webhookCreateURL); err != nil {
+				return err
+			}
+			if len(webhookCreateEvents) == 0 {
+				return newCLIError(ErrCodeValidationFailed,
+					"flag --events is required (or pipe JSON on stdin)", nil)
+			}
 		}
 		h, err := client.Webhooks(ws, repo).Create(context.Background(), input)
 		if err != nil {
@@ -86,8 +101,7 @@ func init() {
 	webhookCreateCmd.Flags().StringArrayVar(&webhookCreateEvents, "events", nil, "event type to subscribe to, e.g. repo:push (repeatable, required)")
 	webhookCreateCmd.Flags().StringVar(&webhookCreateDescription, "description", "", "webhook description")
 	webhookCreateCmd.Flags().BoolVar(&webhookCreateActive, "active", true, "whether the webhook is active")
-	webhookCreateCmd.MarkFlagRequired("url")
-	webhookCreateCmd.MarkFlagRequired("events")
+	// no MarkFlagRequired — webhook create accepts JSON on stdin.
 
 	webhookDeleteCmd.Flags().StringVar(&webhookDeleteUUID, "uuid", "", "webhook UUID to delete (required)")
 	webhookDeleteCmd.MarkFlagRequired("uuid")

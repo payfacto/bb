@@ -45,11 +45,23 @@ var pipelineVarCreateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		v, err := client.PipelineVariables(ws, repo).Create(context.Background(), bitbucket.CreatePipelineVariableInput{
-			Key:     pipelineVarCreateKey,
-			Value:   pipelineVarCreateValue,
-			Secured: pipelineVarCreateSecured,
+		var input bitbucket.CreatePipelineVariableInput
+		consumed, err := stdinInputOr(&input, func() bitbucket.CreatePipelineVariableInput {
+			return bitbucket.CreatePipelineVariableInput{
+				Key:     pipelineVarCreateKey,
+				Value:   pipelineVarCreateValue,
+				Secured: pipelineVarCreateSecured,
+			}
 		})
+		if err != nil {
+			return err
+		}
+		if !consumed {
+			if err := requireFlag("key", pipelineVarCreateKey); err != nil {
+				return err
+			}
+		}
+		v, err := client.PipelineVariables(ws, repo).Create(context.Background(), input)
 		if err != nil {
 			return err
 		}
@@ -80,7 +92,7 @@ func init() {
 	pipelineVarCreateCmd.Flags().StringVarP(&pipelineVarCreateKey, "key", "k", "", "variable key (required)")
 	pipelineVarCreateCmd.Flags().StringVarP(&pipelineVarCreateValue, "value", "v", "", "variable value")
 	pipelineVarCreateCmd.Flags().BoolVar(&pipelineVarCreateSecured, "secured", false, "mark variable as secured (value hidden in UI)")
-	pipelineVarCreateCmd.MarkFlagRequired("key")
+	// no MarkFlagRequired on "key" — pipeline-var create accepts JSON on stdin.
 
 	pipelineVarDeleteCmd.Flags().StringVar(&pipelineVarDeleteUUID, "uuid", "", "variable UUID (required)")
 	pipelineVarDeleteCmd.MarkFlagRequired("uuid")

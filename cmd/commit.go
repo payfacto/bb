@@ -14,7 +14,10 @@ var commitCmd = &cobra.Command{
 	Short: "Browse commit history",
 }
 
-var commitListBranch string
+var (
+	commitListBranch string
+	commitListSort   string
+)
 
 var commitListCmd = &cobra.Command{
 	Use:   "list",
@@ -24,7 +27,7 @@ var commitListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		commits, err := client.Commits(ws, repo).List(context.Background(), commitListBranch)
+		commits, err := client.Commits(ws, repo).List(context.Background(), commitListBranch, commitListSort)
 		if err != nil {
 			return err
 		}
@@ -79,6 +82,8 @@ var fileGetCmd = &cobra.Command{
 
 func init() {
 	commitListCmd.Flags().StringVarP(&commitListBranch, "branch", "b", "", "branch name (required)")
+	commitListCmd.Flags().StringVar(&commitListSort, "sort", "",
+		"sort by Bitbucket field, prefix with - for descending (e.g. -date); empty preserves API default")
 	commitListCmd.MarkFlagRequired("branch")
 
 	commitGetCmd.Flags().StringVarP(&commitGetHash, "hash", "x", "", "commit hash (required)")

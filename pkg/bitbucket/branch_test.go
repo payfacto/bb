@@ -24,7 +24,7 @@ func TestBranches_List(t *testing.T) {
 		}
 		mustEncodeJSON(t, w, map[string]any{"values": branches})
 	}))
-	got, err := client.Branches("testws", "testrepo").List(context.Background())
+	got, err := client.Branches("testws", "testrepo").List(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}

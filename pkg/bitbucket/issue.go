@@ -17,9 +17,14 @@ func (r *IssueResource) basePath() string {
 	return fmt.Sprintf("%s/issues", repoPath(r.workspace, r.repo))
 }
 
-// List returns all issues in the repository.
-func (r *IssueResource) List(ctx context.Context) ([]Issue, error) {
+// List returns all issues in the repository. sort is a Bitbucket field name
+// (optionally "-" prefixed for descending order, e.g. "-updated_on"). An
+// empty string preserves the endpoint default.
+func (r *IssueResource) List(ctx context.Context, sort string) ([]Issue, error) {
 	q := url.Values{"pagelen": {pagelenDefault}}
+	if sort != "" {
+		q.Set("sort", sort)
+	}
 	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
 	if err != nil {
 		return nil, err

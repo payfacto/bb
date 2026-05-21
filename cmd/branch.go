@@ -7,12 +7,15 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/payfacto/bb/cmd/render"
+	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
 var branchCmd = &cobra.Command{
 	Use:   "branch",
 	Short: "Manage repository branches",
 }
+
+var branchListSort string
 
 var branchListCmd = &cobra.Command{
 	Use:   "list",
@@ -22,7 +25,7 @@ var branchListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		branches, err := client.Branches(ws, repo).List(context.Background())
+		branches, err := client.Branches(ws, repo).List(context.Background(), branchListSort)
 		if err != nil {
 			return err
 		}
@@ -43,7 +46,25 @@ var branchCreateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		branch, err := client.Branches(ws, repo).Create(context.Background(), branchCreateName, branchCreateFrom)
+		var input bitbucket.CreateBranchInput
+		consumed, err := stdinInputOr(&input, func() bitbucket.CreateBranchInput {
+			return bitbucket.CreateBranchInput{
+				Name:   branchCreateName,
+				Target: bitbucket.BranchTarget{Hash: branchCreateFrom},
+			}
+		})
+		if err != nil {
+			return err
+		}
+		if !consumed {
+			if err := requireFlag("name", branchCreateName); err != nil {
+				return err
+			}
+			if err := requireFlag("from", branchCreateFrom); err != nil {
+				return err
+			}
+		}
+		branch, err := client.Branches(ws, repo).Create(context.Background(), input.Name, input.Target.Hash)
 		if err != nil {
 			return err
 		}
@@ -75,8 +96,10 @@ var branchDeleteCmd = &cobra.Command{
 func init() {
 	branchCreateCmd.Flags().StringVarP(&branchCreateName, "name", "n", "", "name for the new branch (required)")
 	branchCreateCmd.Flags().StringVar(&branchCreateFrom, "from", "", "branch name or commit hash to branch from (required)")
-	branchCreateCmd.MarkFlagRequired("name")
-	branchCreateCmd.MarkFlagRequired("from")
+	// no MarkFlagRequired — branch create accepts JSON on stdin.
+
+	branchListCmd.Flags().StringVar(&branchListSort, "sort", "",
+		"sort by Bitbucket field, prefix with - for descending (e.g. -target.date); empty preserves API default")
 
 	branchDeleteCmd.Flags().StringVarP(&branchDeleteName, "name", "n", "", "branch name to delete (required)")
 	branchDeleteCmd.MarkFlagRequired("name")

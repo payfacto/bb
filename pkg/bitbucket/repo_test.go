@@ -25,7 +25,7 @@ func TestRepos_List(t *testing.T) {
 		}
 		mustEncodeJSON(t, w, map[string]any{"values": repos})
 	}))
-	got, err := client.Repos("testws").List(context.Background())
+	got, err := client.Repos("testws").List(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -17,9 +17,14 @@ func (r *TagResource) basePath() string {
 	return fmt.Sprintf("%s/refs/tags", repoPath(r.workspace, r.repo))
 }
 
-// List returns all tags in the repository.
-func (r *TagResource) List(ctx context.Context) ([]Tag, error) {
+// List returns all tags in the repository. sort is a Bitbucket field name
+// (optionally "-" prefixed for descending order, e.g. "-target.date"). An
+// empty string preserves the endpoint default.
+func (r *TagResource) List(ctx context.Context, sort string) ([]Tag, error) {
 	q := url.Values{"pagelen": {pagelenDefault}}
+	if sort != "" {
+		q.Set("sort", sort)
+	}
 	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
 	if err != nil {
 		return nil, err

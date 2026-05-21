@@ -22,10 +22,15 @@ func (r *RepoResource) Get(ctx context.Context, slug string) (Repo, error) {
 	return decode[Repo](data)
 }
 
-// List returns all repositories the authenticated user has access to in the workspace.
-func (r *RepoResource) List(ctx context.Context) ([]Repo, error) {
+// List returns all repositories the authenticated user has access to in the
+// workspace. sort is a Bitbucket field name (optionally "-" prefixed for
+// descending order, e.g. "-updated_on"); empty preserves the endpoint default.
+func (r *RepoResource) List(ctx context.Context, sort string) ([]Repo, error) {
 	path := fmt.Sprintf("/repositories/%s", r.workspace)
 	q := url.Values{"role": {"member"}, "pagelen": {pagelenLarge}}
+	if sort != "" {
+		q.Set("sort", sort)
+	}
 	return fetchAllPages[Repo](ctx, r.client, path, q)
 }
 

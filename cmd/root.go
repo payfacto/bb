@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/payfacto/bb/cmd/tui"
 	"github.com/payfacto/bb/internal/auth"
@@ -68,6 +69,17 @@ var rootCmd = &cobra.Command{
 	},
 	// PersistentPreRunE runs before every subcommand except those that override it.
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// --describe short-circuits everything else, including auth validation,
+		// so an agent can introspect the CLI before any credentials are set up.
+		if describeFlag {
+			return runDescribe(cmd.Root())
+		}
+		// If stdout is not a TTY and the user did not explicitly set --format,
+		// force JSON so piped consumers (agents, scripts) never get text output
+		// even if the default ever changes.
+		if !cmd.Flags().Changed("format") && !term.IsTerminal(int(os.Stdout.Fd())) {
+			format = "json"
+		}
 		var err error
 		cfg, err = config.Load(cfgFile)
 		if err != nil {
@@ -101,9 +113,14 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-// Execute runs the root command.
+// Execute runs the root command. Errors are emitted to stderr as a single
+// JSON object (see cmd/errors.go) so AI-agent callers can parse them without
+// regex-scraping prose.
 func Execute() {
+	rootCmd.SilenceErrors = true
+	rootCmd.SilenceUsage = true
 	if err := rootCmd.Execute(); err != nil {
+		emitError(mapError(err))
 		os.Exit(1)
 	}
 }
@@ -115,17 +132,32 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&username, "username", "", "Bitbucket username (overrides config/env)")
 	rootCmd.PersistentFlags().StringVar(&token, "token", "", "Bitbucket app password (overrides config/env)")
 	rootCmd.PersistentFlags().StringVarP(&format, "format", "f", "json", "output format: json or text")
+	rootCmd.PersistentFlags().BoolVar(&describeFlag, "describe", false,
+		"emit a JSON capability manifest (commands, flags, schemas) and exit")
 }
 
-// workspaceAndRepo returns the resolved workspace and repo, or an error if either is missing.
+// workspaceAndRepo returns the resolved workspace and repo, or an error if
+// either is missing. Errors wrap config.ErrNoWorkspace / config.ErrNoRepo —
+// use errors.Is to detect them.
 func workspaceAndRepo() (string, string, error) {
-	if cfg.Workspace == "" {
-		return "", "", fmt.Errorf("no workspace configured — run 'bb setup' or pass --workspace")
+	ws, err := workspaceOnly()
+	if err != nil {
+		return "", "", err
 	}
 	if cfg.Repo == "" {
-		return "", "", fmt.Errorf("no repo configured — run 'bb setup' or pass --repo")
+		return "", "", fmt.Errorf("%w — run 'bb setup' or pass --repo", config.ErrNoRepo)
 	}
-	return cfg.Workspace, cfg.Repo, nil
+	return ws, cfg.Repo, nil
+}
+
+// workspaceOnly returns the resolved workspace or an error wrapping
+// config.ErrNoWorkspace. Used by commands that operate at workspace scope
+// (e.g. repo list, project list).
+func workspaceOnly() (string, error) {
+	if cfg.Workspace == "" {
+		return "", fmt.Errorf("%w — run 'bb setup' or pass --workspace", config.ErrNoWorkspace)
+	}
+	return cfg.Workspace, nil
 }
 
 // printOutput prints v as indented JSON (default) or calls textFn for --format text.

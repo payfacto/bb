@@ -1,11 +1,22 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
+)
+
+// Sentinel errors returned by Validate / ValidateCredentials. Use errors.Is
+// to detect them — the wrapped strings include CLI hint text that may evolve,
+// but the sentinels are part of bb's public contract.
+var (
+	ErrNoWorkspace   = errors.New("no workspace configured")
+	ErrNoRepo        = errors.New("no repo configured")
+	ErrNoUsername    = errors.New("no username configured")
+	ErrNoCredentials = errors.New("no credentials found")
 )
 
 // CloneActionClone is the default; selecting a clone URL runs git clone directly.
@@ -93,20 +104,22 @@ func (cfg *Config) Apply(workspace, repo, username, token string) {
 
 // Validate returns an error if workspace or username are missing.
 // Token is validated separately after keyring resolution via ValidateCredentials.
+// Errors wrap ErrNoWorkspace / ErrNoUsername — use errors.Is to detect them.
 func (cfg *Config) Validate() error {
 	if cfg.Workspace == "" {
-		return fmt.Errorf("no workspace configured (run 'bb setup' or 'bb auth login')")
+		return fmt.Errorf("%w (run 'bb setup' or 'bb auth login')", ErrNoWorkspace)
 	}
 	if cfg.Username == "" {
-		return fmt.Errorf("no username configured (run 'bb setup' or 'bb auth login')")
+		return fmt.Errorf("%w (run 'bb setup' or 'bb auth login')", ErrNoUsername)
 	}
 	return nil
 }
 
-// ValidateCredentials returns an error if no token is available.
+// ValidateCredentials returns an error wrapping ErrNoCredentials if no token
+// is available.
 func (cfg *Config) ValidateCredentials() error {
 	if cfg.Token == "" {
-		return fmt.Errorf("no credentials found (run 'bb auth login' or set BITBUCKET_TOKEN)")
+		return fmt.Errorf("%w (run 'bb auth login' or set BITBUCKET_TOKEN)", ErrNoCredentials)
 	}
 	return nil
 }

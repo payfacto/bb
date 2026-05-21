@@ -23,7 +23,7 @@ func TestPRs_List(t *testing.T) {
 		}
 		mustEncodeJSON(t, w, map[string]any{"values": want})
 	}))
-	got, err := c.PRs("ws", "repo").List(context.Background(), "OPEN", "")
+	got, err := c.PRs("ws", "repo").List(context.Background(), "OPEN", "", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -46,7 +46,7 @@ func TestPRs_List_SourceBranchFilter(t *testing.T) {
 		}
 		mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.PR{{ID: 7}}})
 	}))
-	got, err := c.PRs("ws", "repo").List(context.Background(), "OPEN", "feat/x")
+	got, err := c.PRs("ws", "repo").List(context.Background(), "OPEN", "feat/x", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

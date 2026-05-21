@@ -24,7 +24,7 @@ func TestCommits_List(t *testing.T) {
 		}
 		mustEncodeJSON(t, w, map[string]any{"values": commits})
 	}))
-	got, err := client.Commits("testws", "testrepo").List(context.Background(), "main")
+	got, err := client.Commits("testws", "testrepo").List(context.Background(), "main", "")
 	if err != nil {
 		t.Fatal(err)
 	}

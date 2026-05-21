@@ -18,9 +18,14 @@ func (r *PipelineResource) basePath() string {
 	return fmt.Sprintf("%s/pipelines/", repoPath(r.workspace, r.repo))
 }
 
-// List returns the most recent pipelines, newest first.
-func (r *PipelineResource) List(ctx context.Context) ([]Pipeline, error) {
-	q := url.Values{"sort": {"-created_on"}, "pagelen": {pagelenSmall}}
+// List returns pipelines for the repository. sort is the Bitbucket field
+// name to sort by, optionally prefixed with "-" for descending order
+// (e.g. "-created_on"). An empty string defaults to "-created_on".
+func (r *PipelineResource) List(ctx context.Context, sort string) ([]Pipeline, error) {
+	if sort == "" {
+		sort = "-created_on"
+	}
+	q := url.Values{"sort": {sort}, "pagelen": {pagelenSmall}}
 	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
 	if err != nil {
 		return nil, err

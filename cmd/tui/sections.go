@@ -11,9 +11,9 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pkg/browser"
 
 	"github.com/payfacto/bb/cmd/render"
@@ -203,7 +203,7 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 						return items, nil
 					}
 					// 3. First run or explicit refresh — fetch from API and persist.
-					repos, err := client.Repos(ws).List(ctx)
+					repos, err := client.Repos(ws).List(ctx, "")
 					if err != nil {
 						return nil, err
 					}
@@ -257,7 +257,7 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 				PageSize:  ps,
 				Shortcuts: []key.Binding{newBranchKey},
 				Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
-					branches, err := client.Branches(ws, repo).List(ctx)
+					branches, err := client.Branches(ws, repo).List(ctx, "")
 					if err != nil {
 						return nil, err
 					}
@@ -294,7 +294,7 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 				PageSize:  ps,
 				Shortcuts: []key.Binding{newTagKey},
 				Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
-					tags, err := client.Tags(ws, repo).List(ctx)
+					tags, err := client.Tags(ws, repo).List(ctx, "")
 					if err != nil {
 						return nil, err
 					}
@@ -382,73 +382,73 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 					return items, nil
 				},
 				OnSelect: func(item listItem) tea.Cmd {
-				d := item.data.(bitbucket.Deployment)
-				// Render phase + result as side-by-side colored pills instead
-				// of raw "COMPLETED/SUCCESSFUL" text.
-				state := prStateBadge(d.State.Name)
-				if d.State.Status != nil && d.State.Status.Name != "" {
-					state += "  " + prStateBadge(d.State.Status.Name)
-				}
-				// build actions for commit and pipeline navigation
-				var actions []ActionItem
-				if d.Deployable.Commit != nil {
-					commitHash := d.Deployable.Commit.Hash
-					actions = append(actions, ActionItem{
-						Label: "Commit: " + abbrevHash(commitHash),
-						OnSelect: func() tea.Cmd {
-							return fetchAndPushCommitDetail(client, ws, repo, commitHash)
-						},
-					})
-				}
-				if d.Deployable.Pipeline != nil {
-					pipelineUUID := d.Deployable.Pipeline.UUID
-					actions = append(actions, ActionItem{
-						Label: "Pipeline: " + pipelineUUID,
-						OnSelect: func() tea.Cmd {
-							return pushViewCmd(newLoadingTextView("Pipeline", func() (string, error) {
-								p, err := client.Pipelines(ws, repo).Get(context.Background(), pipelineUUID)
-								if err != nil {
-									return "", err
-								}
-								return render.PipelineDetailString(p), nil
-							}))
-						},
-					})
-				}
-				return pushViewCmd(newDetailView(DetailConfig{
-					Title: "Deployment",
-					ContentFetch: func() string {
-						envName := d.Environment.UUID
-						if envs, err := client.Environments(ws, repo).List(context.Background()); err == nil {
-							for _, e := range envs {
-								if e.UUID == d.Environment.UUID {
-									envName = e.Name
-									if e.EnvironmentType.Name != "" {
-										envName += " (" + e.EnvironmentType.Name + ")"
+					d := item.data.(bitbucket.Deployment)
+					// Render phase + result as side-by-side colored pills instead
+					// of raw "COMPLETED/SUCCESSFUL" text.
+					state := prStateBadge(d.State.Name)
+					if d.State.Status != nil && d.State.Status.Name != "" {
+						state += "  " + prStateBadge(d.State.Status.Name)
+					}
+					// build actions for commit and pipeline navigation
+					var actions []ActionItem
+					if d.Deployable.Commit != nil {
+						commitHash := d.Deployable.Commit.Hash
+						actions = append(actions, ActionItem{
+							Label: "Commit: " + abbrevHash(commitHash),
+							OnSelect: func() tea.Cmd {
+								return fetchAndPushCommitDetail(client, ws, repo, commitHash)
+							},
+						})
+					}
+					if d.Deployable.Pipeline != nil {
+						pipelineUUID := d.Deployable.Pipeline.UUID
+						actions = append(actions, ActionItem{
+							Label: "Pipeline: " + pipelineUUID,
+							OnSelect: func() tea.Cmd {
+								return pushViewCmd(newLoadingTextView("Pipeline", func() (string, error) {
+									p, err := client.Pipelines(ws, repo).Get(context.Background(), pipelineUUID)
+									if err != nil {
+										return "", err
 									}
-									break
+									return render.PipelineDetailString(p), nil
+								}))
+							},
+						})
+					}
+					return pushViewCmd(newDetailView(DetailConfig{
+						Title: "Deployment",
+						ContentFetch: func() string {
+							envName := d.Environment.UUID
+							if envs, err := client.Environments(ws, repo).List(context.Background()); err == nil {
+								for _, e := range envs {
+									if e.UUID == d.Environment.UUID {
+										envName = e.Name
+										if e.EnvironmentType.Name != "" {
+											envName += " (" + e.EnvironmentType.Name + ")"
+										}
+										break
+									}
 								}
 							}
-						}
-						var commitHash, pipelineUUID string
-						if d.Deployable.Commit != nil {
-							commitHash = d.Deployable.Commit.Hash
-						}
-						if d.Deployable.Pipeline != nil {
-							pipelineUUID = d.Deployable.Pipeline.UUID
-						}
-						return renderKVBlock([][2]string{
-							{"State", state},
-							{"Environment", envName},
-							{"Commit", commitHash},
-							{"Pipeline", pipelineUUID},
-							{"Updated", d.LastUpdateTime},
-						})
-					},
-					Actions: actions,
-				}))
-			},
-		})
+							var commitHash, pipelineUUID string
+							if d.Deployable.Commit != nil {
+								commitHash = d.Deployable.Commit.Hash
+							}
+							if d.Deployable.Pipeline != nil {
+								pipelineUUID = d.Deployable.Pipeline.UUID
+							}
+							return renderKVBlock([][2]string{
+								{"State", state},
+								{"Environment", envName},
+								{"Commit", commitHash},
+								{"Pipeline", pipelineUUID},
+								{"Updated", d.LastUpdateTime},
+							})
+						},
+						Actions: actions,
+					}))
+				},
+			})
 		})},
 		{label: "Members", description: "Workspace members", onSelect: func() View {
 			return newSimpleListView("Members", ps, func(ctx context.Context, _ string) ([]listItem, error) {
@@ -525,7 +525,7 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 								Title:    displayName + "'s Commits",
 								PageSize: ps,
 								Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
-									commits, err := client.Commits(ws, repo).List(ctx, "")
+									commits, err := client.Commits(ws, repo).List(ctx, "", "")
 									if err != nil {
 										return nil, err
 									}
@@ -870,9 +870,9 @@ func buildSettingsItems(client *bitbucket.Client, ws, repo string, pageSize int)
 		{label: "Pipeline Variables", description: "Repo-level pipeline variables", onSelect: func() View {
 			newVarKey := key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "new variable"))
 			return newListView(ListConfig{
-				Title:     "Pipeline Variables",
-				PageSize:  pageSize,
-				EmptyMsg:  "No pipeline variables found.",
+				Title:         "Pipeline Variables",
+				PageSize:      pageSize,
+				EmptyMsg:      "No pipeline variables found.",
 				Shortcuts:     []key.Binding{newVarKey},
 				TableRenderer: pipelineVarsTableRenderer,
 				Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
@@ -1393,7 +1393,7 @@ func newBranchDetailView(client *bitbucket.Client, ws, repo string, b bitbucket.
 					Title:    "Commits: " + b.Name,
 					PageSize: pageSize,
 					Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
-						commits, err := client.Commits(ws, repo).List(ctx, b.Name)
+						commits, err := client.Commits(ws, repo).List(ctx, b.Name, "")
 						if err != nil {
 							return nil, err
 						}
@@ -1630,7 +1630,7 @@ func newPRListView(client *bitbucket.Client, ws, repo string, pageSize int) *lis
 		TableRenderer: prTableRenderer,
 		FilterStyle:   prStateStyle,
 		Fetch: func(ctx context.Context, filter string) ([]listItem, error) {
-			prs, err := client.PRs(ws, repo).List(ctx, filter, "")
+			prs, err := client.PRs(ws, repo).List(ctx, filter, "", "")
 			if err != nil {
 				return nil, err
 			}
@@ -1903,7 +1903,7 @@ func newPipelineListView(client *bitbucket.Client, ws, repo string, pageSize int
 		PageSize:  pageSize,
 		Shortcuts: []key.Binding{triggerKey},
 		Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
-			pipelines, err := client.Pipelines(ws, repo).List(ctx)
+			pipelines, err := client.Pipelines(ws, repo).List(ctx, "")
 			if err != nil {
 				return nil, err
 			}
@@ -1943,42 +1943,42 @@ func newPipelineDetailView(client *bitbucket.Client, ws, repo string, p bitbucke
 	actions := []ActionItem{
 		{Label: "Steps", OnSelect: func() tea.Cmd {
 			return pushViewCmd(newSimpleListView("Steps", pageSize, func(ctx context.Context, _ string) ([]listItem, error) {
-					steps, err := client.Pipelines(ws, repo).Steps(ctx, p.UUID)
+				steps, err := client.Pipelines(ws, repo).Steps(ctx, p.UUID)
+				if err != nil {
+					return nil, err
+				}
+				items := make([]listItem, len(steps))
+				for i, s := range steps {
+					var badge string
+					if s.State.Result != nil && s.State.Result.Name != "" {
+						badge = prStateBadge(s.State.Result.Name)
+					} else {
+						badge = prStateBadge(s.State.Name)
+					}
+					items[i] = listItem{id: s.UUID, title: s.Name, subtitle: badge, data: s}
+				}
+				return items, nil
+			}, func(item listItem) tea.Cmd {
+				step := item.data.(bitbucket.PipelineStep)
+				result := ""
+				if step.State.Result != nil {
+					result = step.State.Result.Name
+				}
+				if result == "NOT_RUN" || step.State.Name == "PENDING" || step.StartedOn == "" {
+					return pushMessage("Log: "+step.Name, "No log available — this step did not run.")
+				}
+				return fetchAndPushText("Log: "+step.Name, func() (string, error) {
+					log, err := client.Pipelines(ws, repo).Log(context.Background(), p.UUID, step.UUID)
 					if err != nil {
-						return nil, err
-					}
-					items := make([]listItem, len(steps))
-					for i, s := range steps {
-						var badge string
-						if s.State.Result != nil && s.State.Result.Name != "" {
-							badge = prStateBadge(s.State.Result.Name)
-						} else {
-							badge = prStateBadge(s.State.Name)
+						if strings.Contains(err.Error(), "404") {
+							return "No log available for this step.", nil
 						}
-						items[i] = listItem{id: s.UUID, title: s.Name, subtitle: badge, data: s}
+						return "", err
 					}
-					return items, nil
-				}, func(item listItem) tea.Cmd {
-					step := item.data.(bitbucket.PipelineStep)
-					result := ""
-					if step.State.Result != nil {
-						result = step.State.Result.Name
-					}
-					if result == "NOT_RUN" || step.State.Name == "PENDING" || step.StartedOn == "" {
-						return pushMessage("Log: "+step.Name, "No log available — this step did not run.")
-					}
-					return fetchAndPushText("Log: "+step.Name, func() (string, error) {
-						log, err := client.Pipelines(ws, repo).Log(context.Background(), p.UUID, step.UUID)
-						if err != nil {
-							if strings.Contains(err.Error(), "404") {
-								return "No log available for this step.", nil
-							}
-							return "", err
-						}
-						return log, nil
-					})
-				}))
-			}},
+					return log, nil
+				})
+			}))
+		}},
 	}
 
 	if p.State.Name == "IN_PROGRESS" || p.State.Name == "PENDING" {
@@ -2029,7 +2029,7 @@ func newCommitListView(client *bitbucket.Client, ws, repo string, pageSize int) 
 		Title:    "Commits",
 		PageSize: pageSize,
 		Fetch: func(ctx context.Context, filter string) ([]listItem, error) {
-			commits, err := client.Commits(ws, repo).List(ctx, filter)
+			commits, err := client.Commits(ws, repo).List(ctx, filter, "")
 			if err != nil {
 				return nil, err
 			}
@@ -2101,7 +2101,7 @@ func newIssueListView(client *bitbucket.Client, ws, repo string, pageSize int) *
 		EmptyMsg:  "No issues found.",
 		Shortcuts: []key.Binding{newIssueKey},
 		Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
-			issues, err := client.Issues(ws, repo).List(ctx)
+			issues, err := client.Issues(ws, repo).List(ctx, "")
 			if err != nil {
 				return nil, err
 			}

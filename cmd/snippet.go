@@ -19,9 +19,9 @@ var snippetListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List snippets in the workspace",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ws := cfg.Workspace
-		if ws == "" {
-			return fmt.Errorf("no workspace configured — run 'bb setup' or pass --workspace")
+		ws, err := workspaceOnly()
+		if err != nil {
+			return err
 		}
 		snippets, err := client.Snippets(ws).List(context.Background())
 		if err != nil {
@@ -36,9 +36,9 @@ var snippetGetCmd = &cobra.Command{
 	Short: "Get a snippet by its ID",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ws := cfg.Workspace
-		if ws == "" {
-			return fmt.Errorf("no workspace configured — run 'bb setup' or pass --workspace")
+		ws, err := workspaceOnly()
+		if err != nil {
+			return err
 		}
 		snippet, err := client.Snippets(ws).Get(context.Background(), args[0])
 		if err != nil {
@@ -58,9 +58,9 @@ var snippetCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new snippet",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ws := cfg.Workspace
-		if ws == "" {
-			return fmt.Errorf("no workspace configured — run 'bb setup' or pass --workspace")
+		ws, err := workspaceOnly()
+		if err != nil {
+			return err
 		}
 		var content *os.File
 		var filename string
@@ -86,15 +86,16 @@ var snippetDeleteCmd = &cobra.Command{
 	Short: "Delete a snippet by its ID",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ws := cfg.Workspace
-		if ws == "" {
-			return fmt.Errorf("no workspace configured — run 'bb setup' or pass --workspace")
+		ws, err := workspaceOnly()
+		if err != nil {
+			return err
 		}
 		if err := client.Snippets(ws).Delete(context.Background(), args[0]); err != nil {
 			return err
 		}
-		fmt.Printf("Snippet %s deleted\n", args[0])
-		return nil
+		return printOutput(map[string]any{"result": "deleted", "id": args[0]}, func() {
+			fmt.Printf("Snippet %s deleted\n", args[0])
+		})
 	},
 }
 

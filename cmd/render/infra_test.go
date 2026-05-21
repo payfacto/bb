@@ -16,9 +16,9 @@ func TestDeploymentListString_empty(t *testing.T) {
 
 func TestDeploymentListString_row(t *testing.T) {
 	d := []bitbucket.Deployment{{
-		State:       bitbucket.DeploymentState{Name: "COMPLETED", Status: &bitbucket.DeploymentStatus{Name: "SUCCESSFUL"}},
-		Environment: bitbucket.DeploymentEnvRef{UUID: "{env-1}"},
-		Deployable:  bitbucket.Deployable{Commit: &bitbucket.DeployableCommit{Hash: "abc123def456"}},
+		State:          bitbucket.DeploymentState{Name: "COMPLETED", Status: &bitbucket.DeploymentStatus{Name: "SUCCESSFUL"}},
+		Environment:    bitbucket.DeploymentEnvRef{UUID: "{env-1}"},
+		Deployable:     bitbucket.Deployable{Commit: &bitbucket.DeployableCommit{Hash: "abc123def456"}},
 		LastUpdateTime: "2026-04-01T10:00:00Z",
 	}}
 	out := render.DeploymentListString(d)

@@ -15,15 +15,17 @@ var repoCmd = &cobra.Command{
 	Short: "Manage repositories",
 }
 
+var repoListSort string
+
 var repoListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List repositories in the workspace",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ws := cfg.Workspace
-		if ws == "" {
-			return fmt.Errorf("no workspace configured — run 'bb setup' or pass --workspace")
+		ws, err := workspaceOnly()
+		if err != nil {
+			return err
 		}
-		repos, err := client.Repos(ws).List(context.Background())
+		repos, err := client.Repos(ws).List(context.Background(), repoListSort)
 		if err != nil {
 			return err
 		}
@@ -43,23 +45,29 @@ var repoCreateCmd = &cobra.Command{
 	Short: "Create a new repository in the workspace",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ws := cfg.Workspace
-		if ws == "" {
-			return fmt.Errorf("no workspace configured — run 'bb setup' or pass --workspace")
+		ws, err := workspaceOnly()
+		if err != nil {
+			return err
 		}
 		slug := args[0]
-		name := repoCreateName
-		if name == "" {
-			name = slug
-		}
-		input := bitbucket.CreateRepoInput{
-			Scm:         "git",
-			Name:        name,
-			Description: repoCreateDescription,
-			IsPrivate:   repoCreatePrivate,
-		}
-		if repoCreateProject != "" {
-			input.Project = &bitbucket.ProjectRef{Key: repoCreateProject}
+		var input bitbucket.CreateRepoInput
+		if _, err := stdinInputOr(&input, func() bitbucket.CreateRepoInput {
+			name := repoCreateName
+			if name == "" {
+				name = slug
+			}
+			body := bitbucket.CreateRepoInput{
+				Scm:         "git",
+				Name:        name,
+				Description: repoCreateDescription,
+				IsPrivate:   repoCreatePrivate,
+			}
+			if repoCreateProject != "" {
+				body.Project = &bitbucket.ProjectRef{Key: repoCreateProject}
+			}
+			return body
+		}); err != nil {
+			return err
 		}
 		repo, err := client.Repos(ws).Create(context.Background(), slug, input)
 		if err != nil {
@@ -79,15 +87,19 @@ var repoForkCmd = &cobra.Command{
 	Short: "Fork a repository into the workspace",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ws := cfg.Workspace
-		if ws == "" {
-			return fmt.Errorf("no workspace configured — run 'bb setup' or pass --workspace")
+		ws, err := workspaceOnly()
+		if err != nil {
+			return err
 		}
-		input := bitbucket.ForkRepoInput{
-			Name: repoForkName,
-		}
-		if repoForkWorkspace != "" {
-			input.Workspace = &bitbucket.WorkspaceRef{Slug: repoForkWorkspace}
+		var input bitbucket.ForkRepoInput
+		if _, err := stdinInputOr(&input, func() bitbucket.ForkRepoInput {
+			body := bitbucket.ForkRepoInput{Name: repoForkName}
+			if repoForkWorkspace != "" {
+				body.Workspace = &bitbucket.WorkspaceRef{Slug: repoForkWorkspace}
+			}
+			return body
+		}); err != nil {
+			return err
 		}
 		repo, err := client.Repos(ws).Fork(context.Background(), args[0], input)
 		if err != nil {
@@ -102,9 +114,9 @@ var repoGetCmd = &cobra.Command{
 	Short: "Get repository details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ws := cfg.Workspace
-		if ws == "" {
-			return fmt.Errorf("no workspace configured — run 'bb setup' or pass --workspace")
+		ws, err := workspaceOnly()
+		if err != nil {
+			return err
 		}
 		repo, err := client.Repos(ws).Get(context.Background(), args[0])
 		if err != nil {
@@ -124,16 +136,22 @@ var repoUpdateCmd = &cobra.Command{
 	Short: "Update repository metadata",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ws := cfg.Workspace
-		if ws == "" {
-			return fmt.Errorf("no workspace configured — run 'bb setup' or pass --workspace")
+		ws, err := workspaceOnly()
+		if err != nil {
+			return err
 		}
-		input := bitbucket.UpdateRepoInput{}
-		if cmd.Flags().Changed("description") {
-			input.Description = repoUpdateDescription
-		}
-		if cmd.Flags().Changed("default-branch") {
-			input.Mainbranch = &bitbucket.MainbranchRef{Name: repoUpdateBranch, Type: "branch"}
+		var input bitbucket.UpdateRepoInput
+		if _, err := stdinInputOr(&input, func() bitbucket.UpdateRepoInput {
+			body := bitbucket.UpdateRepoInput{}
+			if cmd.Flags().Changed("description") {
+				body.Description = repoUpdateDescription
+			}
+			if cmd.Flags().Changed("default-branch") {
+				body.Mainbranch = &bitbucket.MainbranchRef{Name: repoUpdateBranch, Type: "branch"}
+			}
+			return body
+		}); err != nil {
+			return err
 		}
 		repo, err := client.Repos(ws).Update(context.Background(), args[0], input)
 		if err != nil {
@@ -148,9 +166,9 @@ var repoDeleteCmd = &cobra.Command{
 	Short: "Delete a repository",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ws := cfg.Workspace
-		if ws == "" {
-			return fmt.Errorf("no workspace configured — run 'bb setup' or pass --workspace")
+		ws, err := workspaceOnly()
+		if err != nil {
+			return err
 		}
 		slug := args[0]
 		if err := client.Repos(ws).Delete(context.Background(), slug); err != nil {
@@ -163,6 +181,9 @@ var repoDeleteCmd = &cobra.Command{
 }
 
 func init() {
+	repoListCmd.Flags().StringVar(&repoListSort, "sort", "",
+		"sort by Bitbucket field, prefix with - for descending (e.g. -updated_on); empty preserves API default")
+
 	repoCreateCmd.Flags().StringVar(&repoCreateName, "name", "", "display name (defaults to slug)")
 	repoCreateCmd.Flags().StringVar(&repoCreateDescription, "description", "", "repository description")
 	repoCreateCmd.Flags().BoolVar(&repoCreatePrivate, "private", true, "make the repository private")

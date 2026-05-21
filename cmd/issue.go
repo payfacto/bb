@@ -15,6 +15,8 @@ var issueCmd = &cobra.Command{
 	Short: "Manage repository issues",
 }
 
+var issueListSort string
+
 var issueListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List issues in the repository",
@@ -23,7 +25,7 @@ var issueListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		issues, err := client.Issues(ws, repo).List(context.Background())
+		issues, err := client.Issues(ws, repo).List(context.Background(), issueListSort)
 		if err != nil {
 			return err
 		}
@@ -64,14 +66,26 @@ var issueCreateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		input := bitbucket.CreateIssueInput{
-			Title:    issueCreateTitle,
-			Kind:     issueCreateKind,
-			Priority: issueCreatePriority,
+		var input bitbucket.CreateIssueInput
+		consumed, err := stdinInputOr(&input, func() bitbucket.CreateIssueInput {
+			body := bitbucket.CreateIssueInput{
+				Title:    issueCreateTitle,
+				Kind:     issueCreateKind,
+				Priority: issueCreatePriority,
+			}
+			if issueCreateDescription != "" {
+				c := bitbucket.Content{Raw: issueCreateDescription}
+				body.Content = &c
+			}
+			return body
+		})
+		if err != nil {
+			return err
 		}
-		if issueCreateDescription != "" {
-			c := bitbucket.Content{Raw: issueCreateDescription}
-			input.Content = &c
+		if !consumed {
+			if err := requireFlag("title", issueCreateTitle); err != nil {
+				return err
+			}
 		}
 		issue, err := client.Issues(ws, repo).Create(context.Background(), input)
 		if err != nil {
@@ -124,6 +138,9 @@ var issueReopenCmd = &cobra.Command{
 }
 
 func init() {
+	issueListCmd.Flags().StringVar(&issueListSort, "sort", "",
+		"sort by Bitbucket field, prefix with - for descending (e.g. -updated_on); empty preserves API default")
+
 	issueGetCmd.Flags().IntVarP(&issueGetID, "id", "i", 0, "issue ID (required)")
 	issueGetCmd.MarkFlagRequired("id")
 
@@ -131,7 +148,7 @@ func init() {
 	issueCreateCmd.Flags().StringVarP(&issueCreateDescription, "description", "d", "", "issue description")
 	issueCreateCmd.Flags().StringVarP(&issueCreateKind, "kind", "k", "", "issue kind: bug, enhancement, proposal, task")
 	issueCreateCmd.Flags().StringVar(&issueCreatePriority, "priority", "", "issue priority: trivial, minor, major, critical, blocker")
-	issueCreateCmd.MarkFlagRequired("title")
+	// no MarkFlagRequired on "title" — issue create accepts JSON on stdin.
 
 	issueCloseCmd.Flags().IntVarP(&issueCloseID, "id", "i", 0, "issue ID (required)")
 	issueCloseCmd.MarkFlagRequired("id")

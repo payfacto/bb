@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -18,9 +17,9 @@ var memberListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all members of the workspace",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ws := cfg.Workspace
-		if ws == "" {
-			return fmt.Errorf("no workspace configured — run 'bb setup' or pass --workspace")
+		ws, err := workspaceOnly()
+		if err != nil {
+			return err
 		}
 		members, err := client.Members(ws).List(context.Background())
 		if err != nil {

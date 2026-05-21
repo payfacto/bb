@@ -45,14 +45,29 @@ var restrictionCreateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		input := bitbucket.CreateBranchRestrictionInput{
-			Kind:            restrictionCreateKind,
-			BranchMatchKind: "glob",
-			Pattern:         restrictionCreatePattern,
+		var input bitbucket.CreateBranchRestrictionInput
+		consumed, err := stdinInputOr(&input, func() bitbucket.CreateBranchRestrictionInput {
+			body := bitbucket.CreateBranchRestrictionInput{
+				Kind:            restrictionCreateKind,
+				BranchMatchKind: "glob",
+				Pattern:         restrictionCreatePattern,
+			}
+			if restrictionCreateValue >= 0 {
+				v := restrictionCreateValue
+				body.Value = &v
+			}
+			return body
+		})
+		if err != nil {
+			return err
 		}
-		if restrictionCreateValue >= 0 {
-			v := restrictionCreateValue
-			input.Value = &v
+		if !consumed {
+			if err := requireFlag("kind", restrictionCreateKind); err != nil {
+				return err
+			}
+			if err := requireFlag("pattern", restrictionCreatePattern); err != nil {
+				return err
+			}
 		}
 		r, err := client.Restrictions(ws, repo).Create(context.Background(), input)
 		if err != nil {
@@ -87,8 +102,7 @@ func init() {
 	restrictionCreateCmd.Flags().StringVar(&restrictionCreateKind, "kind", "", "restriction kind, e.g. push, force, delete, require_approvals_to_merge (required)")
 	restrictionCreateCmd.Flags().StringVar(&restrictionCreatePattern, "pattern", "", "branch glob pattern, e.g. main or feature/* (required)")
 	restrictionCreateCmd.Flags().IntVar(&restrictionCreateValue, "value", -1, "integer value for restrictions that require one (e.g. number of approvals)")
-	restrictionCreateCmd.MarkFlagRequired("kind")
-	restrictionCreateCmd.MarkFlagRequired("pattern")
+	// no MarkFlagRequired — restriction create accepts JSON on stdin.
 
 	restrictionDeleteCmd.Flags().IntVarP(&restrictionDeleteID, "id", "i", 0, "branch restriction ID to delete (required)")
 	restrictionDeleteCmd.MarkFlagRequired("id")
