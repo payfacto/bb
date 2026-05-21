@@ -1,0 +1,45 @@
+# Normalize line endings on commit. All text files stored as LF in the repo;
+# Windows checkouts can still see CRLF on disk if they set core.autocrlf=true,
+# but the canonical form in git is always LF. Prevents the recurring "120
+# files modified" stat-cache phantom on Windows with autocrlf=true.
+
+# Default: detect text vs binary, force LF in repo.
+* text=auto eol=lf
+
+# Source / scripts — always LF on disk regardless of OS.
+*.go    text eol=lf
+*.sh    text eol=lf
+*.bash  text eol=lf
+*.py    text eol=lf
+
+# Build / config.
+Makefile        text eol=lf
+*.mk            text eol=lf
+*.yaml          text eol=lf
+*.yml           text eol=lf
+*.toml          text eol=lf
+*.json          text eol=lf
+go.mod          text eol=lf
+go.sum          text eol=lf
+.goreleaser.yaml text eol=lf
+
+# Docs.
+*.md    text eol=lf
+*.txt   text eol=lf
+llms.txt text eol=lf
+LICENSE text eol=lf
+
+# Windows-only files keep CRLF.
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+
+# Binaries — never touch.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.zip   binary
+*.gz    binary
+*.tar   binary
