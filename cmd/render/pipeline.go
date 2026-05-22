@@ -7,6 +7,21 @@ import (
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
+// pipelineStateSub extracts the displayable sub-state. For COMPLETED
+// pipelines Bitbucket nests the outcome under `result`
+// (SUCCESSFUL/FAILED/STOPPED/ERROR). For IN_PROGRESS pipelines it nests the
+// sub-state under `stage` (PENDING/RUNNING/PAUSED/HALTED). Returning whichever
+// is present prevents a PAUSED pipeline being mislabelled as plain IN_PROGRESS.
+func pipelineStateSub(s bitbucket.PipelineState) string {
+	if s.Result != nil {
+		return s.Result.Name
+	}
+	if s.Stage != nil {
+		return s.Stage.Name
+	}
+	return ""
+}
+
 // PipelineListString returns formatted text for a list of pipelines.
 func PipelineListString(pipelines []bitbucket.Pipeline) string {
 	if len(pipelines) == 0 {
@@ -31,8 +46,8 @@ func PipelineListString(pipelines []bitbucket.Pipeline) string {
 	for _, p := range pipelines {
 		id := IDStyle.Render(fmt.Sprintf("#%-4d", p.BuildNumber))
 		state := p.State.Name
-		if p.State.Result != nil {
-			state += "/" + p.State.Result.Name
+		if sub := pipelineStateSub(p.State); sub != "" {
+			state += "/" + sub
 		}
 		date := ""
 		if len(p.CreatedOn) >= datePrefixLen {
@@ -58,8 +73,8 @@ func PipelineDetailString(p bitbucket.Pipeline) string {
 	}
 
 	state := p.State.Name
-	if p.State.Result != nil {
-		state += " (" + p.State.Result.Name + ")"
+	if sub := pipelineStateSub(p.State); sub != "" {
+		state += " (" + sub + ")"
 	}
 	commit := ""
 	if p.Target.Commit != nil {
@@ -103,8 +118,8 @@ func PipelineStepsString(steps []bitbucket.PipelineStep) string {
 
 	for _, s := range steps {
 		state := s.State.Name
-		if s.State.Result != nil {
-			state += "/" + s.State.Result.Name
+		if sub := pipelineStateSub(s.State); sub != "" {
+			state += "/" + sub
 		}
 		sb.WriteString(fmt.Sprintf("  %-38s  %-20s  %s\n",
 			s.UUID, truncate(s.Name, 20), StateBadge(state)))

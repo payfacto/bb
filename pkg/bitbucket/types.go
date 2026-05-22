@@ -123,9 +123,14 @@ type Pipeline struct {
 type PipelineState struct {
 	Name   string          `json:"name"`
 	Result *PipelineResult `json:"result,omitempty"`
+	Stage  *PipelineStage  `json:"stage,omitempty"`
 }
 
 type PipelineResult struct {
+	Name string `json:"name"`
+}
+
+type PipelineStage struct {
 	Name string `json:"name"`
 }
 

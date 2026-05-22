@@ -1447,6 +1447,19 @@ func prStateStyle(state string) lipgloss.Style {
 	}
 }
 
+// pipelineBadgeName picks the most informative state label for a pipeline:
+// the COMPLETED-pipeline result if set, otherwise the IN_PROGRESS stage
+// (PAUSED/HALTED/RUNNING/PENDING), otherwise the raw state name.
+func pipelineBadgeName(s bitbucket.PipelineState) string {
+	if s.Result != nil && s.Result.Name != "" {
+		return s.Result.Name
+	}
+	if s.Stage != nil && s.Stage.Name != "" {
+		return s.Stage.Name
+	}
+	return s.Name
+}
+
 // prStateBadge renders a compact state pill with background colour for use in tables.
 func prStateBadge(state string) string {
 	badge := lipgloss.NewStyle().Padding(0, 1)
@@ -1911,12 +1924,7 @@ func newPipelineListView(client *bitbucket.Client, ws, repo string, pageSize int
 			for i, p := range pipelines {
 				// Show result badge when available (FAILED/SUCCESSFUL/STOPPED),
 				// otherwise show the state badge (IN_PROGRESS/PENDING).
-				var badge string
-				if p.State.Result != nil && p.State.Result.Name != "" {
-					badge = prStateBadge(p.State.Result.Name)
-				} else {
-					badge = prStateBadge(p.State.Name)
-				}
+				badge := prStateBadge(pipelineBadgeName(p.State))
 				items[i] = listItem{id: fmt.Sprintf("#%d", p.BuildNumber), title: badge, subtitle: p.Target.RefName, data: p}
 			}
 			return items, nil
@@ -1949,12 +1957,7 @@ func newPipelineDetailView(client *bitbucket.Client, ws, repo string, p bitbucke
 				}
 				items := make([]listItem, len(steps))
 				for i, s := range steps {
-					var badge string
-					if s.State.Result != nil && s.State.Result.Name != "" {
-						badge = prStateBadge(s.State.Result.Name)
-					} else {
-						badge = prStateBadge(s.State.Name)
-					}
+					badge := prStateBadge(pipelineBadgeName(s.State))
 					items[i] = listItem{id: s.UUID, title: s.Name, subtitle: badge, data: s}
 				}
 				return items, nil
@@ -1996,10 +1999,13 @@ func newPipelineDetailView(client *bitbucket.Client, ws, repo string, p bitbucke
 		})
 	}
 
-	// Render State as phase + result pills (e.g. COMPLETED  FAILED).
+	// Render State as phase + sub-state pills (e.g. COMPLETED  FAILED, IN_PROGRESS  PAUSED).
 	state := prStateBadge(p.State.Name)
-	if p.State.Result != nil && p.State.Result.Name != "" {
+	switch {
+	case p.State.Result != nil && p.State.Result.Name != "":
 		state += "  " + prStateBadge(p.State.Result.Name)
+	case p.State.Stage != nil && p.State.Stage.Name != "":
+		state += "  " + prStateBadge(p.State.Stage.Name)
 	}
 	commit := ""
 	if p.Target.Commit != nil {
