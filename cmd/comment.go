@@ -55,10 +55,11 @@ var commentGetCmd = &cobra.Command{
 }
 
 var (
-	commentAddPRID int
-	commentAddText string
-	commentAddFile string
-	commentAddLine int
+	commentAddPRID     int
+	commentAddText     string
+	commentAddTextFile string
+	commentAddFile     string
+	commentAddLine     int
 )
 
 var commentAddCmd = &cobra.Command{
@@ -69,10 +70,14 @@ var commentAddCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		text, err := resolveTextBody(commentAddText, commentAddTextFile, "text", "text-file")
+		if err != nil {
+			return err
+		}
 		var input bitbucket.AddCommentInput
 		consumed, err := stdinInputOr(&input, func() bitbucket.AddCommentInput {
 			body := bitbucket.AddCommentInput{
-				Content: bitbucket.Content{Raw: commentAddText},
+				Content: bitbucket.Content{Raw: text},
 			}
 			if commentAddFile != "" {
 				body.Inline = &bitbucket.Inline{
@@ -86,7 +91,7 @@ var commentAddCmd = &cobra.Command{
 			return err
 		}
 		if !consumed {
-			if err := requireFlag("text", commentAddText); err != nil {
+			if err := requireFlag("text", text); err != nil {
 				return err
 			}
 		}
@@ -104,6 +109,7 @@ var (
 	commentReplyPRID      int
 	commentReplyCommentID int
 	commentReplyText      string
+	commentReplyTextFile  string
 )
 
 var commentReplyCmd = &cobra.Command{
@@ -114,8 +120,15 @@ var commentReplyCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		text, err := resolveTextBody(commentReplyText, commentReplyTextFile, "text", "text-file")
+		if err != nil {
+			return err
+		}
+		if err := requireFlag("text", text); err != nil {
+			return err
+		}
 		c, err := client.Comments(ws, r, commentReplyPRID).Reply(
-			context.Background(), commentReplyCommentID, commentReplyText)
+			context.Background(), commentReplyCommentID, text)
 		if err != nil {
 			return err
 		}
@@ -139,15 +152,17 @@ func init() {
 
 	commentAddCmd.Flags().IntVarP(&commentAddPRID, "pr-id", "p", 0, "pull request ID")
 	commentAddCmd.Flags().StringVarP(&commentAddText, "text", "t", "", "comment text")
+	commentAddCmd.Flags().StringVar(&commentAddTextFile, "text-file", "", "path to a file containing the comment text (mutually exclusive with --text)")
 	commentAddCmd.Flags().StringVar(&commentAddFile, "file", "", "file path for inline comment")
 	commentAddCmd.Flags().IntVar(&commentAddLine, "line", 0, "line number for inline comment")
 	commentAddCmd.MarkFlagRequired("pr-id")
-	// no MarkFlagRequired on "text" — comment add accepts JSON on stdin.
+	// no MarkFlagRequired on "text" — comment add accepts JSON on stdin or --text-file.
 
 	commentReplyCmd.Flags().IntVarP(&commentReplyPRID, "pr-id", "p", 0, "pull request ID")
 	commentReplyCmd.Flags().IntVarP(&commentReplyCommentID, "comment-id", "c", 0, "parent comment ID")
 	commentReplyCmd.Flags().StringVarP(&commentReplyText, "text", "t", "", "reply text")
+	commentReplyCmd.Flags().StringVar(&commentReplyTextFile, "text-file", "", "path to a file containing the reply text (mutually exclusive with --text)")
 	commentReplyCmd.MarkFlagRequired("pr-id")
 	commentReplyCmd.MarkFlagRequired("comment-id")
-	commentReplyCmd.MarkFlagRequired("text")
+	// no MarkFlagRequired on "text" — accepts --text or --text-file.
 }

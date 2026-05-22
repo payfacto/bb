@@ -56,12 +56,13 @@ var prGetCmd = &cobra.Command{
 }
 
 var (
-	prCreateTitle       string
-	prCreateFromBranch  string
-	prCreateToBranch    string
-	prCreateDescription string
-	prCreateCloseSource bool
-	prCreateDraft       bool
+	prCreateTitle           string
+	prCreateFromBranch      string
+	prCreateToBranch        string
+	prCreateDescription     string
+	prCreateDescriptionFile string
+	prCreateCloseSource     bool
+	prCreateDraft           bool
 )
 
 var prCreateCmd = &cobra.Command{
@@ -72,11 +73,15 @@ var prCreateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		description, err := resolveTextBody(prCreateDescription, prCreateDescriptionFile, "description", "description-file")
+		if err != nil {
+			return err
+		}
 		var input bitbucket.CreatePRInput
 		consumed, err := stdinInputOr(&input, func() bitbucket.CreatePRInput {
 			return bitbucket.CreatePRInput{
 				Title:             prCreateTitle,
-				Description:       prCreateDescription,
+				Description:       description,
 				Source:            bitbucket.NewEndpoint(prCreateFromBranch),
 				Destination:       bitbucket.NewEndpoint(prCreateToBranch),
 				CloseSourceBranch: prCreateCloseSource,
@@ -262,6 +267,7 @@ func init() {
 	prCreateCmd.Flags().StringVar(&prCreateFromBranch, "from-branch", "", "source branch")
 	prCreateCmd.Flags().StringVar(&prCreateToBranch, "to-branch", "", "destination branch")
 	prCreateCmd.Flags().StringVarP(&prCreateDescription, "description", "d", "", "PR description")
+	prCreateCmd.Flags().StringVar(&prCreateDescriptionFile, "description-file", "", "path to a file containing the PR description (mutually exclusive with --description)")
 	prCreateCmd.Flags().BoolVar(&prCreateCloseSource, "close-source-branch", false,
 		"close source branch after merge")
 	prCreateCmd.Flags().BoolVar(&prCreateDraft, "draft", false,
