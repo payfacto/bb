@@ -159,7 +159,7 @@ bb pr list --workspace myws --repo myrepo
 ```
 bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED] [--source-branch BRANCH] [--sort FIELD]
 bb pr get -p ID
-bb pr create --title "..." --from-branch BRANCH --to-branch BRANCH [-d "..."] [--close-source-branch] [--draft]
+bb pr create --title "..." --from-branch BRANCH --to-branch BRANCH [-d "..." | --description-file PATH] [--close-source-branch] [--draft]
 bb pr diff -p ID
 bb pr approve -p ID
 bb pr merge -p ID [--strategy merge_commit|squash|fast_forward]
@@ -174,8 +174,8 @@ bb pr add-reviewer -p ID --account-id ACCOUNT_ID
 ```
 bb pr comment list -p ID
 bb pr comment get -p ID -c COMMENT_ID
-bb pr comment add -p ID -t "..."
-bb pr comment reply -p ID -c COMMENT_ID -t "..."
+bb pr comment add -p ID [-t "..." | --text-file PATH] [--file PATH --line N]
+bb pr comment reply -p ID -c COMMENT_ID [-t "..." | --text-file PATH]
 ```
 
 ### PR Tasks
@@ -237,7 +237,7 @@ bb repo fork SLUG [--name "..."] [--workspace SLUG]
 ```
 bb issue list [--sort FIELD]
 bb issue get -i ID
-bb issue create -T "..." [-d "..."] [-k bug|enhancement|proposal|task] [--priority trivial|minor|major|critical|blocker]
+bb issue create -T "..." [-d "..." | --description-file PATH] [-k bug|enhancement|proposal|task] [--priority trivial|minor|major|critical|blocker]
 bb issue close -i ID
 bb issue reopen -i ID
 ```
@@ -319,6 +319,7 @@ Key notes:
 - `bb --describe` emits a JSON capability manifest covering every command, its flags, action class (`read | write | destructive`), output Go type, and an auto-generated JSON Schema for both output and stdin input where applicable. Use this for discovery instead of parsing `--help`.
 - All list commands return JSON arrays; single-resource commands return a JSON object.
 - Create and update commands accept a JSON body on stdin (`echo '{...}' | bb pr create`) as an alternative to flags. When stdin is piped and non-empty, it replaces all flag values.
+- For multi-paragraph text bodies, prefer the `--*-file` variants over shell quoting / heredocs / stdin: `pr create --description-file PATH`, `issue create --description-file PATH`, `pr comment add --text-file PATH`, `pr comment reply --text-file PATH`. Each is mutually exclusive with its inline counterpart (`--description` / `--text`). Agents should write the body to a temp file and pass the path — no shell-escaping concerns.
 - IDs are integers for PRs, tasks, and issues. UUIDs (with `{}` braces) for pipelines, steps, and environments.
 - `workspace` and `repo` can be omitted from flags if set in `~/.bbcloud.yaml`.
 - On failure the CLI exits non-zero and writes a single JSON object to stderr: `{"error": {"code": "...", "message": "...", "details": {...}}}`. Codes are a fixed enum: `config_missing`, `auth_failed`, `not_found`, `validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`. stdout is never mixed with errors. API-error details include `http_status`; the raw `response_body` is redacted by default (Bitbucket sometimes echoes request fragments back) — set `BB_DEBUG=1` to include it. Required-flag failures include `details.missing_flags`.

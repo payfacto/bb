@@ -91,6 +91,19 @@ echo '{"key":"API_KEY","value":"secret","secured":true}' | bb pipeline-var creat
 
 Stdin-capable commands: `pr create`, `pr comment add`, `branch create`, `tag create`, `repo create`, `repo update`, `repo fork`, `issue create`, `webhook create`, `deploy-key add`, `pipeline-var create`, `restriction create`.
 
+## Multi-paragraph text bodies
+
+For PR descriptions, issue descriptions, or comment bodies that span multiple paragraphs, **prefer the file-flag form** over inline `-d "..."` / `-t "..."`. Shells (especially MINGW bash on Windows) can block on unclosed quoted strings containing literal newlines, which can look like `bb` hanging.
+
+```bash
+bb pr create -T "..." --from-branch X --to-branch main --description-file /tmp/body.md
+bb issue create -T "..." --description-file /tmp/body.md
+bb pr comment add -p 42 --text-file /tmp/comment.md
+bb pr comment reply -p 42 -c 7 --text-file /tmp/reply.md
+```
+
+`--description-file` / `--text-file` are mutually exclusive with the inline `--description` / `--text` flags — passing both returns `validation_failed`.
+
 ## Commands
 
 ### Pull Requests
@@ -98,7 +111,7 @@ Stdin-capable commands: `pr create`, `pr comment add`, `branch create`, `tag cre
 ```
 bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED] [--source-branch BRANCH] [--sort FIELD]
 bb pr get -p ID
-bb pr create -T "..." --from-branch BRANCH --to-branch BRANCH [-d "..."] [--close-source-branch] [--draft]
+bb pr create -T "..." --from-branch BRANCH --to-branch BRANCH [-d "..." | --description-file PATH] [--close-source-branch] [--draft]
 bb pr diff -p ID
 bb pr approve -p ID
 bb pr merge -p ID [--strategy merge_commit|squash|fast_forward]
@@ -113,8 +126,8 @@ bb pr add-reviewer -p ID --account-id ACCOUNT_ID
 ```
 bb pr comment list -p ID
 bb pr comment get -p ID -c COMMENT_ID
-bb pr comment add -p ID -t "..."
-bb pr comment reply -p ID -c COMMENT_ID -t "..."
+bb pr comment add -p ID [-t "..." | --text-file PATH] [--file PATH --line N]
+bb pr comment reply -p ID -c COMMENT_ID [-t "..." | --text-file PATH]
 ```
 
 ### PR Tasks
@@ -176,7 +189,7 @@ bb repo fork SLUG [--name "..."] [--workspace SLUG]
 ```
 bb issue list [--sort FIELD]
 bb issue get -i ID
-bb issue create -T "..." [-d "..."] [-k bug|enhancement|proposal|task] [--priority trivial|minor|major|critical|blocker]
+bb issue create -T "..." [-d "..." | --description-file PATH] [-k bug|enhancement|proposal|task] [--priority trivial|minor|major|critical|blocker]
 bb issue close -i ID
 bb issue reopen -i ID
 ```

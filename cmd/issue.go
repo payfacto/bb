@@ -52,10 +52,11 @@ var issueGetCmd = &cobra.Command{
 }
 
 var (
-	issueCreateTitle       string
-	issueCreateDescription string
-	issueCreateKind        string
-	issueCreatePriority    string
+	issueCreateTitle           string
+	issueCreateDescription     string
+	issueCreateDescriptionFile string
+	issueCreateKind            string
+	issueCreatePriority        string
 )
 
 var issueCreateCmd = &cobra.Command{
@@ -66,6 +67,10 @@ var issueCreateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		description, err := resolveTextBody(issueCreateDescription, issueCreateDescriptionFile, "description", "description-file")
+		if err != nil {
+			return err
+		}
 		var input bitbucket.CreateIssueInput
 		consumed, err := stdinInputOr(&input, func() bitbucket.CreateIssueInput {
 			body := bitbucket.CreateIssueInput{
@@ -73,8 +78,8 @@ var issueCreateCmd = &cobra.Command{
 				Kind:     issueCreateKind,
 				Priority: issueCreatePriority,
 			}
-			if issueCreateDescription != "" {
-				c := bitbucket.Content{Raw: issueCreateDescription}
+			if description != "" {
+				c := bitbucket.Content{Raw: description}
 				body.Content = &c
 			}
 			return body
@@ -146,6 +151,7 @@ func init() {
 
 	issueCreateCmd.Flags().StringVarP(&issueCreateTitle, "title", "T", "", "issue title (required)")
 	issueCreateCmd.Flags().StringVarP(&issueCreateDescription, "description", "d", "", "issue description")
+	issueCreateCmd.Flags().StringVar(&issueCreateDescriptionFile, "description-file", "", "path to a file containing the issue description (mutually exclusive with --description)")
 	issueCreateCmd.Flags().StringVarP(&issueCreateKind, "kind", "k", "", "issue kind: bug, enhancement, proposal, task")
 	issueCreateCmd.Flags().StringVar(&issueCreatePriority, "priority", "", "issue priority: trivial, minor, major, critical, blocker")
 	// no MarkFlagRequired on "title" — issue create accepts JSON on stdin.

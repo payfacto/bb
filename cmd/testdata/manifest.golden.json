@@ -844,6 +844,11 @@
           "required": false
         },
         {
+          "name": "description-file",
+          "type": "string",
+          "required": false
+        },
+        {
           "name": "format",
           "short": "f",
           "type": "string",
@@ -1739,6 +1744,11 @@
           "required": false
         },
         {
+          "name": "text-file",
+          "type": "string",
+          "required": false
+        },
+        {
           "name": "token",
           "type": "string",
           "required": false
@@ -1908,7 +1918,12 @@
           "name": "text",
           "short": "t",
           "type": "string",
-          "required": true
+          "required": false
+        },
+        {
+          "name": "text-file",
+          "type": "string",
+          "required": false
         },
         {
           "name": "token",
@@ -1949,6 +1964,11 @@
         {
           "name": "description",
           "short": "d",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "description-file",
           "type": "string",
           "required": false
         },
