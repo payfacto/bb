@@ -138,9 +138,13 @@ func TestPipelines_Steps(t *testing.T) {
 
 func TestPipelines_Log(t *testing.T) {
 	logText := "Step 1: Building...\nStep 2: Done.\n"
+	// Bitbucket Cloud requires the curly braces on pipeline/step UUIDs.
+	// Stripping them produces a 404 against the live API — guard against that
+	// by asserting the request path preserves the braces verbatim.
+	wantPath := "/repositories/testws/testrepo/pipelines/%7Babc-123%7D/steps/%7Bstep-1%7D/log"
 	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasSuffix(r.URL.Path, "/log") {
-			t.Errorf("expected path to end with /log, got %s", r.URL.Path)
+		if r.URL.EscapedPath() != wantPath {
+			t.Errorf("expected escaped path %q, got %q", wantPath, r.URL.EscapedPath())
 		}
 		w.Header().Set("Content-Type", "text/plain")
 		if _, err := w.Write([]byte(logText)); err != nil {

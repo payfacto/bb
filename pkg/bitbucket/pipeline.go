@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strings"
 )
 
 // PipelineResource provides operations on repository pipelines.
@@ -85,10 +84,12 @@ func (r *PipelineResource) Steps(ctx context.Context, pipelineUUID string) ([]Pi
 }
 
 // Log returns the raw log output for a pipeline step (plain text, not JSON).
+//
+// Bitbucket Cloud's pipeline endpoints require the UUIDs to be passed with
+// their surrounding curly braces (URL-encoded as %7B...%7D). Earlier versions
+// stripped the braces, which produced 404s against the real API. Pass UUIDs
+// through verbatim — `bb pipeline steps` already returns them braced.
 func (r *PipelineResource) Log(ctx context.Context, pipelineUUID, stepUUID string) (string, error) {
-	// Strip curly braces — some Bitbucket endpoints require bare UUIDs in the path.
-	pipelineUUID = strings.Trim(pipelineUUID, "{}")
-	stepUUID = strings.Trim(stepUUID, "{}")
 	path := fmt.Sprintf("%s%s/steps/%s/log",
 		r.basePath(), url.PathEscape(pipelineUUID), url.PathEscape(stepUUID))
 	data, err := r.client.doText(ctx, path)
