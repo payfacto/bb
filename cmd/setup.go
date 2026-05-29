@@ -37,12 +37,13 @@ var setupCmd = &cobra.Command{
 
 		ws := promptLine(r, "Workspace", existing.Workspace)
 		defaultRepo := promptLine(r, "Default repo (optional)", existing.Repo)
-		user := promptLine(r, "Username (email)", existing.Username)
-		tok := promptPassword("App password (token)", existing.Token)
+		fmt.Println("Create an API token (with scopes) at https://id.atlassian.com/manage-profile/security/api-tokens")
+		user := promptLine(r, "Atlassian account email", existing.Username)
+		tok := promptPassword("API token", existing.Token)
 
 		authType := existing.AuthType
 		if tok != "" {
-			authType = "apppassword"
+			authType = "apitoken"
 		}
 
 		updated := &config.Config{
@@ -59,10 +60,10 @@ var setupCmd = &cobra.Command{
 
 		if tok != "" {
 			if err := auth.SetToken(user, tok); err != nil {
-				fmt.Fprintf(os.Stderr, "\nwarning: could not store app password in OS keyring (%v)\n", err)
-				fmt.Fprintf(os.Stderr, "set BITBUCKET_TOKEN=<app-password> in your environment to authenticate\n")
+				fmt.Fprintf(os.Stderr, "\nwarning: could not store API token in OS keyring (%v)\n", err)
+				fmt.Fprintf(os.Stderr, "set BITBUCKET_TOKEN=<api-token> in your environment to authenticate\n")
 			} else {
-				fmt.Println("App password stored in OS keyring.")
+				fmt.Println("API token stored in OS keyring.")
 			}
 		}
 
