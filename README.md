@@ -103,24 +103,24 @@ bb auth logout    # remove stored credentials
 bb auth token     # print raw token (useful for scripts)
 ```
 
-### Option B — API Token *(replaces App Passwords)*
+### Option B — API Token 
 
-> **Note:** Bitbucket App Passwords are being phased out by Atlassian. Generate an **API token** (or a scoped token) instead.
-> See [Bitbucket API tokens](https://support.atlassian.com/bitbucket-cloud/docs/api-tokens/) for instructions.
+> **Note:** Bitbucket is phasing out App Passwords — they stop working on **2026-06-09**.
+> Generate an **API token scoped to Bitbucket** instead.
+> See [Create an API token](https://support.atlassian.com/bitbucket-cloud/docs/create-an-api-token/) for instructions.
 
 ```bash
 bb setup
 ```
-
-Prompts for workspace, username, and a Bitbucket API token. The token is stored in the OS keyring (not in `~/.bbcloud.yaml`).
+Prompts for workspace, your **Atlassian account email**, and a Bitbucket **API token** (created with scopes). The token is stored in the OS keyring (not in `~/.bbcloud.yaml`).
 
 ### CI/CD environments
 
 For environments without an OS keyring (headless Linux, CI):
 
 ```bash
-export BITBUCKET_USER=myusername
-export BITBUCKET_TOKEN=myapitoken
+export BITBUCKET_USER=you@example.com   # Atlassian account email
+export BITBUCKET_TOKEN=myapitoken        # API token (with scopes)
 bb pr list --workspace myws --repo myrepo
 ```
 
