@@ -259,7 +259,7 @@ func AuthStatusString(info AuthStatusInfo) string {
 	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Token"), info.TokenStatus))
 	if info.Deprecation != "" {
 		sb.WriteString("\n")
-		sb.WriteString(badgeDeclined.Render("  " + info.Deprecation))
+		sb.WriteString(WarningStyle.Render(info.Deprecation))
 		sb.WriteString("\n")
 	}
 	return sb.String()

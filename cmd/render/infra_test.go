@@ -160,6 +160,11 @@ func TestAuthStatusShowsDeprecationWhenSet(t *testing.T) {
 	if !strings.Contains(out, "2026-06-09") {
 		t.Errorf("expected deprecation notice in output, got:\n%s", out)
 	}
+	tokenIdx := strings.Index(out, "Token")
+	deprecIdx := strings.Index(out, "2026-06-09")
+	if deprecIdx <= tokenIdx {
+		t.Error("deprecation line should appear after the Token line")
+	}
 }
 
 func TestAuthStatusOmitsDeprecationWhenEmpty(t *testing.T) {
