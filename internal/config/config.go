@@ -28,6 +28,9 @@ const CloneActionCopy = "copy"
 // ThemeDefault is the colour theme used when none is configured.
 const ThemeDefault = "catppuccin"
 
+// AppPasswordDeadline is the date Bitbucket Cloud app passwords stop working.
+const AppPasswordDeadline = "2026-06-09"
+
 // Config holds all configurable values for bb.
 type Config struct {
 	Workspace     string `yaml:"workspace"`

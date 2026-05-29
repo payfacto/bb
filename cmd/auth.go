@@ -158,7 +158,7 @@ var authStatusCmd = &cobra.Command{
 		var deprecation string
 		hasToken := err == nil || os.Getenv("BITBUCKET_TOKEN") != ""
 		if existing.IsLegacyAppPassword() && hasToken {
-			deprecation = "DEPRECATED — app passwords stop working 2026-06-09; run 'bb setup' to switch to an API token"
+			deprecation = fmt.Sprintf("DEPRECATED — app passwords stop working %s; run 'bb setup' to switch to an API token", config.AppPasswordDeadline)
 		}
 
 		render.AuthStatus(render.AuthStatusInfo{
