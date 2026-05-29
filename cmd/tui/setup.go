@@ -63,12 +63,12 @@ func newSetupView(cfgPath string, existing *config.Config) *setupModel {
 	fields[setupFieldRepo].CharLimit = setupFieldCharLimit
 
 	fields[setupFieldUsername] = textinput.New()
-	fields[setupFieldUsername].Placeholder = "username or email"
+	fields[setupFieldUsername].Placeholder = "Atlassian account email"
 	fields[setupFieldUsername].SetValue(existing.Username)
 	fields[setupFieldUsername].CharLimit = setupFieldCharLimit
 
 	fields[setupFieldPassword] = textinput.New()
-	fields[setupFieldPassword].Placeholder = "app password"
+	fields[setupFieldPassword].Placeholder = "API token"
 	fields[setupFieldPassword].EchoMode = textinput.EchoPassword
 	fields[setupFieldPassword].EchoCharacter = '*'
 	fields[setupFieldPassword].CharLimit = setupPasswordCharLimit
@@ -206,7 +206,7 @@ func (m *setupModel) save() tea.Cmd {
 	return func() tea.Msg {
 		authType := existing.AuthType
 		if pass != "" {
-			authType = "apppassword"
+			authType = "apitoken"
 		}
 
 		updated := &config.Config{
@@ -237,7 +237,7 @@ func (m *setupModel) save() tea.Cmd {
 		}
 
 		if tok == "" {
-			return saveResultMsg{err: fmt.Errorf("no token available (enter app password or run 'bb auth login')")}
+			return saveResultMsg{err: fmt.Errorf("no token available (enter an API token or run 'bb auth login')")}
 		}
 
 		updated.Token = tok
@@ -264,7 +264,7 @@ func (m *setupModel) View() string {
 	sb.WriteString(separatorStyle.Render(strings.Repeat("─", viewWidth)))
 	sb.WriteString("\n\n")
 
-	labels := []string{"Workspace", "Default repo", "Username", "App password"}
+	labels := []string{"Workspace", "Default repo", "Email", "API token"}
 	for i, label := range labels {
 		if i == m.focus {
 			sb.WriteString(helpKeyStyle.Render(fmt.Sprintf("  %-*s ", setupLabelWidth, label)))
