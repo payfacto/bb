@@ -79,7 +79,7 @@ The TUI requires a terminal — piped or scripted usage falls back to the standa
 
 ## Authentication
 
-`bb` supports two authentication methods.
+`bb` supports two authentication methods — OAuth and API token — plus environment-variable credentials for headless/CI use.
 
 ### Option A — OAuth 2.0 (recommended)
 
@@ -103,7 +103,7 @@ bb auth logout    # remove stored credentials
 bb auth token     # print raw token (useful for scripts)
 ```
 
-### Option B — API Token 
+### Option B — API Token
 
 > **Note:** Bitbucket is phasing out App Passwords — they stop working on **2026-06-09**.
 > Generate an **API token scoped to Bitbucket** instead.
