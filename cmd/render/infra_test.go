@@ -148,3 +148,29 @@ func TestUserMeString_fields(t *testing.T) {
 		t.Errorf("expected account ID, got: %q", out)
 	}
 }
+
+func TestAuthStatusShowsDeprecationWhenSet(t *testing.T) {
+	out := render.AuthStatusString(render.AuthStatusInfo{
+		Username:    "jmadore@payfacto.com",
+		Workspace:   "payfacto",
+		AuthType:    "app password",
+		TokenStatus: "abcd****wxyz (from OS keyring)",
+		Deprecation: "DEPRECATED — app passwords stop working 2026-06-09",
+	})
+	if !strings.Contains(out, "2026-06-09") {
+		t.Errorf("expected deprecation notice in output, got:\n%s", out)
+	}
+}
+
+func TestAuthStatusOmitsDeprecationWhenEmpty(t *testing.T) {
+	out := render.AuthStatusString(render.AuthStatusInfo{
+		Username:    "jmadore@payfacto.com",
+		Workspace:   "payfacto",
+		AuthType:    "API token",
+		TokenStatus: "abcd****wxyz (from OS keyring)",
+		Deprecation: "",
+	})
+	if strings.Contains(out, "DEPRECATED") {
+		t.Errorf("did not expect deprecation notice, got:\n%s", out)
+	}
+}

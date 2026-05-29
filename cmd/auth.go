@@ -130,9 +130,14 @@ var authStatusCmd = &cobra.Command{
 			return nil
 		}
 
-		authMethod := existing.AuthType
-		if authMethod == "" {
-			authMethod = "apppassword (legacy)"
+		var authMethod string
+		switch existing.AuthType {
+		case "apitoken":
+			authMethod = "API token"
+		case "oauth":
+			authMethod = "OAuth 2.0"
+		default: // "" or "apppassword"
+			authMethod = "app password"
 		}
 
 		var tokenStatus string
@@ -150,11 +155,18 @@ var authStatusCmd = &cobra.Command{
 			tokenStatus = fmt.Sprintf("keyring unavailable (%v)", err)
 		}
 
+		var deprecation string
+		hasToken := err == nil || os.Getenv("BITBUCKET_TOKEN") != ""
+		if existing.IsLegacyAppPassword() && hasToken {
+			deprecation = "DEPRECATED — app passwords stop working 2026-06-09; run 'bb setup' to switch to an API token"
+		}
+
 		render.AuthStatus(render.AuthStatusInfo{
 			Username:    existing.Username,
 			Workspace:   existing.Workspace,
 			AuthType:    authMethod,
 			TokenStatus: tokenStatus,
+			Deprecation: deprecation,
 		})
 		return nil
 	},

@@ -243,6 +243,7 @@ type AuthStatusInfo struct {
 	Workspace   string
 	AuthType    string
 	TokenStatus string // e.g. "abcd****efgh (from OS keyring)"
+	Deprecation string // optional; non-empty renders a warning line
 }
 
 // AuthStatusString returns formatted text for the auth status display.
@@ -256,6 +257,11 @@ func AuthStatusString(info AuthStatusInfo) string {
 	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Workspace"), info.Workspace))
 	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Auth type"), StateBadge(info.AuthType)))
 	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Token"), info.TokenStatus))
+	if info.Deprecation != "" {
+		sb.WriteString("\n")
+		sb.WriteString(badgeDeclined.Render("  " + info.Deprecation))
+		sb.WriteString("\n")
+	}
 	return sb.String()
 }
 
