@@ -143,3 +143,24 @@ func TestThemeRoundTrip(t *testing.T) {
 		t.Errorf("Theme round-trip: got %q, want %q", loaded.Theme, "nord")
 	}
 }
+
+func TestIsLegacyAppPassword(t *testing.T) {
+	cases := []struct {
+		name     string
+		authType string
+		want     bool
+	}{
+		{"empty legacy default", "", true},
+		{"explicit apppassword", "apppassword", true},
+		{"apitoken", "apitoken", false},
+		{"oauth", "oauth", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &config.Config{AuthType: tc.authType}
+			if got := cfg.IsLegacyAppPassword(); got != tc.want {
+				t.Errorf("IsLegacyAppPassword() for %q: got %v, want %v", tc.authType, got, tc.want)
+			}
+		})
+	}
+}

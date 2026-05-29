@@ -48,6 +48,16 @@ func (cfg *Config) HasOAuth() bool {
 	return cfg.AuthType == "oauth"
 }
 
+// IsLegacyAppPassword reports whether cfg's auth_type denotes the deprecated
+// app-password method — the historical default (empty auth_type) or the
+// explicit "apppassword". It classifies the auth_type only and does NOT check
+// for a token; callers that warn the user (e.g. bb auth status) should also
+// confirm a credential exists before surfacing the 2026-06-09 deprecation
+// notice. API token ("apitoken") and OAuth ("oauth") configs return false.
+func (cfg *Config) IsLegacyAppPassword() bool {
+	return cfg.AuthType == "" || cfg.AuthType == "apppassword"
+}
+
 // DefaultPath returns ~/.bbcloud.yaml, or .bbcloud.yaml in the current directory
 // if the home directory cannot be determined.
 func DefaultPath() string {
