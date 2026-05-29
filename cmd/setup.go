@@ -37,7 +37,7 @@ var setupCmd = &cobra.Command{
 
 		ws := promptLine(r, "Workspace", existing.Workspace)
 		defaultRepo := promptLine(r, "Default repo (optional)", existing.Repo)
-		fmt.Println("Create an API token (with scopes) at https://id.atlassian.com/manage-profile/security/api-tokens")
+		fmt.Println("Create an API token (with scopes): https://support.atlassian.com/bitbucket-cloud/docs/create-an-api-token/")
 		user := promptLine(r, "Atlassian account email", existing.Username)
 		tok := promptPassword("API token", existing.Token)
 
