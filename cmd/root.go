@@ -129,8 +129,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", config.DefaultPath(), "config file path")
 	rootCmd.PersistentFlags().StringVarP(&workspace, "workspace", "w", "", "Bitbucket workspace slug (overrides config)")
 	rootCmd.PersistentFlags().StringVarP(&repo, "repo", "r", "", "repository slug (overrides config)")
-	rootCmd.PersistentFlags().StringVar(&username, "username", "", "Bitbucket username (overrides config/env)")
-	rootCmd.PersistentFlags().StringVar(&token, "token", "", "Bitbucket app password (overrides config/env)")
+	rootCmd.PersistentFlags().StringVar(&username, "username", "", "Atlassian account email / username (overrides config/env)")
+	rootCmd.PersistentFlags().StringVar(&token, "token", "", "Bitbucket API token or app password (overrides config/env)")
 	rootCmd.PersistentFlags().StringVarP(&format, "format", "f", "json", "output format: json or text")
 	rootCmd.PersistentFlags().BoolVar(&describeFlag, "describe", false,
 		"emit a JSON capability manifest (commands, flags, schemas) and exit")
