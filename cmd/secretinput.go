@@ -16,6 +16,19 @@ import (
 // guards against a pathological paste causing unbounded memory or redraw cost.
 const maxSecretLen = 4096
 
+// Control bytes the reader recognises, and the threshold below which a byte is
+// a (non-printable) ASCII control character.
+const (
+	keyCtrlC       = 0x03 // ETX — interrupt
+	keyBackspace   = 0x08 // BS
+	keyDelete      = 0x7f // DEL — most terminals send this for the Backspace key
+	firstPrintable = 0x20 // bytes below this are ASCII control characters
+)
+
+// exitInterrupted is the conventional exit code for a SIGINT-style interrupt
+// (128 + 2), reported when the user presses Ctrl-C at the prompt.
+const exitInterrupted = 130
+
 // readSecretRevealing reads a secret from in (which the caller has confirmed is
 // a terminal), echoing it in cleartext while the user types or pastes so they
 // can confirm the value landed, then masking the whole field to '*' when they
@@ -63,16 +76,16 @@ func readSecretRevealing(in *os.File, prompt string) string {
 				draw(strings.Repeat("*", len(buf)))
 				fmt.Fprint(out, "\r\n")
 				return string(buf)
-			case len(pending) == 0 && b == 0x03: // Ctrl-C
+			case len(pending) == 0 && b == keyCtrlC:
 				term.Restore(fd, oldState)
 				fmt.Fprint(out, "\r\n")
-				os.Exit(130)
-			case len(pending) == 0 && (b == 0x7f || b == 0x08): // Backspace / Delete
+				os.Exit(exitInterrupted)
+			case len(pending) == 0 && (b == keyDelete || b == keyBackspace):
 				if len(buf) > 0 {
 					buf = buf[:len(buf)-1]
 				}
 				draw(string(buf))
-			case len(pending) == 0 && b < 0x20: // ignore other control bytes
+			case len(pending) == 0 && b < firstPrintable: // ignore other control bytes
 			default:
 				pending = append(pending, b)
 				if utf8.FullRune(pending) {
