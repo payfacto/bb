@@ -10,6 +10,10 @@ import "strings"
 // It returns the string to write and the new cell count to pass as prevCells
 // on the next call. It emits no ANSI escape sequences (only '\r', ' ', '\b'),
 // so it is safe on terminals without VT processing (e.g. legacy Windows cmd).
+//
+// cells is a rune count, not a terminal display width: wide (CJK) or
+// zero-width runes are not width-adjusted, so the erase math assumes
+// single-cell runes. This is adequate for the ASCII secrets this serves.
 func SecretLine(prompt, shown string, prevCells int) (string, int) {
 	line := prompt + shown
 	cells := len([]rune(line))
