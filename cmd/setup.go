@@ -95,24 +95,26 @@ func promptLine(r *bufio.Reader, label, current string) string {
 	return input
 }
 
-// promptPassword prompts for a password, masking input when in a terminal.
+// promptPassword prompts for a secret. On a terminal it reveals input while
+// typing and masks it to '*' when the user presses Enter (see
+// readSecretRevealing); otherwise it falls back to a plain line read for
+// pipes/CI.
 func promptPassword(label, current string) string {
+	prompt := label + ": "
 	if current != "" {
-		fmt.Printf("%s [****]: ", label)
-	} else {
-		fmt.Printf("%s: ", label)
+		prompt = label + " [****]: "
 	}
 
 	if term.IsTerminal(int(os.Stdin.Fd())) {
-		b, err := term.ReadPassword(int(os.Stdin.Fd()))
-		fmt.Println() // newline after masked input
-		if err != nil || len(b) == 0 {
+		val := readSecretRevealing(os.Stdin, prompt)
+		if val == "" {
 			return current
 		}
-		return string(b)
+		return val
 	}
 
 	// Non-terminal fallback (pipes, CI).
+	fmt.Print(prompt)
 	r := bufio.NewReader(os.Stdin)
 	input, err := r.ReadString('\n')
 	if err != nil {
