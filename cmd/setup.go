@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -95,26 +96,41 @@ func promptLine(r *bufio.Reader, label, current string) string {
 	return input
 }
 
-// promptPassword prompts for a secret. On a terminal it reveals input while
-// typing and masks it to '*' when the user presses Enter (see
-// readSecretRevealing); otherwise it falls back to a plain line read for
-// pipes/CI.
+// maxSecretLen bounds the accepted secret length. Real API tokens, app
+// passwords, and OAuth consumer secrets are well under this; the cap only
+// guards against a pathological paste.
+const maxSecretLen = 4096
+
+// promptPassword prompts for a secret. On a terminal it reads the input hidden
+// (no echo) and, once the user presses Enter, prints a row of '*' so they can
+// confirm a value was entered without exposing it. Off a terminal (pipes/CI)
+// it falls back to a plain line read.
 func promptPassword(label, current string) string {
 	prompt := label + ": "
 	if current != "" {
 		prompt = label + " [****]: "
 	}
+	fmt.Print(prompt)
 
-	if term.IsTerminal(int(os.Stdin.Fd())) {
-		val := readSecretRevealing(os.Stdin, prompt)
+	fd := int(os.Stdin.Fd())
+	if term.IsTerminal(fd) {
+		b, err := term.ReadPassword(fd)
+		fmt.Println() // ReadPassword consumes the newline; restore it
+		if err != nil {
+			return current
+		}
+		val := strings.TrimSpace(string(b))
 		if val == "" {
 			return current
 		}
+		if len(val) > maxSecretLen {
+			val = val[:maxSecretLen]
+		}
+		fmt.Println(strings.Repeat("*", utf8.RuneCountInString(val)))
 		return val
 	}
 
 	// Non-terminal fallback (pipes, CI).
-	fmt.Print(prompt)
 	r := bufio.NewReader(os.Stdin)
 	input, err := r.ReadString('\n')
 	if err != nil {

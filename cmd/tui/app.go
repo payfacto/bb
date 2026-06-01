@@ -89,8 +89,15 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case tea.KeyMsg:
-		// Global quit — not from confirm dialogs
-		if key.Matches(msg, globalKeys.Quit) {
+		// Ctrl+C is a universal quit, even while a text field is focused.
+		if msg.Type == tea.KeyCtrlC {
+			return a, tea.Quit
+		}
+		// The 'q' quit shortcut must not fire while the focused view is
+		// capturing free-form text (e.g. the setup wizard) — otherwise a 'q'
+		// typed or pasted into a field exits the app. It is also forwarded to
+		// confirm dialogs so they can handle the key themselves.
+		if key.Matches(msg, globalKeys.Quit) && !topCapturesText(a.stack.Top()) {
 			if _, ok := a.stack.Top().(*confirmModel); !ok {
 				return a, tea.Quit
 			}

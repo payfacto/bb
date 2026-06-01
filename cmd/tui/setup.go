@@ -3,7 +3,6 @@ package tui
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -30,15 +29,6 @@ const (
 	setupLabelWidth        = 14 // column width for field labels in the setup wizard
 )
 
-// secretRevealDelay is how long the token field stays in cleartext after the
-// last keystroke before re-masking. (Independent of the CLI; the TUI's event
-// loop is a single reader, so a tea.Tick debounce is safe here.)
-const secretRevealDelay = 2 * time.Second
-
-// maskPasswordMsg is delivered by a tea.Tick to re-mask the token field; gen
-// lets stale ticks (superseded by a newer keystroke) be ignored.
-type maskPasswordMsg struct{ gen int }
-
 // setupModel is the TUI setup wizard for first-run or reconfiguration.
 type setupModel struct {
 	fields        []textinput.Model
@@ -50,7 +40,6 @@ type setupModel struct {
 	err           error
 	done          bool
 	message       string
-	revealGen     int
 	newClient     *bitbucket.Client
 	newCfg        *config.Config
 }
@@ -142,11 +131,6 @@ func (m *setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, popView
 			}
 		}
-	case maskPasswordMsg:
-		if msg.gen == m.revealGen {
-			m.fields[setupFieldPassword].EchoMode = textinput.EchoPassword
-		}
-		return m, nil
 	case saveResultMsg:
 		if msg.err != nil {
 			m.err = msg.err
@@ -163,18 +147,6 @@ func (m *setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.focus < setupTextFieldCount {
 		var cmd tea.Cmd
 		m.fields[m.focus], cmd = m.fields[m.focus].Update(msg)
-		// Reveal the token field while it is being edited; a tea.Tick re-masks
-		// it secretRevealDelay after the last keystroke.
-		if m.focus == setupFieldPassword {
-			if _, ok := msg.(tea.KeyMsg); ok {
-				m.fields[setupFieldPassword].EchoMode = textinput.EchoNormal
-				m.revealGen++
-				gen := m.revealGen
-				return m, tea.Batch(cmd, tea.Tick(secretRevealDelay, func(time.Time) tea.Msg {
-					return maskPasswordMsg{gen: gen}
-				}))
-			}
-		}
 		return m, cmd
 	}
 	return m, nil
@@ -182,10 +154,6 @@ func (m *setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *setupModel) nextField() tea.Cmd {
 	if m.focus < setupTextFieldCount {
-		if m.focus == setupFieldPassword {
-			m.fields[setupFieldPassword].EchoMode = textinput.EchoPassword
-			m.revealGen++ // invalidate any pending reveal tick
-		}
 		m.fields[m.focus].Blur()
 	}
 	m.focus = (m.focus + 1) % setupFieldCount
@@ -197,10 +165,6 @@ func (m *setupModel) nextField() tea.Cmd {
 
 func (m *setupModel) prevField() tea.Cmd {
 	if m.focus < setupTextFieldCount {
-		if m.focus == setupFieldPassword {
-			m.fields[setupFieldPassword].EchoMode = textinput.EchoPassword
-			m.revealGen++ // invalidate any pending reveal tick
-		}
 		m.fields[m.focus].Blur()
 	}
 	m.focus = (m.focus - 1 + setupFieldCount) % setupFieldCount
@@ -343,17 +307,26 @@ func (m *setupModel) View() string {
 
 func (m *setupModel) Title() string { return "Setup" }
 
+// CapturesText reports whether a free-text field (workspace, repo, email, or
+// token) is focused. While one is, the app must not steal key presses such as
+// 'q' as global shortcuts, so they can be typed or pasted into the field.
+func (m *setupModel) CapturesText() bool {
+	return m.focus < setupTextFieldCount
+}
+
 func (m *setupModel) ShortHelp() []key.Binding {
 	if m.focus == setupFieldTheme {
 		return []key.Binding{
 			key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←/→", "change theme")),
 			key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab/↓", "next field")),
 			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "save")),
+			key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit")),
 		}
 	}
 	return []key.Binding{
 		key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab/↓", "next field")),
 		key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("shift+tab/↑", "prev field")),
 		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "save")),
+		key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit")),
 	}
 }
