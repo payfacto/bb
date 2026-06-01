@@ -31,6 +31,11 @@ const ThemeDefault = "catppuccin"
 // AppPasswordDeadline is the date Bitbucket Cloud app passwords stop working.
 const AppPasswordDeadline = "2026-06-09"
 
+// DefaultOAuthCallbackPort is the loopback port the OAuth login flow listens on
+// when oauth_callback_port is not set in the config. The OAuth consumer's
+// callback URL must match http://localhost:<port>/callback.
+const DefaultOAuthCallbackPort = 8765
+
 // Config holds all configurable values for bb.
 type Config struct {
 	Workspace     string `yaml:"workspace"`
@@ -38,9 +43,12 @@ type Config struct {
 	Username      string `yaml:"username"`
 	AuthType      string `yaml:"auth_type,omitempty"`
 	OAuthClientID string `yaml:"oauth_client_id,omitempty"`
-	PageSize      int    `yaml:"page_size,omitempty"`
-	CloneAction   string `yaml:"clone_action,omitempty"`
-	Theme         string `yaml:"theme,omitempty"`
+	// OAuthCallbackPort is the loopback port the OAuth login flow listens on.
+	// Zero means use DefaultOAuthCallbackPort; resolve via OAuthPort.
+	OAuthCallbackPort int    `yaml:"oauth_callback_port,omitempty"`
+	PageSize          int    `yaml:"page_size,omitempty"`
+	CloneAction       string `yaml:"clone_action,omitempty"`
+	Theme             string `yaml:"theme,omitempty"`
 
 	// Token is never written to disk; loaded from keyring, env var, or CLI flag at runtime.
 	Token string `yaml:"-"`
@@ -49,6 +57,15 @@ type Config struct {
 // HasOAuth returns true when the config is set up for OAuth authentication.
 func (cfg *Config) HasOAuth() bool {
 	return cfg.AuthType == "oauth"
+}
+
+// OAuthPort returns the configured OAuth callback port, or
+// DefaultOAuthCallbackPort when none is set.
+func (cfg *Config) OAuthPort() int {
+	if cfg.OAuthCallbackPort != 0 {
+		return cfg.OAuthCallbackPort
+	}
+	return DefaultOAuthCallbackPort
 }
 
 // IsLegacyAppPassword reports whether cfg's auth_type denotes the deprecated

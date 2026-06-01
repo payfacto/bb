@@ -75,3 +75,45 @@ func TestExchangeCode(t *testing.T) {
 		t.Errorf("refresh_token: got %q", tok.RefreshToken)
 	}
 }
+
+func TestRefresh(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+		user, pass, ok := r.BasicAuth()
+		if !ok || user != "client-id" || pass != "client-secret" {
+			t.Errorf("basic auth: got (%q, %q, %v), want consumer credentials", user, pass, ok)
+		}
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		if r.FormValue("grant_type") != "refresh_token" {
+			t.Errorf("wrong grant_type: %s", r.FormValue("grant_type"))
+		}
+		if r.FormValue("refresh_token") != "old-refresh" {
+			t.Errorf("wrong refresh_token: %s", r.FormValue("refresh_token"))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"access_token": "new-access",
+			"token_type":   "bearer",
+			"expires_in":   7200,
+		})
+	}))
+	defer srv.Close()
+
+	tok, err := auth.Refresh(srv.URL, "client-id", "client-secret", "old-refresh")
+	if err != nil {
+		t.Fatalf("Refresh: %v", err)
+	}
+	if tok.AccessToken != "new-access" {
+		t.Errorf("access_token: got %q, want %q", tok.AccessToken, "new-access")
+	}
+}
+
+func TestRefreshRequiresAllFields(t *testing.T) {
+	if _, err := auth.Refresh("http://unused", "", "secret", "refresh"); err == nil {
+		t.Error("expected error when clientID is empty")
+	}
+}

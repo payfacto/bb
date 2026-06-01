@@ -62,6 +62,8 @@ var rootCmd = &cobra.Command{
 			client = bitbucket.New(cfg)
 			if cfg.HasOAuth() {
 				client.SetBearerToken(cfg.Token)
+				oauthCfg := cfg
+				client.SetTokenRefresher(func() (string, error) { return refreshOAuthAccessToken(oauthCfg) })
 			}
 		}
 
@@ -108,6 +110,8 @@ var rootCmd = &cobra.Command{
 		client = bitbucket.New(cfg)
 		if cfg.HasOAuth() {
 			client.SetBearerToken(cfg.Token)
+			oauthCfg := cfg
+			client.SetTokenRefresher(func() (string, error) { return refreshOAuthAccessToken(oauthCfg) })
 		}
 		return nil
 	},

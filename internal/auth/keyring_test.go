@@ -46,3 +46,41 @@ func TestDeleteToken(t *testing.T) {
 		t.Errorf("want ErrTokenNotFound after delete, got %v", err)
 	}
 }
+
+func TestRefreshTokenAndClientSecretRoundTrip(t *testing.T) {
+	const user = "oauth@example.com"
+	if err := auth.SetRefreshToken(user, "refresh-abc"); err != nil {
+		t.Fatalf("SetRefreshToken: %v", err)
+	}
+	if err := auth.SetClientSecret(user, "secret-xyz"); err != nil {
+		t.Fatalf("SetClientSecret: %v", err)
+	}
+
+	if got, err := auth.GetRefreshToken(user); err != nil || got != "refresh-abc" {
+		t.Errorf("GetRefreshToken = (%q, %v), want (%q, nil)", got, err, "refresh-abc")
+	}
+	if got, err := auth.GetClientSecret(user); err != nil || got != "secret-xyz" {
+		t.Errorf("GetClientSecret = (%q, %v), want (%q, nil)", got, err, "secret-xyz")
+	}
+}
+
+func TestDeleteTokenRemovesAllOAuthCredentials(t *testing.T) {
+	const user = "oauthdelete@example.com"
+	_ = auth.SetToken(user, "access")
+	_ = auth.SetRefreshToken(user, "refresh")
+	_ = auth.SetClientSecret(user, "secret")
+
+	if err := auth.DeleteToken(user); err != nil {
+		t.Fatalf("DeleteToken: %v", err)
+	}
+
+	for name, get := range map[string]func(string) (string, error){
+		"access token":  auth.GetToken,
+		"refresh token": auth.GetRefreshToken,
+		"client secret": auth.GetClientSecret,
+	} {
+		if _, err := get(user); !errors.Is(err, auth.ErrTokenNotFound) {
+			t.Errorf("%s: want ErrTokenNotFound after delete, got %v", name, err)
+		}
+	}
+}

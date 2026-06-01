@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/payfacto/bb/internal/config"
@@ -23,11 +24,18 @@ const (
 
 // Client is the Bitbucket Cloud HTTP client.
 type Client struct {
-	baseURL     string
-	username    string
-	token       string
+	baseURL    string
+	username   string
+	token      string
+	httpClient *http.Client
+
+	// mu guards bearerToken and serialises token refresh so concurrent
+	// requests don't refresh more than once.
+	mu          sync.Mutex
 	bearerToken string // set when using OAuth; takes priority over Basic auth
-	httpClient  *http.Client
+	// refresher, when set, is invoked once on an HTTP 401 from a bearer-auth
+	// request to obtain a fresh access token. It returns the new token.
+	refresher func() (string, error)
 }
 
 // New creates a Client from cfg using the live Bitbucket API.
@@ -59,16 +67,100 @@ func NewWithBearerToken(token string) *Client {
 
 // SetBearerToken configures the client to use OAuth Bearer token auth instead of Basic auth.
 func (c *Client) SetBearerToken(token string) {
+	c.mu.Lock()
 	c.bearerToken = token
+	c.mu.Unlock()
+}
+
+// SetTokenRefresher installs a callback invoked when a bearer-authenticated
+// request returns HTTP 401. The callback should obtain and persist a fresh
+// access token and return it; the client then retries the request once with
+// the new token. Only meaningful for OAuth (bearer) auth.
+func (c *Client) SetTokenRefresher(fn func() (string, error)) {
+	c.mu.Lock()
+	c.refresher = fn
+	c.mu.Unlock()
 }
 
 // setAuth sets the Authorization header on req using Bearer token (OAuth) or Basic auth (app password).
 func (c *Client) setAuth(req *http.Request) {
-	if c.bearerToken != "" {
-		req.Header.Set("Authorization", "Bearer "+c.bearerToken)
+	c.mu.Lock()
+	bearer := c.bearerToken
+	c.mu.Unlock()
+	if bearer != "" {
+		req.Header.Set("Authorization", "Bearer "+bearer)
 	} else {
 		req.SetBasicAuth(c.username, c.token)
 	}
+}
+
+// send authenticates and executes req. When a bearer-auth request returns
+// HTTP 401 and a refresher is installed, it refreshes the access token once and
+// retries the request. Requests whose body cannot be replayed (e.g. streamed
+// uploads) are not retried; the 401 is returned to the caller instead.
+func (c *Client) send(req *http.Request) (*http.Response, error) {
+	c.mu.Lock()
+	tokenUsed := c.bearerToken
+	refresher := c.refresher
+	c.mu.Unlock()
+
+	c.setAuth(req)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusUnauthorized || tokenUsed == "" || refresher == nil {
+		return resp, nil
+	}
+
+	retry, ok := cloneForRetry(req)
+	if !ok {
+		return resp, nil // body not replayable — surface the original 401
+	}
+	newToken, refreshErr := c.refresh(tokenUsed, refresher)
+	if refreshErr != nil || newToken == tokenUsed {
+		return resp, nil // refresh failed or no-op — surface the original 401
+	}
+
+	resp.Body.Close()
+	c.setAuth(retry)
+	return c.httpClient.Do(retry)
+}
+
+// refresh obtains a new access token via refresher, serialised so that
+// concurrent 401s trigger only one refresh. If another request already
+// refreshed (the current token differs from tokenUsed), it returns that token
+// without calling refresher again.
+func (c *Client) refresh(tokenUsed string, refresher func() (string, error)) (string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.bearerToken != tokenUsed {
+		return c.bearerToken, nil
+	}
+	newToken, err := refresher()
+	if err != nil {
+		return "", err
+	}
+	c.bearerToken = newToken
+	return newToken, nil
+}
+
+// cloneForRetry duplicates req for a second attempt, replaying the request body
+// via GetBody. It reports false when the body cannot be replayed.
+func cloneForRetry(req *http.Request) (*http.Request, bool) {
+	clone := req.Clone(req.Context())
+	if req.Body == nil {
+		return clone, true
+	}
+	if req.GetBody == nil {
+		return nil, false
+	}
+	body, err := req.GetBody()
+	if err != nil {
+		return nil, false
+	}
+	clone.Body = body
+	return clone, true
 }
 
 // PRs returns a PRResource scoped to the given workspace and repo.
@@ -203,13 +295,12 @@ func (c *Client) do(ctx context.Context, method, path string, body any, query ur
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	c.setAuth(req)
 	req.Header.Set("Accept", "application/json")
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.send(req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
@@ -233,11 +324,10 @@ func (c *Client) doText(ctx context.Context, path string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	c.setAuth(req)
 	// Do not set Accept header — the log endpoint rejects Accept: text/plain
 	// and may redirect (307) to S3 where JSON Accept headers are also rejected.
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.send(req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
@@ -262,11 +352,10 @@ func (c *Client) doMultipart(ctx context.Context, path string, body io.Reader, c
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	c.setAuth(req)
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", contentType)
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.send(req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
@@ -334,10 +423,9 @@ func (c *Client) fetchPage(ctx context.Context, rawURL string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	c.setAuth(req)
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.send(req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
