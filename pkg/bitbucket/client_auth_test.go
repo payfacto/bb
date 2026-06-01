@@ -3,6 +3,7 @@ package bitbucket_test
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -78,6 +79,32 @@ func TestBearer401WithoutRefresherReturnsError(t *testing.T) {
 
 	if _, err := c.User().Me(context.Background()); err == nil {
 		t.Fatal("expected error from 401 with no refresher")
+	}
+}
+
+func TestBearer401RefresherErrorSurfaces401(t *testing.T) {
+	var attempts int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&attempts, 1)
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"type":"error","error":{"message":"expired"}}`))
+	}))
+	defer srv.Close()
+
+	c := bitbucket.NewWithBaseURL(&config.Config{Username: "user"}, srv.URL)
+	c.SetBearerToken("stale-token")
+	c.SetTokenRefresher(func() (string, error) {
+		return "", errors.New("refresh boom")
+	})
+
+	_, err := c.User().Me(context.Background())
+	if err == nil {
+		t.Fatal("expected error when refresher fails")
+	}
+	// The original 401 must be surfaced; the request is not retried after a
+	// failed refresh.
+	if got := atomic.LoadInt32(&attempts); got != 1 {
+		t.Errorf("server saw %d attempts, want 1 (no retry after refresh failure)", got)
 	}
 }
 

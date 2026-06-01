@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/payfacto/bb/internal/auth"
 	"github.com/payfacto/bb/internal/config"
@@ -10,9 +11,10 @@ import (
 )
 
 // refreshOAuthAccessToken obtains a fresh OAuth access token using the stored
-// refresh token and consumer secret, persists it to the keyring, updates
-// cfg.Token, and returns the new token. It is wired into the HTTP client as the
-// 401 refresher for OAuth sessions.
+// refresh token and consumer secret, persists it to the keyring, and returns
+// the new token. It is wired into the HTTP client as the 401 refresher for
+// OAuth sessions; the client tracks the returned token itself, so cfg is read
+// (username, client ID) but not mutated.
 func refreshOAuthAccessToken(cfg *config.Config) (string, error) {
 	secret, err := auth.GetClientSecret(cfg.Username)
 	if err != nil {
@@ -31,10 +33,14 @@ func refreshOAuthAccessToken(cfg *config.Config) (string, error) {
 	if err := auth.SetToken(cfg.Username, tok.AccessToken); err != nil {
 		return "", err
 	}
+	// Bitbucket may rotate the refresh token; persist the new one so the next
+	// refresh doesn't reuse a stale value. A failure here isn't fatal to this
+	// refresh, but warn so a future auth failure is debuggable.
 	if tok.RefreshToken != "" {
-		_ = auth.SetRefreshToken(cfg.Username, tok.RefreshToken)
+		if err := auth.SetRefreshToken(cfg.Username, tok.RefreshToken); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not persist rotated refresh token (%v) — you may need to re-run 'bb auth login'\n", err)
+		}
 	}
-	cfg.Token = tok.AccessToken
 	return tok.AccessToken, nil
 }
 

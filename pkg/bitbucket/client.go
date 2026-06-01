@@ -29,13 +29,18 @@ type Client struct {
 	token      string
 	httpClient *http.Client
 
-	// mu guards bearerToken and serialises token refresh so concurrent
-	// requests don't refresh more than once.
-	mu          sync.Mutex
+	// tokenMu guards bearerToken and refresher — short critical sections only,
+	// never held across I/O, so in-flight requests can read the token freely.
+	tokenMu     sync.Mutex
 	bearerToken string // set when using OAuth; takes priority over Basic auth
-	// refresher, when set, is invoked once on an HTTP 401 from a bearer-auth
-	// request to obtain a fresh access token. It returns the new token.
+	// refresher, when set, is invoked on an HTTP 401 from a bearer-auth request
+	// to obtain a fresh access token. It returns the new token.
 	refresher func() (string, error)
+
+	// refreshMu serialises token refresh so concurrent 401s trigger only one
+	// refresher call. It is held across the refresh I/O, but does not block
+	// token reads (those use tokenMu).
+	refreshMu sync.Mutex
 }
 
 // New creates a Client from cfg using the live Bitbucket API.
@@ -67,9 +72,9 @@ func NewWithBearerToken(token string) *Client {
 
 // SetBearerToken configures the client to use OAuth Bearer token auth instead of Basic auth.
 func (c *Client) SetBearerToken(token string) {
-	c.mu.Lock()
+	c.tokenMu.Lock()
 	c.bearerToken = token
-	c.mu.Unlock()
+	c.tokenMu.Unlock()
 }
 
 // SetTokenRefresher installs a callback invoked when a bearer-authenticated
@@ -77,16 +82,23 @@ func (c *Client) SetBearerToken(token string) {
 // access token and return it; the client then retries the request once with
 // the new token. Only meaningful for OAuth (bearer) auth.
 func (c *Client) SetTokenRefresher(fn func() (string, error)) {
-	c.mu.Lock()
+	c.tokenMu.Lock()
 	c.refresher = fn
-	c.mu.Unlock()
+	c.tokenMu.Unlock()
+}
+
+// authState returns the current bearer token and refresher under tokenMu.
+func (c *Client) authState() (string, func() (string, error)) {
+	c.tokenMu.Lock()
+	defer c.tokenMu.Unlock()
+	return c.bearerToken, c.refresher
 }
 
 // setAuth sets the Authorization header on req using Bearer token (OAuth) or Basic auth (app password).
 func (c *Client) setAuth(req *http.Request) {
-	c.mu.Lock()
+	c.tokenMu.Lock()
 	bearer := c.bearerToken
-	c.mu.Unlock()
+	c.tokenMu.Unlock()
 	if bearer != "" {
 		req.Header.Set("Authorization", "Bearer "+bearer)
 	} else {
@@ -99,10 +111,7 @@ func (c *Client) setAuth(req *http.Request) {
 // retries the request. Requests whose body cannot be replayed (e.g. streamed
 // uploads) are not retried; the 401 is returned to the caller instead.
 func (c *Client) send(req *http.Request) (*http.Response, error) {
-	c.mu.Lock()
-	tokenUsed := c.bearerToken
-	refresher := c.refresher
-	c.mu.Unlock()
+	tokenUsed, refresher := c.authState()
 
 	c.setAuth(req)
 	resp, err := c.httpClient.Do(req)
@@ -127,21 +136,23 @@ func (c *Client) send(req *http.Request) (*http.Response, error) {
 	return c.httpClient.Do(retry)
 }
 
-// refresh obtains a new access token via refresher, serialised so that
-// concurrent 401s trigger only one refresh. If another request already
-// refreshed (the current token differs from tokenUsed), it returns that token
-// without calling refresher again.
+// refresh obtains a new access token via refresher, serialised on refreshMu so
+// concurrent 401s trigger only one refresher call. If another goroutine already
+// refreshed while this one waited (the current token differs from tokenUsed),
+// it returns that token without calling refresher again. refreshMu — not
+// tokenMu — is held across the refresher I/O, so token reads never block on it.
 func (c *Client) refresh(tokenUsed string, refresher func() (string, error)) (string, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.bearerToken != tokenUsed {
-		return c.bearerToken, nil
+	c.refreshMu.Lock()
+	defer c.refreshMu.Unlock()
+
+	if current, _ := c.authState(); current != tokenUsed {
+		return current, nil
 	}
 	newToken, err := refresher()
 	if err != nil {
 		return "", err
 	}
-	c.bearerToken = newToken
+	c.SetBearerToken(newToken)
 	return newToken, nil
 }
 
