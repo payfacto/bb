@@ -44,7 +44,9 @@ func TestQuitKeyDoesNotFireWhileTypingInSetup(t *testing.T) {
 // Pasting a token containing 'q' must land in full without quitting, whether the
 // terminal delivers it rune-by-rune or as a single bracketed paste.
 func TestPasteTokenWithQDoesNotQuit(t *testing.T) {
-	token := "ATATT3xFfGF0_UQqWB7QRTVwh-1VnI=58DDB931"
+	// Synthetic token (not a real credential). It only needs to contain a 'q'
+	// to exercise the global-quit-key regression and an '=' for good measure.
+	token := "ATATTexample-fake-token-with-q-and-eq=DEADBEEF00"
 
 	t.Run("rune-by-rune", func(t *testing.T) {
 		app, _ := newSetupApp()
