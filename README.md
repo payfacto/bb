@@ -83,19 +83,20 @@ The TUI requires a terminal — piped or scripted usage falls back to the standa
 
 ### Option A — OAuth 2.0 (recommended)
 
-1. In Bitbucket, go to **Personal Settings → OAuth consumers → Add consumer**
-2. Set the callback URL to `http://localhost:8765/callback` and grant the required scopes (Repositories: Read, Pull requests: Read/Write)
-3. Run:
+1. Obtain an OAuth **Client ID** and **Secret**. Your Bitbucket workspace admin should provide these.
+
+   If you are the admin, create an OAuth client yourself: **Workspace settings → Apps & features → OAuth clients → Add OAuth client** (`https://bitbucket.org/<workspace>/workspace/settings/oauth-clients`). Set the callback URL to `http://localhost:8765/callback` and grant the required scopes (Repositories: Read, Pull requests: Read/Write).
+2. Run:
 
    ```bash
    bb auth login
    ```
 
-   Enter your Consumer Key and Consumer Secret when prompted. Your browser will open for authorization.
+   Enter your Client ID and Secret when prompted. Your browser will open for authorization.
 
-4. The access token, refresh token, and consumer secret are stored securely in the OS keyring (macOS Keychain, Windows Credential Manager, Linux libsecret). When the access token expires (~2h), `bb` refreshes it automatically using the refresh token — no re-login needed.
+3. The access token, refresh token, and client secret are stored securely in the OS keyring (macOS Keychain, Windows Credential Manager, Linux libsecret). When the access token expires (~2h), `bb` refreshes it automatically using the refresh token — no re-login needed.
 
-> The login flow listens on `http://localhost:8765/callback`. If port 8765 is taken, set `oauth_callback_port` in `~/.bbcloud.yaml` and register a matching callback URL on the consumer.
+> The login flow listens on `http://localhost:8765/callback`. If port 8765 is taken, set `oauth_callback_port` in `~/.bbcloud.yaml` and register a matching callback URL on the OAuth client.
 
 Additional auth commands:
 

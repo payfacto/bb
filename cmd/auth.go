@@ -27,8 +27,12 @@ var authLoginCmd = &cobra.Command{
 	Short: "Authenticate via OAuth 2.0 (browser-based)",
 	Long: `Authenticate with Bitbucket Cloud using OAuth 2.0.
 
-You need an OAuth consumer registered in your Bitbucket account.
-Create one at: Bitbucket > Personal Settings > OAuth consumers > Add consumer
+You need an OAuth client's Client ID and Secret. Your Bitbucket workspace admin
+should provide these.
+
+If you are the admin, create an OAuth client yourself at:
+  Workspace settings > Apps & features > OAuth clients > Add OAuth client
+  (https://bitbucket.org/<workspace>/workspace/settings/oauth-clients)
 Set the callback URL to: http://localhost:8765/callback
 
 The port defaults to 8765; override it with oauth_callback_port in
@@ -46,13 +50,13 @@ Then run: bb auth login`,
 		fmt.Println("bb auth login — authenticate with Bitbucket Cloud via OAuth 2.0")
 		fmt.Println()
 
-		clientID := promptLine(r, "OAuth Consumer Key (client_id)", existing.OAuthClientID)
+		clientID := promptLine(r, "OAuth Client ID", existing.OAuthClientID)
 		if clientID == "" {
-			return fmt.Errorf("oauth consumer key is required")
+			return fmt.Errorf("oauth client ID is required")
 		}
-		clientSecret := promptPassword("OAuth Consumer Secret", "")
+		clientSecret := promptPassword("OAuth Client Secret", "")
 		if clientSecret == "" {
-			return fmt.Errorf("oauth consumer secret is required")
+			return fmt.Errorf("oauth client secret is required")
 		}
 		fmt.Println()
 
