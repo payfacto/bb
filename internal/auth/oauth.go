@@ -26,6 +26,9 @@ const (
 // returning an unbounded body.
 const maxTokenResponse = 1 << 20 // 1 MiB
 
+// tokenRequestTimeout bounds a single call to the token endpoint.
+const tokenRequestTimeout = 30 * time.Second
+
 // Token holds the OAuth tokens returned by Bitbucket.
 type Token struct {
 	AccessToken  string `json:"access_token"`
@@ -60,7 +63,14 @@ func ExchangeCode(tokenEndpoint, clientID, clientSecret, code, redirectURI strin
 	form.Set("grant_type", "authorization_code")
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
+	return postTokenForm(tokenEndpoint, clientID, clientSecret, form)
+}
 
+// postTokenForm posts an x-www-form-urlencoded grant request to the token
+// endpoint, authenticated with the consumer credentials (HTTP Basic), and
+// decodes the Token response. It is shared by the authorization_code and
+// refresh_token grants.
+func postTokenForm(tokenEndpoint, clientID, clientSecret string, form url.Values) (*Token, error) {
 	req, err := http.NewRequest(http.MethodPost, tokenEndpoint, strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("create token request: %w", err)
@@ -69,7 +79,7 @@ func ExchangeCode(tokenEndpoint, clientID, clientSecret, code, redirectURI strin
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
 
-	httpClient := &http.Client{Timeout: 30 * time.Second}
+	httpClient := &http.Client{Timeout: tokenRequestTimeout}
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("token request: %w", err)
@@ -114,35 +124,7 @@ func Refresh(tokenEndpoint, clientID, clientSecret, refreshToken string) (*Token
 	form := url.Values{}
 	form.Set("grant_type", "refresh_token")
 	form.Set("refresh_token", refreshToken)
-
-	req, err := http.NewRequest(http.MethodPost, tokenEndpoint, strings.NewReader(form.Encode()))
-	if err != nil {
-		return nil, fmt.Errorf("create refresh request: %w", err)
-	}
-	req.SetBasicAuth(clientID, clientSecret)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/json")
-
-	httpClient := &http.Client{Timeout: 30 * time.Second}
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("refresh request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxTokenResponse))
-	if err != nil {
-		return nil, fmt.Errorf("read refresh response: %w", err)
-	}
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("refresh endpoint HTTP %d: %s", resp.StatusCode, string(body))
-	}
-
-	var tok Token
-	if err := json.Unmarshal(body, &tok); err != nil {
-		return nil, fmt.Errorf("decode refresh response: %w", err)
-	}
-	return &tok, nil
+	return postTokenForm(tokenEndpoint, clientID, clientSecret, form)
 }
 
 // Login runs the full OAuth 2.0 Authorization Code flow:

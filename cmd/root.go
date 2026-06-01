@@ -59,12 +59,7 @@ var rootCmd = &cobra.Command{
 
 		// Build client if we have credentials, otherwise pass nil — TUI detects this.
 		if cfg.Token != "" {
-			client = bitbucket.New(cfg)
-			if cfg.HasOAuth() {
-				client.SetBearerToken(cfg.Token)
-				oauthCfg := cfg
-				client.SetTokenRefresher(func() (string, error) { return refreshOAuthAccessToken(oauthCfg) })
-			}
+			client = buildClient(cfg)
 		}
 
 		return tui.Run(client, cfg, Version)
@@ -107,12 +102,7 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		client = bitbucket.New(cfg)
-		if cfg.HasOAuth() {
-			client.SetBearerToken(cfg.Token)
-			oauthCfg := cfg
-			client.SetTokenRefresher(func() (string, error) { return refreshOAuthAccessToken(oauthCfg) })
-		}
+		client = buildClient(cfg)
 		return nil
 	},
 }
