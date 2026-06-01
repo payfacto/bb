@@ -10,6 +10,18 @@ import (
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
+// buildClient constructs the API client for cfg, wiring OAuth bearer auth and
+// the 401 token refresher when the config uses OAuth. The refresher closure
+// captures the cfg pointer passed in, so callers can pass a snapshot.
+func buildClient(cfg *config.Config) *bitbucket.Client {
+	c := bitbucket.New(cfg)
+	if cfg.HasOAuth() {
+		c.SetBearerToken(cfg.Token)
+		c.SetTokenRefresher(func() (string, error) { return refreshOAuthAccessToken(cfg) })
+	}
+	return c
+}
+
 // refreshOAuthAccessToken obtains a fresh OAuth access token using the stored
 // refresh token and consumer secret, persists it to the keyring, and returns
 // the new token. It is wired into the HTTP client as the 401 refresher for
