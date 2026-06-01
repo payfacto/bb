@@ -21,6 +21,11 @@ const (
 	bitbucketTokenURL = "https://bitbucket.org/site/oauth2/access_token"
 )
 
+// maxTokenResponse bounds how much of a token-endpoint response we read. Token
+// JSON is well under this; the cap guards against a misbehaving endpoint
+// returning an unbounded body.
+const maxTokenResponse = 1 << 20 // 1 MiB
+
 // Token holds the OAuth tokens returned by Bitbucket.
 type Token struct {
 	AccessToken  string `json:"access_token"`
@@ -71,7 +76,7 @@ func ExchangeCode(tokenEndpoint, clientID, clientSecret, code, redirectURI strin
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxTokenResponse))
 	if err != nil {
 		return nil, fmt.Errorf("read token response: %w", err)
 	}
@@ -125,7 +130,7 @@ func Refresh(tokenEndpoint, clientID, clientSecret, refreshToken string) (*Token
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxTokenResponse))
 	if err != nil {
 		return nil, fmt.Errorf("read refresh response: %w", err)
 	}
@@ -151,6 +156,9 @@ func Refresh(tokenEndpoint, clientID, clientSecret, refreshToken string) (*Token
 func Login(clientID, clientSecret string, callbackPort int) (*Token, error) {
 	if clientID == "" || clientSecret == "" {
 		return nil, fmt.Errorf("oauth login: clientID and clientSecret must not be empty")
+	}
+	if callbackPort < 1 || callbackPort > 65535 {
+		return nil, fmt.Errorf("oauth login: callback port %d out of range (1-65535); fix oauth_callback_port in ~/.bbcloud.yaml", callbackPort)
 	}
 
 	state, err := GenerateState()
