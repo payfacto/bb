@@ -25,10 +25,15 @@ go build -o bb .
 
 ### Option A — OAuth 2.0 (recommended)
 
+Register an OAuth consumer with callback URL `http://localhost:8765/callback`
+(override the port via `oauth_callback_port` in `~/.bbcloud.yaml`). The login
+flow stores the access token, refresh token, and consumer secret in the OS
+keyring; expired access tokens are refreshed automatically on a 401.
+
 ```bash
-bb auth login    # browser-based OAuth flow, token stored in OS keyring
+bb auth login    # browser-based OAuth flow, credentials stored in OS keyring
 bb auth status   # show current auth state
-bb auth logout   # remove stored credentials
+bb auth logout   # remove stored credentials (token, refresh token, secret)
 bb auth token    # print raw token for scripts
 ```
 
@@ -51,7 +56,7 @@ bb pr list -w myws -r myrepo
 
 ### Configuration file
 
-`~/.bbcloud.yaml` stores workspace, repo, email, and auth type (`apitoken` or `oauth`). Tokens are never written to disk — they live in the OS keyring or environment variables.
+`~/.bbcloud.yaml` stores workspace, repo, email, auth type (`apitoken` or `oauth`), and optionally `oauth_callback_port` (default 8765). Tokens and OAuth secrets are never written to disk — they live in the OS keyring or environment variables.
 
 ## Global flags
 

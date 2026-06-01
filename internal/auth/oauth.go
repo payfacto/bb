@@ -86,12 +86,69 @@ func ExchangeCode(tokenEndpoint, clientID, clientSecret, code, redirectURI strin
 	return &tok, nil
 }
 
+// RefreshLive refreshes an access token against the live Bitbucket token
+// endpoint. It is the production counterpart to Refresh, which takes an
+// explicit endpoint for testing.
+func RefreshLive(clientID, clientSecret, refreshToken string) (*Token, error) {
+	return Refresh(bitbucketTokenURL, clientID, clientSecret, refreshToken)
+}
+
+// Refresh exchanges a refresh token for a fresh access token using the
+// refresh_token grant. Bitbucket authenticates the request with the consumer
+// credentials (HTTP Basic), so clientID and clientSecret are required.
+// tokenEndpoint is normally bitbucketTokenURL but can be overridden in tests.
+//
+// The returned Token always carries an access token; its RefreshToken field is
+// only populated when Bitbucket rotates it, so callers should keep the previous
+// refresh token when the response omits one.
+func Refresh(tokenEndpoint, clientID, clientSecret, refreshToken string) (*Token, error) {
+	if clientID == "" || clientSecret == "" || refreshToken == "" {
+		return nil, fmt.Errorf("oauth refresh: clientID, clientSecret, and refreshToken must not be empty")
+	}
+
+	form := url.Values{}
+	form.Set("grant_type", "refresh_token")
+	form.Set("refresh_token", refreshToken)
+
+	req, err := http.NewRequest(http.MethodPost, tokenEndpoint, strings.NewReader(form.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("create refresh request: %w", err)
+	}
+	req.SetBasicAuth(clientID, clientSecret)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	httpClient := &http.Client{Timeout: 30 * time.Second}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("refresh request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read refresh response: %w", err)
+	}
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("refresh endpoint HTTP %d: %s", resp.StatusCode, string(body))
+	}
+
+	var tok Token
+	if err := json.Unmarshal(body, &tok); err != nil {
+		return nil, fmt.Errorf("decode refresh response: %w", err)
+	}
+	return &tok, nil
+}
+
 // Login runs the full OAuth 2.0 Authorization Code flow:
-//  1. Starts a local callback server on a random port
+//  1. Starts a local callback server on the given loopback port
 //  2. Builds the authorization URL and opens it in the browser
 //  3. Waits for the callback with the authorization code
 //  4. Exchanges the code for tokens
-func Login(clientID, clientSecret string) (*Token, error) {
+//
+// callbackPort is the fixed loopback port to listen on; the OAuth consumer's
+// registered callback URL must be http://localhost:<callbackPort>/callback.
+func Login(clientID, clientSecret string, callbackPort int) (*Token, error) {
 	if clientID == "" || clientSecret == "" {
 		return nil, fmt.Errorf("oauth login: clientID and clientSecret must not be empty")
 	}
@@ -101,12 +158,12 @@ func Login(clientID, clientSecret string) (*Token, error) {
 		return nil, err
 	}
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	addr := fmt.Sprintf("127.0.0.1:%d", callbackPort)
+	listener, err := net.Listen("tcp", addr)
 	if err != nil {
-		return nil, fmt.Errorf("start callback server: %w", err)
+		return nil, fmt.Errorf("start callback server on %s (set oauth_callback_port in ~/.bbcloud.yaml if the port is in use): %w", addr, err)
 	}
-	port := listener.Addr().(*net.TCPAddr).Port
-	redirectURI := fmt.Sprintf("http://localhost:%d/callback", port)
+	redirectURI := fmt.Sprintf("http://localhost:%d/callback", callbackPort)
 
 	codeCh := make(chan string, 1)
 	errCh := make(chan error, 1)

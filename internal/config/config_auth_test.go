@@ -33,6 +33,20 @@ func TestConfigDoesNotPersistToken(t *testing.T) {
 	}
 }
 
+func TestOAuthPortDefaultsWhenUnset(t *testing.T) {
+	cfg := &config.Config{}
+	if got := cfg.OAuthPort(); got != config.DefaultOAuthCallbackPort {
+		t.Errorf("OAuthPort() = %d, want default %d", got, config.DefaultOAuthCallbackPort)
+	}
+}
+
+func TestOAuthPortUsesConfiguredValue(t *testing.T) {
+	cfg := &config.Config{OAuthCallbackPort: 9123}
+	if got := cfg.OAuthPort(); got != 9123 {
+		t.Errorf("OAuthPort() = %d, want 9123", got)
+	}
+}
+
 func TestConfigAuthTypeRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")

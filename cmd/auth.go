@@ -29,7 +29,10 @@ var authLoginCmd = &cobra.Command{
 
 You need an OAuth consumer registered in your Bitbucket account.
 Create one at: Bitbucket > Personal Settings > OAuth consumers > Add consumer
-Set the callback URL to: http://localhost
+Set the callback URL to: http://localhost:8765/callback
+
+The port defaults to 8765; override it with oauth_callback_port in
+~/.bbcloud.yaml (the callback URL you register must match it).
 
 Then run: bb auth login`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -53,7 +56,7 @@ Then run: bb auth login`,
 		}
 		fmt.Println()
 
-		tok, err := auth.Login(clientID, clientSecret)
+		tok, err := auth.Login(clientID, clientSecret, existing.OAuthPort())
 		if err != nil {
 			return fmt.Errorf("oauth login: %w", err)
 		}
@@ -71,9 +74,10 @@ Then run: bb auth login`,
 			fmt.Printf("Authenticated as: %s\n", username)
 		}
 
-		if err := auth.SetToken(existing.Username, tok.AccessToken); err != nil {
-			fmt.Fprintf(os.Stderr, "\nwarning: could not store token in OS keyring (%v)\n", err)
+		if err := storeOAuthCredentials(existing.Username, clientSecret, tok); err != nil {
+			fmt.Fprintf(os.Stderr, "\nwarning: could not store credentials in OS keyring (%v)\n", err)
 			fmt.Fprintf(os.Stderr, "run 'bb auth token' after setting BITBUCKET_TOKEN manually, or re-run 'bb auth login'\n")
+			fmt.Fprintf(os.Stderr, "note: without keyring storage, automatic token refresh is unavailable\n")
 		}
 
 		existing.OAuthClientID = clientID

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/payfacto/bb/internal/config"
@@ -29,6 +31,88 @@ func TestClientUsesBearerTokenWhenSet(t *testing.T) {
 
 	if gotAuth != "Bearer my-oauth-token" {
 		t.Errorf("Authorization header: got %q, want %q", gotAuth, "Bearer my-oauth-token")
+	}
+}
+
+func TestBearer401TriggersRefreshAndRetry(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "Bearer fresh-token" {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"account_id":"123","username":"user","display_name":"User"}`))
+			return
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"type":"error","error":{"message":"expired"}}`))
+	}))
+	defer srv.Close()
+
+	c := bitbucket.NewWithBaseURL(&config.Config{Username: "user"}, srv.URL)
+	c.SetBearerToken("stale-token")
+	var refreshCalls int32
+	c.SetTokenRefresher(func() (string, error) {
+		atomic.AddInt32(&refreshCalls, 1)
+		return "fresh-token", nil
+	})
+
+	u, err := c.User().Me(context.Background())
+	if err != nil {
+		t.Fatalf("Me after refresh: %v", err)
+	}
+	if u.DisplayName != "User" {
+		t.Errorf("display_name: got %q, want %q", u.DisplayName, "User")
+	}
+	if got := atomic.LoadInt32(&refreshCalls); got != 1 {
+		t.Errorf("refresher called %d times, want 1", got)
+	}
+}
+
+func TestBearer401WithoutRefresherReturnsError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"type":"error","error":{"message":"expired"}}`))
+	}))
+	defer srv.Close()
+
+	c := bitbucket.NewWithBaseURL(&config.Config{Username: "user"}, srv.URL)
+	c.SetBearerToken("stale-token")
+
+	if _, err := c.User().Me(context.Background()); err == nil {
+		t.Fatal("expected error from 401 with no refresher")
+	}
+}
+
+func TestConcurrent401sRefreshOnce(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "Bearer fresh-token" {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"account_id":"123","username":"user","display_name":"User"}`))
+			return
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"type":"error","error":{"message":"expired"}}`))
+	}))
+	defer srv.Close()
+
+	c := bitbucket.NewWithBaseURL(&config.Config{Username: "user"}, srv.URL)
+	c.SetBearerToken("stale-token")
+	var refreshCalls int32
+	c.SetTokenRefresher(func() (string, error) {
+		atomic.AddInt32(&refreshCalls, 1)
+		return "fresh-token", nil
+	})
+
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = c.User().Me(context.Background())
+		}()
+	}
+	wg.Wait()
+
+	if got := atomic.LoadInt32(&refreshCalls); got != 1 {
+		t.Errorf("refresher called %d times, want exactly 1", got)
 	}
 }
 
