@@ -25,10 +25,14 @@ go build -o bb .
 
 ### Option A — OAuth 2.0 (recommended)
 
-Register an OAuth consumer with callback URL `http://localhost:8765/callback`
-(override the port via `oauth_callback_port` in `~/.bbcloud.yaml`). The login
-flow stores the access token, refresh token, and consumer secret in the OS
-keyring; expired access tokens are refreshed automatically on a 401.
+The Client ID and Secret normally come from your Bitbucket workspace admin. If
+you are the admin, register an OAuth client (Workspace settings → Apps &
+features → OAuth clients,
+`https://bitbucket.org/<workspace>/workspace/settings/oauth-clients`) with
+callback URL `http://localhost:8765/callback` (override the port via
+`oauth_callback_port` in `~/.bbcloud.yaml`). The login flow stores the access
+token, refresh token, and client secret in the OS keyring; expired access
+tokens are refreshed automatically on a 401.
 
 ```bash
 bb auth login    # browser-based OAuth flow, credentials stored in OS keyring
