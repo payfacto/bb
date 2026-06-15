@@ -311,7 +311,9 @@ bb download upload --file PATH
 | **JSON** | `bb pr list -f json` | Scripts, agents, piping to `jq` |
 | **Text** | `bb pr list -f text` | Human-readable CLI output with color |
 
-`bb` now defaults to **GCF** (Graph Compact Format) - a compact AI-native format that is significantly more token-efficient than JSON. Existing JSON consumers should migrate: set `BB_FORMAT=json` (or `format: json` in `~/.bbcloud.yaml`, or `--format json` per invocation) to keep JSON output.
+`bb` now defaults to **GCF** ([Graph Compact Format](https://github.com/blackwell-systems/gcf)) - a compact AI-native format that is significantly more token-efficient than JSON. Existing JSON consumers should migrate: set `BB_FORMAT=json` (or `format: json` in `~/.bbcloud.yaml`, or `--format json` per invocation) to keep JSON output.
+
+> **What is GCF?** Graph Compact Format is a lossless, line-based wire format designed for LLMs - one header declares field names, rows are positional values, achieving ~71% fewer tokens than JSON. See the spec and language libraries at <https://github.com/blackwell-systems/gcf>.
 
 **Output format precedence (low to high):**
 

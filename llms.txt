@@ -265,7 +265,7 @@ bb download delete --name FILENAME
 
 ## Output
 
-Default output is **GCF** (Graph Compact Format) on **stdout** - a compact AI-native encoding ~71% more token-efficient than JSON.
+Default output is **GCF** (Graph Compact Format) on **stdout** - a compact AI-native encoding ~71% more token-efficient than JSON. Spec and libraries: https://github.com/blackwell-systems/gcf
 Pass `-f json` for JSON, `-f text` for human-readable styled terminal output.
 Format precedence (low to high): built-in default `gcf` < `~/.bbcloud.yaml` `format:` < `BB_FORMAT` env var < `--format`/`-f` flag.
 When stdout is not a TTY and the resolved format is `text`, it is coerced to `gcf` unless `--format text` was explicitly passed.
