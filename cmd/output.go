@@ -7,6 +7,10 @@ import (
 	"strings"
 
 	gcf "github.com/blackwell-systems/gcf-go"
+	"github.com/spf13/cobra"
+	"golang.org/x/term"
+
+	"github.com/payfacto/bb/internal/config"
 )
 
 // formatDefault is the built-in output format when nothing is configured.
@@ -73,6 +77,25 @@ func renderError(e *CLIError) {
 	default: // json
 		emitErrorJSON(e)
 	}
+}
+
+// resolveFormat reads the effective format from cobra flags, BB_FORMAT, and
+// cfg, applies the non-TTY guard, and stores the result in the package-level
+// `format` var used by renderValue/renderError. Call once in PersistentPreRunE
+// AFTER config is loaded.
+func resolveFormat(cmd *cobra.Command, cfg *config.Config) error {
+	resolved, err := resolveFormatFrom(formatInputs{
+		cfgFormat:   cfg.Format,
+		envFormat:   os.Getenv("BB_FORMAT"),
+		flagFormat:  format,
+		flagChanged: cmd.Flags().Changed("format"),
+		isTTY:       term.IsTerminal(int(os.Stdout.Fd())),
+	})
+	if err != nil {
+		return err
+	}
+	format = resolved
+	return nil
 }
 
 // renderValue writes v to stdout in the active format. For "text" it delegates
