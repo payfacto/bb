@@ -108,19 +108,35 @@ callers (`cmd/errors.go`) can map them to stable CLI error codes.
 
 ### Output
 
-`printOutput(v, textFn)` in `cmd/root.go` handles dual-mode output. Default is
-JSON (machine-readable); `--format text` invokes a per-command `textFn`. New
-commands should follow this pattern. When stdout is not a TTY, `--format`
-defaults to `json` regardless of any future default change (root sets this in
-`PersistentPreRunE`).
+`printOutput(v, textFn)` in `cmd/root.go` delegates to `renderValue` in
+`cmd/output.go`. Supported formats: `gcf | json | text`. The built-in default
+is `gcf` (Graph Compact Format - compact AI-native encoding). `--format text`
+invokes a per-command `textFn`; `--format json` emits indented JSON; `--format gcf`
+encodes via `gcf.EncodeGeneric`. New commands should follow this pattern.
 
-Errors go through `mapError` + `emitError` in `cmd/errors.go` and are written
-as a single JSON object to stderr: `{"error": {"code", "message", "details"}}`.
-Codes are a fixed enum (`config_missing`, `auth_failed`, `not_found`,
-`validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`).
-Subcommands return `*CLIError` directly for typed errors, or plain `error` for
-default mapping. `rootCmd.SilenceErrors = true` keeps Cobra's prose error
-printer from interleaving with the JSON output.
+Format precedence (low to high): built-in default `gcf` < `~/.bbcloud.yaml`
+`format:` field < `BB_FORMAT` env var < `--format`/`-f` flag. Resolution
+happens in `resolveFormat` / `resolveFormatFrom` in `cmd/output.go`, called
+once in `PersistentPreRunE` after config is loaded.
+
+Non-TTY guard: when stdout is not a terminal and the resolved format is `text`,
+it is coerced to `gcf` (not `json`) unless `--format` was set on this specific
+invocation (an explicit per-command `--format text` is always honored).
+
+Errors are rendered in the active format via `renderError` in `cmd/output.go`:
+
+- `format=json` - writes `{"error": {"code", "message", "details"}}` to stderr
+  (byte-identical to the historical envelope; JSON consumers see no change).
+- `format=gcf` - encodes the `CLIError` struct directly via `gcf.EncodeGeneric`
+  (no `"error"` wrapper key, unlike the JSON form).
+- `format=text` - writes `error: <code>: <message>` to stderr.
+
+Errors flow through `mapError` in `cmd/errors.go` first (maps raw errors to
+`*CLIError`). Codes: `config_missing`, `auth_failed`, `not_found`,
+`validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`.
+Subcommands return `*CLIError` for typed errors or plain `error` for default
+mapping. `rootCmd.SilenceErrors = true` keeps Cobra's prose printer from
+interleaving with formatted output.
 
 ### Agent affordances
 

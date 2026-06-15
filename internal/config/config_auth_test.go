@@ -178,3 +178,33 @@ func TestIsLegacyAppPassword(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "cfg.yaml")
+	if err := (&config.Config{Workspace: "w", Username: "u", Format: "gcf"}).Save(path); err != nil {
+		t.Fatal(err)
+	}
+	got, err := config.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Format != "gcf" {
+		t.Errorf("Format = %q, want %q", got.Format, "gcf")
+	}
+}
+
+func TestFormatUnsetIsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "cfg.yaml")
+	if err := (&config.Config{Workspace: "w", Username: "u"}).Save(path); err != nil {
+		t.Fatal(err)
+	}
+	got, err := config.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Format != "" {
+		t.Errorf("unset Format should stay empty (precedence depends on it); got %q", got.Format)
+	}
+}

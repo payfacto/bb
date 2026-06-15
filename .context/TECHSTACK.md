@@ -4,7 +4,7 @@ Core technology stack for `bb` — a Bitbucket Cloud CLI and TUI built in Go. Al
 
 ## Language and Runtime
 
-- Go `1.25.0` (per `go.mod`)
+- Go `1.26.1` (per `go.mod`)
 - Single-binary CLI; entrypoint `main.go` → `cmd.Execute()`
 - Cross-compiled for `linux`, `darwin`, `windows` × `amd64`, `arm64` with `CGO_ENABLED=0`
 
@@ -17,6 +17,7 @@ Core technology stack for `bb` — a Bitbucket Cloud CLI and TUI built in Go. Al
 - Markdown rendering: `github.com/charmbracelet/glamour` v1.0.0 (with `yuin/goldmark` v1.7.13)
 - HTML sanitization in rendered markdown: `microcosm-cc/bluemonday` v1.0.27
 - Browser launcher (OAuth flow): `github.com/pkg/browser`
+- GCF output encoding: `github.com/blackwell-systems/gcf-go` v1.2.0 (GCF - Graph Compact Format, compact AI-native output)
 
 ## Data and Persistence
 
