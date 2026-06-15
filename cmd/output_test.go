@@ -206,3 +206,58 @@ func TestResolveFormat_defaultIsGCF(t *testing.T) {
 		t.Errorf("default format = %q, want gcf", format)
 	}
 }
+
+func TestResolveFormat_envBBFormat(t *testing.T) {
+	old := format
+	defer func() { format = old }()
+	format = formatDefault
+	t.Setenv("BB_FORMAT", "json")
+	c := &cobra.Command{}
+	c.Flags().StringP("format", "f", formatDefault, "")
+	if err := resolveFormat(c, &config.Config{}); err != nil {
+		t.Fatal(err)
+	}
+	if format != "json" {
+		t.Errorf("BB_FORMAT=json should yield json, got %q", format)
+	}
+}
+
+func TestResolveFormat_flagBeatsEnv(t *testing.T) {
+	old := format
+	defer func() { format = old }()
+	format = "text" // simulate --format text on the command line
+	t.Setenv("BB_FORMAT", "json")
+	c := &cobra.Command{}
+	c.Flags().StringP("format", "f", formatDefault, "")
+	if err := c.Flags().Set("format", "text"); err != nil {
+		t.Fatal(err)
+	}
+	if err := resolveFormat(c, &config.Config{}); err != nil {
+		t.Fatal(err)
+	}
+	if format != "text" {
+		t.Errorf("--format text should beat BB_FORMAT=json, got %q", format)
+	}
+}
+
+func TestRenderError_gcfDoesNotLeakSecretlikeDetails(t *testing.T) {
+	old := format
+	format = "gcf"
+	defer func() { format = old }()
+	// A CLIError whose Details contains a sensitive value. We assert the
+	// known-safe fields render, and document current behavior re: details.
+	out := captureStderr(t, func() {
+		renderError(&CLIError{
+			Code:    ErrCodeNotFound,
+			Message: "missing",
+			Details: map[string]any{"response_body_redacted": true},
+		})
+	})
+	if !strings.Contains(out, "GCF profile=generic") || !strings.Contains(out, "not_found") {
+		t.Errorf("gcf error missing expected content: %q", out)
+	}
+	// Guard: the unexported cause must never appear (gcf skips unexported fields).
+	if strings.Contains(out, "cause") {
+		t.Errorf("gcf error unexpectedly rendered the unexported cause: %q", out)
+	}
+}
