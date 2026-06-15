@@ -1,8 +1,12 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
+
+	gcf "github.com/blackwell-systems/gcf-go"
 )
 
 // formatDefault is the built-in output format when nothing is configured.
@@ -56,4 +60,21 @@ func resolveFormatFrom(in formatInputs) (string, error) {
 		f = "gcf"
 	}
 	return f, nil
+}
+
+// renderValue writes v to stdout in the active format. For "text" it delegates
+// to textFn (the per-command human renderer backed by cmd/render).
+func renderValue(v any, textFn func()) error {
+	switch format {
+	case "text":
+		textFn()
+		return nil
+	case "gcf":
+		fmt.Fprint(os.Stdout, gcf.EncodeGeneric(v))
+		return nil
+	default: // json
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(v)
+	}
 }

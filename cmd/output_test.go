@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"errors"
+	"io"
+	"os"
 	"strings"
 	"testing"
 
@@ -77,4 +79,61 @@ func TestResolveFormatFrom_invalid(t *testing.T) {
 	if err == nil {
 		t.Fatal("want error for invalid config format, got nil")
 	}
+}
+
+func TestRenderValue_gcf(t *testing.T) {
+	old := format
+	format = "gcf"
+	defer func() { format = old }()
+
+	out := captureStdout(t, func() {
+		_ = renderValue([]struct {
+			ID    int
+			Title string
+		}{{ID: 7, Title: "hi"}}, func() { t.Fatal("textFn must not run for gcf") })
+	})
+	if !strings.Contains(out, "GCF profile=generic") || !strings.Contains(out, "7|hi") {
+		t.Errorf("gcf output missing expected content: %q", out)
+	}
+}
+
+func TestRenderValue_textCallsTextFn(t *testing.T) {
+	old := format
+	format = "text"
+	defer func() { format = old }()
+
+	called := false
+	_ = renderValue(struct{}{}, func() { called = true })
+	if !called {
+		t.Error("textFn was not called for format=text")
+	}
+}
+
+func TestRenderValue_jsonDefault(t *testing.T) {
+	old := format
+	format = "json"
+	defer func() { format = old }()
+
+	out := captureStdout(t, func() {
+		_ = renderValue(map[string]int{"n": 1}, func() { t.Fatal("textFn must not run for json") })
+	})
+	if !strings.Contains(out, "\"n\": 1") {
+		t.Errorf("json output missing expected content: %q", out)
+	}
+}
+
+// captureStdout redirects os.Stdout for the duration of fn and returns what was written.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := os.Stdout
+	os.Stdout = w
+	fn()
+	w.Close()
+	os.Stdout = old
+	b, _ := io.ReadAll(r)
+	return string(b)
 }

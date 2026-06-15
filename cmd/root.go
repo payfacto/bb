@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -154,13 +153,8 @@ func workspaceOnly() (string, error) {
 	return cfg.Workspace, nil
 }
 
-// printOutput prints v as indented JSON (default) or calls textFn for --format text.
+// printOutput renders v in the active output format (see cmd/output.go).
+// textFn supplies the human-readable rendering used by --format text.
 func printOutput(v any, textFn func()) error {
-	if format == "text" {
-		textFn()
-		return nil
-	}
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(v)
+	return renderValue(v, textFn)
 }
