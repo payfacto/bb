@@ -41,7 +41,7 @@ var rootCmd = &cobra.Command{
 	// Loads config but skips validation — TUI handles missing config with a setup wizard.
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var err error
-		cfg, err = config.Load(cfgFile)
+		cfg, err = loadConfig(cmd)
 		if err != nil {
 			return err
 		}
@@ -70,11 +70,8 @@ var rootCmd = &cobra.Command{
 			return runDescribe(cmd.Root())
 		}
 		var err error
-		cfg, err = config.Load(cfgFile)
+		cfg, err = loadConfig(cmd)
 		if err != nil {
-			return err
-		}
-		if err := resolveFormat(cmd, cfg); err != nil {
 			return err
 		}
 		cfg.Apply(workspace, repo, username, token)
@@ -153,4 +150,20 @@ func workspaceOnly() (string, error) {
 // textFn supplies the human-readable rendering used by --format text.
 func printOutput(v any, textFn func()) error {
 	return renderValue(v, textFn)
+}
+
+// loadConfig loads the config file and resolves the effective output format.
+// Commands that override PersistentPreRunE but emit output via printOutput MUST
+// use this (not config.Load directly) so persisted format / BB_FORMAT and the
+// non-TTY guard apply consistently — Cobra runs only the nearest
+// PersistentPreRunE and does not chain to the parent's.
+func loadConfig(cmd *cobra.Command) (*config.Config, error) {
+	c, err := config.Load(cfgFile)
+	if err != nil {
+		return nil, err
+	}
+	if err := resolveFormat(cmd, c); err != nil {
+		return nil, err
+	}
+	return c, nil
 }

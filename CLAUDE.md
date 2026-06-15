@@ -123,12 +123,19 @@ Non-TTY guard: when stdout is not a terminal and the resolved format is `text`,
 it is coerced to `gcf` (not `json`) unless `--format` was set on this specific
 invocation (an explicit per-command `--format text` is always honored).
 
+Commands that override `PersistentPreRunE` but still emit output (e.g. `bb user
+me`) MUST load config via `loadConfig(cmd)` (in `cmd/root.go`) rather than
+`config.Load` directly — Cobra runs only the nearest `PersistentPreRunE` and does
+not chain to the parent's, so `loadConfig` is what guarantees `resolveFormat`
+runs (and thus that persisted `format:` / `BB_FORMAT` and the non-TTY guard apply).
+
 Errors are rendered in the active format via `renderError` in `cmd/output.go`:
 
 - `format=json` - writes `{"error": {"code", "message", "details"}}` to stderr
   (byte-identical to the historical envelope; JSON consumers see no change).
-- `format=gcf` - encodes the `CLIError` struct directly via `gcf.EncodeGeneric`
-  (no `"error"` wrapper key, unlike the JSON form).
+- `format=gcf` - encodes a `{code, message, details?}` map view via
+  `gcfErrorView` + `gcf.EncodeGeneric` (no `"error"` wrapper key, `details`
+  omitted when empty; the unexported `cause` is never encoded).
 - `format=text` - writes `error: <code>: <message>` to stderr.
 
 Errors flow through `mapError` in `cmd/errors.go` first (maps raw errors to
