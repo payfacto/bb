@@ -19,7 +19,8 @@ const (
 	setupFieldUsername
 	setupFieldPassword
 	setupFieldTheme
-	setupFieldCount // total navigable slots (text fields + theme)
+	setupFieldFormat
+	setupFieldCount // total navigable slots (text fields + theme + format)
 )
 
 const (
@@ -29,12 +30,15 @@ const (
 	setupLabelWidth        = 14 // column width for field labels in the setup wizard
 )
 
+var setupFormatNames = []string{"gcf", "json", "text"}
+
 // setupModel is the TUI setup wizard for first-run or reconfiguration.
 type setupModel struct {
 	fields        []textinput.Model
 	focus         int
 	themeIdx      int
 	originalTheme string
+	formatIdx     int
 	cfgPath       string
 	existing      *config.Config
 	err           error
@@ -75,12 +79,20 @@ func newSetupView(cfgPath string, existing *config.Config) *setupModel {
 
 	idx := themeIndex(existing.Theme)
 
+	fIdx := 0 // default gcf
+	for i, name := range setupFormatNames {
+		if name == existing.Format {
+			fIdx = i
+		}
+	}
+
 	return &setupModel{
 		fields:        fields,
 		cfgPath:       cfgPath,
 		existing:      existing,
 		themeIdx:      idx,
 		originalTheme: existing.Theme,
+		formatIdx:     fIdx,
 	}
 }
 
@@ -107,11 +119,17 @@ func (m *setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.themeIdx = (m.themeIdx - 1 + len(themeNames)) % len(themeNames)
 				applyTheme(themeNames[m.themeIdx])
 			}
+			if m.focus == setupFieldFormat {
+				m.formatIdx = (m.formatIdx - 1 + len(setupFormatNames)) % len(setupFormatNames)
+			}
 			return m, nil
 		case tea.KeyRight:
 			if m.focus == setupFieldTheme {
 				m.themeIdx = (m.themeIdx + 1) % len(themeNames)
 				applyTheme(themeNames[m.themeIdx])
+			}
+			if m.focus == setupFieldFormat {
+				m.formatIdx = (m.formatIdx + 1) % len(setupFormatNames)
 			}
 			return m, nil
 		case tea.KeyTab, tea.KeyDown:
@@ -193,6 +211,7 @@ func (m *setupModel) save() tea.Cmd {
 	user := m.fields[setupFieldUsername].Value()
 	pass := m.fields[setupFieldPassword].Value()
 	theme := themeNames[m.themeIdx]
+	chosenFormat := setupFormatNames[m.formatIdx]
 
 	if ws == "" || user == "" {
 		return func() tea.Msg {
@@ -216,6 +235,7 @@ func (m *setupModel) save() tea.Cmd {
 			AuthType:      authType,
 			OAuthClientID: existing.OAuthClientID,
 			Theme:         theme,
+			Format:        chosenFormat,
 		}
 		if err := updated.Save(cfgPath); err != nil {
 			return saveResultMsg{err: fmt.Errorf("save config: %w", err)}
@@ -288,6 +308,19 @@ func (m *setupModel) View() string {
 	}
 	sb.WriteString("\n")
 
+	// Format selector row
+	formatName := setupFormatNames[m.formatIdx]
+	if m.focus == setupFieldFormat {
+		sb.WriteString(helpKeyStyle.Render(fmt.Sprintf("  %-*s ", setupLabelWidth, "Format")))
+		sb.WriteString(helpKeyStyle.Render("← "))
+		sb.WriteString(helpKeyStyle.Bold(true).Render(formatName))
+		sb.WriteString(helpKeyStyle.Render(" →"))
+	} else {
+		sb.WriteString(subtitleStyle.Render(fmt.Sprintf("  %-*s ", setupLabelWidth, "Format")))
+		sb.WriteString(subtitleStyle.Render(formatName))
+	}
+	sb.WriteString("\n")
+
 	if m.err != nil {
 		sb.WriteString("\n")
 		sb.WriteString(errorStyle.Render(fmt.Sprintf("  Error: %v", m.err)))
@@ -318,6 +351,14 @@ func (m *setupModel) ShortHelp() []key.Binding {
 	if m.focus == setupFieldTheme {
 		return []key.Binding{
 			key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←/→", "change theme")),
+			key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab/↓", "next field")),
+			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "save")),
+			key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit")),
+		}
+	}
+	if m.focus == setupFieldFormat {
+		return []key.Binding{
+			key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←/→", "change format")),
 			key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab/↓", "next field")),
 			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "save")),
 			key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit")),
