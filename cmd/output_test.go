@@ -137,3 +137,54 @@ func captureStdout(t *testing.T, fn func()) string {
 	b, _ := io.ReadAll(r)
 	return string(b)
 }
+
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := os.Stderr
+	os.Stderr = w
+	fn()
+	w.Close()
+	os.Stderr = old
+	b, _ := io.ReadAll(r)
+	return string(b)
+}
+
+func TestRenderError_jsonUnchanged(t *testing.T) {
+	old := format
+	format = "json"
+	defer func() { format = old }()
+	out := captureStderr(t, func() {
+		renderError(&CLIError{Code: ErrCodeNotFound, Message: "missing"})
+	})
+	if !strings.Contains(out, `"error"`) || !strings.Contains(out, `"code":"not_found"`) {
+		t.Errorf("json error envelope changed: %q", out)
+	}
+}
+
+func TestRenderError_gcf(t *testing.T) {
+	old := format
+	format = "gcf"
+	defer func() { format = old }()
+	out := captureStderr(t, func() {
+		renderError(&CLIError{Code: ErrCodeNotFound, Message: "missing"})
+	})
+	if !strings.Contains(out, "GCF profile=generic") || !strings.Contains(out, "not_found") {
+		t.Errorf("gcf error missing content: %q", out)
+	}
+}
+
+func TestRenderError_text(t *testing.T) {
+	old := format
+	format = "text"
+	defer func() { format = old }()
+	out := captureStderr(t, func() {
+		renderError(&CLIError{Code: ErrCodeNotFound, Message: "missing"})
+	})
+	if !strings.Contains(out, "error: not_found: missing") {
+		t.Errorf("text error missing content: %q", out)
+	}
+}
