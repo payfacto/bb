@@ -73,10 +73,24 @@ func renderError(e *CLIError) {
 	case "text":
 		fmt.Fprintf(os.Stderr, "error: %s: %s\n", e.Code, e.Message)
 	case "gcf":
-		fmt.Fprint(os.Stderr, gcf.EncodeGeneric(e))
+		fmt.Fprint(os.Stderr, gcf.EncodeGeneric(gcfErrorView(e)))
 	default: // json
 		emitErrorJSON(e)
 	}
+}
+
+// gcfErrorView builds the value encoded for gcf error output. It deliberately
+// includes only Code, Message, and (when present) Details — never the struct
+// itself. Encoding the *CLIError directly would (a) emit a spurious "## Details"
+// section even when Details is nil, and (b) risk gcf collapsing the value via
+// its Error() method. Using an explicit map keeps the output clean and ensures
+// the unexported cause field can never leak.
+func gcfErrorView(e *CLIError) map[string]any {
+	m := map[string]any{"code": e.Code, "message": e.Message}
+	if len(e.Details) > 0 {
+		m["details"] = e.Details
+	}
+	return m
 }
 
 // resolveFormat reads the effective format from cobra flags, BB_FORMAT, and
