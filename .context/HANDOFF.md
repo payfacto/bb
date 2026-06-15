@@ -108,3 +108,71 @@ version-controlled `.context/` knowledge base discoverable by any agent on sessi
 
 - `handoff` — to append the next session block here.
 - `clean-code:go` / `techstack-review-summarizer` — when editing Go or refreshing TECHSTACK.md.
+
+## Session — 2026-06-15 08:15 (Ship GCF output format)
+
+### What shipped
+
+Full brainstorm → spec → plan → subagent-driven TDD → review → merge cycle for
+the **GCF (Graph Compact Format) output format** feature. All on local `main`
+(merge commits `8f02881` feature, `f948634` review fixes), plus a clean-code pass
+(`8ffa6fa`). Not pushed.
+
+- New `cmd/output.go`: `validateFormat`, pure `resolveFormatFrom` (precedence +
+  non-TTY guard), `resolveFormat`, `renderValue`, `renderError`, `gcfErrorView`.
+- `gcf` is now the **default** output format (was `json`) via `gcf-go` v1.2.0.
+  Precedence: built-in `gcf` < `~/.bbcloud.yaml` `format:` < `BB_FORMAT` env <
+  `--format` flag. Non-TTY guard coerces `text`->`gcf` unless `--format` set.
+- Persisted format: `config.Format` field + `bb setup` wizard picker.
+- Errors render in the active format (`renderError`); JSON envelope byte-identical.
+- Spec: `.context/specs/2026-06-15-gcf-output-format-design.md`; plan:
+  `.context/plans/2026-06-15-gcf-output-format.md`. Docs synced (README, llms.txt,
+  CLAUDE.md, TECHSTACK.md). 296 tests pass, vet/gofmt clean.
+
+### Decisions
+
+- **Aggressive gcf default with a JSON escape hatch** (`BB_FORMAT=json`) — agents
+  get token savings by default; existing automation pins JSON with one env var.
+  This is a documented **breaking change** for anyone piping `bb` expecting JSON.
+- **Format vocabulary lives in `internal/config`** (`FormatGCF/JSON/Text`,
+  `OutputFormats`) — single source of truth shared by `cmd` and `tui` (cmd imports
+  tui, so tui can't import cmd; config is the shared dependency). Done in the
+  clean-code pass to kill a G5 duplication between `cmd.allowedFormats` and
+  `tui.setupFormatNames`.
+- **`loadConfig(cmd)` helper in `cmd/root.go`** — Cobra runs only the nearest
+  `PersistentPreRunE` (no parent chaining), so commands that override it (e.g.
+  `bb user me`) must use `loadConfig` to guarantee `resolveFormat` runs. This was
+  a post-merge code-review P1 fix: persisted format / `BB_FORMAT` were silently
+  ignored for `bb user me` before it.
+- **GCF errors encode a `{code, message, details?}` map view** (`gcfErrorView`),
+  not the `*CLIError` struct — avoids a spurious `## details` section on nil
+  details and guarantees the unexported `cause` can never leak.
+
+### Open questions / risks
+
+- **Supply-chain sign-off on `gcf-go`** (third-party, outside payfacto org) before
+  pushing. Audited safe: no `net`/`os-exec`/`syscall`/`unsafe`, no `init()`,
+  checksummed in `go.sum`, used only to encode already-fetched output. A
+  deliberate dependency sign-off is still recommended (`skill-vetter`).
+- **Known cosmetic follow-up (not fixed):** GCF error ordering puts `details`
+  between `code` and `message` (gcf sorts map keys alphabetically). Acceptable;
+  noted only.
+
+### Running state
+
+- Branch `main`, ahead of `origin/main` by ~17 commits, **not pushed**.
+- Working tree: `.context/.claudeignore` was cleaned up (deduped, made generic;
+  dropped a non-generic `architecture.html` entry) and is **untracked/uncommitted**.
+  `.context/claude-context-pattern.md` also untracked (user-added).
+- No background processes.
+
+### Inferred next steps
+
+- **Push `main`** to origin (awaiting user go-ahead per their no-push-without-asking rule).
+- **Sign off on the `gcf-go` dependency** before it goes remote.
+- Decide whether to commit the cleaned `.context/.claudeignore`.
+- Add a release note for the GCF-default **breaking change** when cutting the next tag.
+
+### Suggested skills for next session
+
+- `skill-vetter` — for the `gcf-go` dependency sign-off.

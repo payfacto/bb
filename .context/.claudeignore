@@ -1,0 +1,163 @@
+# Generic .claudeignore — patterns Claude should not index/read.
+# Organized by concern; language-specific blocks at the bottom. No duplicates.
+
+# ── Version control & caches ──────────────────────────────────────────
+.git/
+.cache/
+
+# ── Build outputs & artifacts (cross-language) ────────────────────────
+bin/
+build/
+dist/
+out/
+target/
+
+# ── Dependencies & lock files ─────────────────────────────────────────
+node_modules/
+vendor/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+go.sum
+Cargo.lock
+*.lockfile
+
+# ── Generated & minified files ────────────────────────────────────────
+*.min.js
+*.min.css
+*.map
+*.generated.ts
+
+# ── Logs, crash dumps & profiling ─────────────────────────────────────
+*.log
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+hs_err_pid*
+replay_pid*
+*.hprof
+*.prof
+*.perf
+perf.data*
+
+# ── Testing, QA & coverage ────────────────────────────────────────────
+coverage/
+coverage.txt
+coverage.xml
+*.coverprofile
+*.lcov
+*.cover
+*.py,cover
+*.out
+htmlcov/
+.nyc_output/
+.coverage
+.coverage.*
+nosetests.xml
+.tox/
+.nox/
+.hypothesis/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Environments & secrets ────────────────────────────────────────────
+.env
+.env.*
+*.secret
+config.local.yaml
+config.local.json
+local.properties
+application-local.properties
+application-local.yml
+
+# ── IDE, editor & OS files ────────────────────────────────────────────
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.sw?
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.iml
+*.ipr
+*.iws
+.settings/
+.project
+.classpath
+.factorypath
+.pydevproject
+.nbworkspace/
+nbproject/
+
+# ── Go ────────────────────────────────────────────────────────────────
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+.go-build/
+
+# ── Node / TypeScript / JS frameworks ─────────────────────────────────
+.next/
+.nuxt/
+.svelte-kit/
+.remix/
+.tsbuildinfo
+*.js
+*.js.map
+*.d.ts
+
+# ── Python ────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+develop-eggs/
+eggs/
+.eggs/
+downloads/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/
+*.egg-info/
+*.egg
+.installed.cfg
+MANIFEST
+.venv/
+venv/
+ENV/
+env/
+pip-wheel-metadata/
+.ipynb_checkpoints
+
+# ── Java / Kotlin / Android ───────────────────────────────────────────
+*.class
+*.jar
+*.war
+*.ear
+*.klib
+.gradle/
+buildSrc/build/
+.cxx/
+captures/
+output.json
+*.apk
+*.ap_
+*.aab
+*.dex
+.kotlin/
+kotlin-js-store/
+.jetbrains/
+
+# ── Rust ──────────────────────────────────────────────────────────────
+*.rs.bk
+.cargo/
