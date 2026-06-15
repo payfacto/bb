@@ -28,6 +28,18 @@ const CloneActionCopy = "copy"
 // ThemeDefault is the colour theme used when none is configured.
 const ThemeDefault = "catppuccin"
 
+// Output format identifiers for the Format field and the --format flag.
+const (
+	FormatGCF  = "gcf"
+	FormatJSON = "json"
+	FormatText = "text"
+)
+
+// OutputFormats is the canonical ordered list of valid output formats. The
+// order is the display order in validation errors and the setup wizard. It is
+// the single source of truth shared by the cmd and tui packages.
+var OutputFormats = []string{FormatGCF, FormatJSON, FormatText}
+
 // AppPasswordDeadline is the date Bitbucket Cloud app passwords stop working.
 const AppPasswordDeadline = "2026-06-09"
 

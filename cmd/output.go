@@ -14,21 +14,18 @@ import (
 )
 
 // formatDefault is the built-in output format when nothing is configured.
-const formatDefault = "gcf"
+const formatDefault = config.FormatGCF
 
-// allowedFormats is the single source of truth for valid --format values.
-// Order matters: it is the order shown in error messages and the wizard.
-var allowedFormats = []string{"gcf", "json", "text"}
-
-// validateFormat returns a validation_failed CLIError if f is not allowed.
+// validateFormat returns a validation_failed CLIError if f is not one of
+// config.OutputFormats (the canonical valid-format list).
 func validateFormat(f string) error {
-	for _, a := range allowedFormats {
+	for _, a := range config.OutputFormats {
 		if f == a {
 			return nil
 		}
 	}
 	return newCLIError(ErrCodeValidationFailed,
-		fmt.Sprintf("invalid format %q (allowed: %s)", f, strings.Join(allowedFormats, ", ")),
+		fmt.Sprintf("invalid format %q (allowed: %s)", f, strings.Join(config.OutputFormats, ", ")),
 		nil)
 }
 
@@ -60,8 +57,8 @@ func resolveFormatFrom(in formatInputs) (string, error) {
 	if err := validateFormat(f); err != nil {
 		return "", err
 	}
-	if !in.isTTY && f == "text" && !in.flagChanged {
-		f = "gcf"
+	if !in.isTTY && f == config.FormatText && !in.flagChanged {
+		f = config.FormatGCF
 	}
 	return f, nil
 }
@@ -70,9 +67,9 @@ func resolveFormatFrom(in formatInputs) (string, error) {
 // preserves the exact historical envelope so JSON consumers see no change.
 func renderError(e *CLIError) {
 	switch format {
-	case "text":
+	case config.FormatText:
 		fmt.Fprintf(os.Stderr, "error: %s: %s\n", e.Code, e.Message)
-	case "gcf":
+	case config.FormatGCF:
 		fmt.Fprint(os.Stderr, gcf.EncodeGeneric(gcfErrorView(e)))
 	default: // json
 		emitErrorJSON(e)
@@ -116,10 +113,10 @@ func resolveFormat(cmd *cobra.Command, cfg *config.Config) error {
 // to textFn (the per-command human renderer backed by cmd/render).
 func renderValue(v any, textFn func()) error {
 	switch format {
-	case "text":
+	case config.FormatText:
 		textFn()
 		return nil
-	case "gcf":
+	case config.FormatGCF:
 		fmt.Fprint(os.Stdout, gcf.EncodeGeneric(v))
 		return nil
 	default: // json

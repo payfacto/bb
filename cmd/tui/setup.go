@@ -30,7 +30,9 @@ const (
 	setupLabelWidth        = 14 // column width for field labels in the setup wizard
 )
 
-var setupFormatNames = []string{"gcf", "json", "text"}
+// setupFormatNames is the ordered list of output formats offered by the wizard.
+// It aliases config.OutputFormats so the cmd and tui packages share one source.
+var setupFormatNames = config.OutputFormats
 
 // setupModel is the TUI setup wizard for first-run or reconfiguration.
 type setupModel struct {
