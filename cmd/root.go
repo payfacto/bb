@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 
 	"github.com/payfacto/bb/cmd/tui"
 	"github.com/payfacto/bb/internal/auth"
@@ -70,15 +69,12 @@ var rootCmd = &cobra.Command{
 		if describeFlag {
 			return runDescribe(cmd.Root())
 		}
-		// If stdout is not a TTY and the user did not explicitly set --format,
-		// force JSON so piped consumers (agents, scripts) never get text output
-		// even if the default ever changes.
-		if !cmd.Flags().Changed("format") && !term.IsTerminal(int(os.Stdout.Fd())) {
-			format = "json"
-		}
 		var err error
 		cfg, err = config.Load(cfgFile)
 		if err != nil {
+			return err
+		}
+		if err := resolveFormat(cmd, cfg); err != nil {
 			return err
 		}
 		cfg.Apply(workspace, repo, username, token)
@@ -124,7 +120,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&repo, "repo", "r", "", "repository slug (overrides config)")
 	rootCmd.PersistentFlags().StringVar(&username, "username", "", "Atlassian account email / username (overrides config/env)")
 	rootCmd.PersistentFlags().StringVar(&token, "token", "", "Bitbucket API token or app password (overrides config/env)")
-	rootCmd.PersistentFlags().StringVarP(&format, "format", "f", "json", "output format: json or text")
+	rootCmd.PersistentFlags().StringVarP(&format, "format", "f", formatDefault, "output format: gcf, json, or text")
 	rootCmd.PersistentFlags().BoolVar(&describeFlag, "describe", false,
 		"emit a JSON capability manifest (commands, flags, schemas) and exit")
 }

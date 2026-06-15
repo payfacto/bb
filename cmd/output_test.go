@@ -8,6 +8,9 @@ import (
 	"testing"
 
 	gcf "github.com/blackwell-systems/gcf-go"
+	"github.com/spf13/cobra"
+
+	"github.com/payfacto/bb/internal/config"
 )
 
 // Locks in gcf-go's documented behavior: field names come from Go struct
@@ -186,5 +189,20 @@ func TestRenderError_text(t *testing.T) {
 	})
 	if !strings.Contains(out, "error: not_found: missing") {
 		t.Errorf("text error missing content: %q", out)
+	}
+}
+
+func TestResolveFormat_defaultIsGCF(t *testing.T) {
+	old := format
+	defer func() { format = old }()
+	format = formatDefault // simulate unset flag
+	c := &cobra.Command{}
+	c.Flags().StringP("format", "f", formatDefault, "")
+	if err := resolveFormat(c, &config.Config{}); err != nil {
+		t.Fatal(err)
+	}
+	// In `go test` stdout is not a TTY, but gcf is not text, so no coercion.
+	if format != "gcf" {
+		t.Errorf("default format = %q, want gcf", format)
 	}
 }
