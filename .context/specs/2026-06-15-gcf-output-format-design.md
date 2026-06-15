@@ -71,8 +71,11 @@ Today `cmd/root.go` (PersistentPreRunE) forces `json` when stdout is not a TTY a
 - Built-in default becomes `gcf` for both TTY and piped output.
 - The guard's intent is preserved but narrowed to its real purpose: never pipe the human
   `text` format to a machine. New rule: if stdout is **not** a TTY and the resolved format
-  is `text` but `text` was **not** explicitly requested (flag/env/config), coerce to `gcf`.
-  An explicit `text` choice is honored even when piped.
+  is `text`, coerce to `gcf` **unless `--format` was set on this invocation**
+  (`cmd.Flags().Changed("format")`). Rationale: since the default is now `gcf`, a `text`
+  value can only come from a persistent preference (config/env) or a per-command flag. A
+  persistent `text` preference should not leak into pipes, but an explicit per-command
+  `--format text` is always honored - even when piped.
 - Escape hatch: existing automation pins JSON with `BB_FORMAT=json` or `format: json`.
 - This is a documented breaking change: README/release notes state "bb now defaults to
   GCF; set `BB_FORMAT=json` to restore JSON."
@@ -113,8 +116,11 @@ Errors still go to stderr and still exit non-zero; only serialization changes.
 
 ### Config & setup wizard
 
-- `internal/config/config.go`: add `Format string` with `yaml:"format,omitempty"`, a
-  `FormatDefault = "gcf"` constant, and `Validate()` rejection of unknown values.
+- `internal/config/config.go`: add `Format string` with `yaml:"format,omitempty"`. `Load`
+  does **not** apply a default (unlike `Theme`); an empty value must stay empty so the
+  precedence chain can distinguish "unset" from "gcf". The default (`formatDefault`),
+  allowed set (`allowedFormats`), and validation (`validateFormat`) live in `cmd/output.go`
+  - the single source of truth per Approach C.
 - `bb setup`: add a format picker slot beside the existing theme selector (left/right
   cycles `gcf` / `json` / `text`), persisted to `~/.bbcloud.yaml`.
 

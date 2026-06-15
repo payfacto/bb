@@ -24,6 +24,7 @@ are also auto-imported by `CLAUDE.md`.
 
 ### `plans/`
 
+- [plans/2026-06-15-gcf-output-format.md](plans/2026-06-15-gcf-output-format.md) — TDD plan (9 tasks) for the GCF output format feature.
 - [plans/2026-05-29-api-token-auth.md](plans/2026-05-29-api-token-auth.md) — TDD implementation plan for API token auth.
 - [plans/2026-05-29-secret-input-reveal.md](plans/2026-05-29-secret-input-reveal.md) — TDD implementation plan for reveal-then-mask secret input.
 
