@@ -1,13 +1,11 @@
 package cmd
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 
 	"github.com/payfacto/bb/cmd/tui"
 	"github.com/payfacto/bb/internal/auth"
@@ -71,15 +69,12 @@ var rootCmd = &cobra.Command{
 		if describeFlag {
 			return runDescribe(cmd.Root())
 		}
-		// If stdout is not a TTY and the user did not explicitly set --format,
-		// force JSON so piped consumers (agents, scripts) never get text output
-		// even if the default ever changes.
-		if !cmd.Flags().Changed("format") && !term.IsTerminal(int(os.Stdout.Fd())) {
-			format = "json"
-		}
 		var err error
 		cfg, err = config.Load(cfgFile)
 		if err != nil {
+			return err
+		}
+		if err := resolveFormat(cmd, cfg); err != nil {
 			return err
 		}
 		cfg.Apply(workspace, repo, username, token)
@@ -125,7 +120,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&repo, "repo", "r", "", "repository slug (overrides config)")
 	rootCmd.PersistentFlags().StringVar(&username, "username", "", "Atlassian account email / username (overrides config/env)")
 	rootCmd.PersistentFlags().StringVar(&token, "token", "", "Bitbucket API token or app password (overrides config/env)")
-	rootCmd.PersistentFlags().StringVarP(&format, "format", "f", "json", "output format: json or text")
+	rootCmd.PersistentFlags().StringVarP(&format, "format", "f", formatDefault, "output format: gcf, json, or text")
 	rootCmd.PersistentFlags().BoolVar(&describeFlag, "describe", false,
 		"emit a JSON capability manifest (commands, flags, schemas) and exit")
 }
@@ -154,13 +149,8 @@ func workspaceOnly() (string, error) {
 	return cfg.Workspace, nil
 }
 
-// printOutput prints v as indented JSON (default) or calls textFn for --format text.
+// printOutput renders v in the active output format (see cmd/output.go).
+// textFn supplies the human-readable rendering used by --format text.
 func printOutput(v any, textFn func()) error {
-	if format == "text" {
-		textFn()
-		return nil
-	}
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(v)
+	return renderValue(v, textFn)
 }

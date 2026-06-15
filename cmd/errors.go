@@ -154,13 +154,18 @@ func mapAPIError(apiErr *bitbucket.APIError) *CLIError {
 	}
 }
 
-// emitError writes a single JSON object to stderr in the shape
+// emitError writes the error to stderr in the active output format.
+func emitError(e *CLIError) {
+	renderError(e)
+}
+
+// emitErrorJSON writes a single JSON object to stderr in the shape
 //
 //	{"error": {"code": "...", "message": "...", "details": {...}}}
 //
 // followed by a newline. stdout is left untouched so successful payloads on
 // stdout and error payloads on stderr never interleave.
-func emitError(e *CLIError) {
+func emitErrorJSON(e *CLIError) {
 	payload := map[string]any{"error": e}
 	b, err := json.Marshal(payload)
 	if err != nil {
