@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -175,8 +176,12 @@ func TestRenderError_gcf(t *testing.T) {
 	out := captureStderr(t, func() {
 		renderError(&CLIError{Code: ErrCodeNotFound, Message: "missing"})
 	})
-	if !strings.Contains(out, "GCF profile=generic") || !strings.Contains(out, "not_found") {
+	if !strings.Contains(out, "GCF profile=generic") || !strings.Contains(out, "code=not_found") || !strings.Contains(out, "message=missing") {
 		t.Errorf("gcf error missing content: %q", out)
+	}
+	// P2: with nil Details, the gcf view must not emit a spurious section header.
+	if strings.Contains(out, "details") || strings.Contains(out, "Details") {
+		t.Errorf("gcf error rendered a details section for nil Details: %q", out)
 	}
 }
 
@@ -256,8 +261,39 @@ func TestRenderError_gcfDoesNotLeakSecretlikeDetails(t *testing.T) {
 	if !strings.Contains(out, "GCF profile=generic") || !strings.Contains(out, "not_found") {
 		t.Errorf("gcf error missing expected content: %q", out)
 	}
-	// Guard: the unexported cause must never appear (gcf skips unexported fields).
+	// Non-empty Details must still render (the gcfErrorView omits Details only
+	// when empty).
+	if !strings.Contains(out, "response_body_redacted") {
+		t.Errorf("gcf error dropped non-empty Details: %q", out)
+	}
+	// Guard: the unexported cause must never appear (the gcf view is an explicit
+	// map of code/message/details, so cause can never be encoded).
 	if strings.Contains(out, "cause") {
 		t.Errorf("gcf error unexpectedly rendered the unexported cause: %q", out)
+	}
+}
+
+// Regression for the P1 bug: commands that override PersistentPreRunE (here
+// `bb user me`) must still resolve the persisted/BB_FORMAT output format. Before
+// the fix, userMeCmd called config.Load directly and never ran resolveFormat,
+// so BB_FORMAT / config `format:` were silently ignored and output was always
+// the flag default. We invoke its pre-run with BB_FORMAT=json and an empty temp
+// config; the credential check fails afterward (no creds), but the format must
+// already have been resolved to json by then.
+func TestUserMePreRun_resolvesFormat(t *testing.T) {
+	oldFormat := format
+	oldCfgFile := cfgFile
+	defer func() { format = oldFormat; cfgFile = oldCfgFile }()
+
+	format = formatDefault // simulate the unset --format flag default (gcf)
+	cfgFile = filepath.Join(t.TempDir(), "absent.yaml")
+	t.Setenv("BB_FORMAT", "json")
+
+	// Pre-run returns a credentials error (no creds configured); that's expected.
+	// What we assert is that resolveFormat ran first.
+	_ = userMeCmd.PersistentPreRunE(userMeCmd, nil)
+
+	if format != "json" {
+		t.Errorf("user me pre-run did not resolve BB_FORMAT: format = %q, want json", format)
 	}
 }
