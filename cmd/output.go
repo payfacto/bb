@@ -62,6 +62,19 @@ func resolveFormatFrom(in formatInputs) (string, error) {
 	return f, nil
 }
 
+// renderError writes a CLIError to stderr in the active format. The JSON path
+// preserves the exact historical envelope so JSON consumers see no change.
+func renderError(e *CLIError) {
+	switch format {
+	case "text":
+		fmt.Fprintf(os.Stderr, "error: %s: %s\n", e.Code, e.Message)
+	case "gcf":
+		fmt.Fprint(os.Stderr, gcf.EncodeGeneric(e))
+	default: // json
+		emitErrorJSON(e)
+	}
+}
+
 // renderValue writes v to stdout in the active format. For "text" it delegates
 // to textFn (the per-command human renderer backed by cmd/render).
 func renderValue(v any, textFn func()) error {
