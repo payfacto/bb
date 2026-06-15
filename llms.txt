@@ -67,7 +67,7 @@ bb pr list -w myws -r myrepo
 All commands accept:
 - `-w`, `--workspace SLUG` — Bitbucket workspace slug
 - `-r`, `--repo SLUG` — repository slug
-- `-f`, `--format json|text` — output format (default: json; piped stdout forces json)
+- `-f`, `--format gcf|json|text` — output format (default: gcf; set BB_FORMAT env var for a persistent non-flag default)
 - `--config PATH` — path to config file
 - `--describe` — emit a JSON capability manifest (commands, flags, schemas) and exit (no auth required)
 
@@ -265,18 +265,20 @@ bb download delete --name FILENAME
 
 ## Output
 
-Default output is newline-terminated JSON on **stdout** (machine-readable).
-Pass `-f text` for human-readable styled terminal output.
+Default output is **GCF** (Graph Compact Format) on **stdout** - a compact AI-native encoding ~71% more token-efficient than JSON.
+Pass `-f json` for JSON, `-f text` for human-readable styled terminal output.
+Format precedence (low to high): built-in default `gcf` < `~/.bbcloud.yaml` `format:` < `BB_FORMAT` env var < `--format`/`-f` flag.
+When stdout is not a TTY and the resolved format is `text`, it is coerced to `gcf` unless `--format text` was explicitly passed.
+Migration: existing JSON consumers should set `BB_FORMAT=json` (or `format: json` in `~/.bbcloud.yaml`, or `--format json`).
 `bb pr diff` and `bb pipeline log` always output plain text regardless of `-f`.
-When stdout is not a TTY, `-f` defaults to `json` regardless of any future default change.
-Errors are emitted as JSON on **stderr** — see "Error format" above.
+Errors are emitted on **stderr** in the active format - see "Error format" above.
 
 ## Notes for AI agents
 
-- Always use `bb <command>` with explicit subcommands. Running bare `bb` launches an interactive TUI meant for humans — agents should never do this.
-- All list commands return JSON arrays; single-resource commands return a JSON object.
+- Always use `bb <command>` with explicit subcommands. Running bare `bb` launches an interactive TUI meant for humans - agents should never do this.
+- Default output is GCF. Pass `-f json` or set `BB_FORMAT=json` for JSON. List commands return arrays; single-resource commands return objects.
 - IDs are integers for PRs, tasks, issues, deploy keys, and restrictions. UUIDs (with `{}` braces) for pipelines, steps, environments, and webhooks.
-- The CLI exits non-zero on errors and writes structured JSON `{"error": {"code", "message", "details"}}` to stderr (see "Error format").
+- The CLI exits non-zero on errors and writes to stderr in the active format (see "Error format"). With `format=json` the envelope is `{"error": {"code", "message", "details"}}`.
 - Use `bb --describe` to enumerate every command, flag, action class, and JSON Schema in a single call.
 - `--sort` is available on `pr list`, `pipeline list`, `branch list`, `tag list`, `commit list`, `repo list`, and `issue list`. Other list commands do not accept `--sort` because the underlying Bitbucket endpoint does not — sort their JSON output client-side if you need deterministic ordering.
 - Workspace and repo can be omitted from flags if set in `~/.bbcloud.yaml`.
