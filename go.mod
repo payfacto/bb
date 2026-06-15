@@ -1,6 +1,6 @@
 module github.com/payfacto/bb
 
-go 1.25.0
+go 1.26.1
 
 require (
 	github.com/charmbracelet/bubbles v1.0.0
@@ -20,6 +20,7 @@ require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
+	github.com/blackwell-systems/gcf-go v1.2.0 // indirect
 	github.com/buger/jsonparser v1.1.2 // indirect
 	github.com/charmbracelet/colorprofile v0.4.1 // indirect
 	github.com/charmbracelet/x/ansi v0.11.6 // indirect
