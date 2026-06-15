@@ -37,11 +37,9 @@ docs/
 .claude/
 .superpowers/
 AGENTS.md
-HANDOFF.md
 *REVIEW*.md
 
 # Git worktrees
 .worktrees/
 
-# Superpowers brainstorming sessions
-.superpowers/
+

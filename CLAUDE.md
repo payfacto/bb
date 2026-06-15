@@ -1,3 +1,5 @@
+@.context/INDEX.md
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
@@ -176,4 +178,8 @@ Direct dependencies only (`go.mod` `require` block):
 
 ## Design reference
 
-`docs/superpowers/specs/2026-04-04-bb-cli-design.md` — approved design doc with full command spec, auth strategy, and out-of-scope decisions.
+Design specs and TDD implementation plans live in `.context/specs/` and
+`.context/plans/` (indexed by `.context/INDEX.md`) — e.g.
+`.context/specs/2026-05-29-api-token-auth-design.md`. The original
+`2026-04-04-bb-cli-design.md` is not currently present in the repo; see the
+Outstanding backlog in `.context/HANDOFF.md`.
