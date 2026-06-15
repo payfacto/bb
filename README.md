@@ -39,9 +39,10 @@ go build -o bb .
 ```bash
 bb setup                    # interactive config wizard
 bb                          # launch interactive TUI
-bb pr list                  # list open PRs as JSON
+bb pr list                  # list open PRs (GCF format by default)
+bb pr list -f json          # JSON output
 bb pr list -f text          # human-readable output
-bb pr get -p 42             # get a specific PR as JSON
+bb pr get -p 42             # get a specific PR (GCF format by default)
 ```
 
 ## Interactive TUI
@@ -133,7 +134,7 @@ bb pr list --workspace myws --repo myrepo
 |------|-------|-------------|
 | `--workspace SLUG` | `-w` | Bitbucket workspace slug |
 | `--repo SLUG` | `-r` | Repository slug |
-| `--format json\|text` | `-f` | Output format (default: `json`) |
+| `--format gcf\|json\|text` | `-f` | Output format (default: `gcf`) |
 | `--config PATH` | | Path to config file (default: `~/.bbcloud.yaml`) |
 
 ### Common Shorthands
@@ -306,8 +307,20 @@ bb download upload --file PATH
 | Mode | How to use | When |
 |------|-----------|------|
 | **TUI** | `bb` (no args) | Interactive exploration in a terminal |
-| **JSON** | `bb pr list` (default) | Scripts, agents, piping to `jq` |
+| **GCF** | `bb pr list` (default) | AI agents - compact format, ~71% fewer tokens than JSON |
+| **JSON** | `bb pr list -f json` | Scripts, agents, piping to `jq` |
 | **Text** | `bb pr list -f text` | Human-readable CLI output with color |
+
+`bb` now defaults to **GCF** (Graph Compact Format) - a compact AI-native format that is significantly more token-efficient than JSON. Existing JSON consumers should migrate: set `BB_FORMAT=json` (or `format: json` in `~/.bbcloud.yaml`, or `--format json` per invocation) to keep JSON output.
+
+**Output format precedence (low to high):**
+
+1. Built-in default: `gcf`
+2. `~/.bbcloud.yaml` `format:` setting
+3. `BB_FORMAT` environment variable
+4. `--format`/`-f` flag
+
+When stdout is not a terminal and the resolved format is `text`, it is automatically coerced to `gcf` unless `--format text` was explicitly passed on that invocation.
 
 `bb pr diff` and `bb pipeline log` always output plain text regardless of `--format`.
 
@@ -320,12 +333,12 @@ See [`llms.txt`](llms.txt) for a compact machine-readable reference.
 Key notes:
 
 - `bb --describe` emits a JSON capability manifest covering every command, its flags, action class (`read | write | destructive`), output Go type, and an auto-generated JSON Schema for both output and stdin input where applicable. Use this for discovery instead of parsing `--help`.
-- All list commands return JSON arrays; single-resource commands return a JSON object.
+- Default output is **GCF** (compact, AI-native). Pass `-f json` for JSON output, or set `BB_FORMAT=json` globally. List commands return arrays; single-resource commands return an object.
 - Create and update commands accept a JSON body on stdin (`echo '{...}' | bb pr create`) as an alternative to flags. When stdin is piped and non-empty, it replaces all flag values.
-- For multi-paragraph text bodies, prefer the `--*-file` variants over shell quoting / heredocs / stdin: `pr create --description-file PATH`, `issue create --description-file PATH`, `pr comment add --text-file PATH`, `pr comment reply --text-file PATH`. Each is mutually exclusive with its inline counterpart (`--description` / `--text`). Agents should write the body to a temp file and pass the path — no shell-escaping concerns.
+- For multi-paragraph text bodies, prefer the `--*-file` variants over shell quoting / heredocs / stdin: `pr create --description-file PATH`, `issue create --description-file PATH`, `pr comment add --text-file PATH`, `pr comment reply --text-file PATH`. Each is mutually exclusive with its inline counterpart (`--description` / `--text`). Agents should write the body to a temp file and pass the path - no shell-escaping concerns.
 - IDs are integers for PRs, tasks, and issues. UUIDs (with `{}` braces) for pipelines, steps, and environments.
 - `workspace` and `repo` can be omitted from flags if set in `~/.bbcloud.yaml`.
-- On failure the CLI exits non-zero and writes a single JSON object to stderr: `{"error": {"code": "...", "message": "...", "details": {...}}}`. Codes are a fixed enum: `config_missing`, `auth_failed`, `not_found`, `validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`. stdout is never mixed with errors. API-error details include `http_status`; the raw `response_body` is redacted by default (Bitbucket sometimes echoes request fragments back) — set `BB_DEBUG=1` to include it. Required-flag failures include `details.missing_flags`.
+- On failure the CLI exits non-zero and writes to stderr. With `--format json` the error shape is `{"error": {"code": "...", "message": "...", "details": {...}}}`. Codes are a fixed enum: `config_missing`, `auth_failed`, `not_found`, `validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`. stdout is never mixed with errors. API-error details include `http_status`; the raw `response_body` is redacted by default - set `BB_DEBUG=1` to include it. Required-flag failures include `details.missing_flags`.
 - The manifest exposes `manifest_schema_version` (currently `"1"`) at the top level; bump-detection on this field is cheaper than diffing the whole document. Stdin entries carry `behavior: "replaces_flags"` (the only value today) describing how piped JSON interacts with flags. Stdin is capped at 1 MiB.
 - `--sort` is supported on `pr list`, `pipeline list`, `branch list`, `tag list`, `commit list`, `repo list`, and `issue list`. List commands without `--sort` use the Bitbucket API's default ordering — sort client-side from the JSON if you need a guaranteed order.
 
