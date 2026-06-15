@@ -49,6 +49,7 @@ type Config struct {
 	PageSize          int    `yaml:"page_size,omitempty"`
 	CloneAction       string `yaml:"clone_action,omitempty"`
 	Theme             string `yaml:"theme,omitempty"`
+	Format            string `yaml:"format,omitempty"`
 
 	// Token is never written to disk; loaded from keyring, env var, or CLI flag at runtime.
 	Token string `yaml:"-"`
