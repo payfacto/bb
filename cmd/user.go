@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/payfacto/bb/cmd/render"
-	"github.com/payfacto/bb/internal/config"
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
@@ -21,7 +20,7 @@ var userMeCmd = &cobra.Command{
 	Short: "Show the authenticated user's profile",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		var err error
-		cfg, err = config.Load(cfgFile)
+		cfg, err = loadConfig(cmd)
 		if err != nil {
 			return err
 		}
