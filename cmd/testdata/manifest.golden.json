@@ -2859,6 +2859,11 @@
           "required": false
         },
         {
+          "name": "project",
+          "type": "string",
+          "required": false
+        },
+        {
           "name": "repo",
           "short": "r",
           "type": "string",
