@@ -355,6 +355,33 @@ func (c *Client) doText(ctx context.Context, path string) ([]byte, error) {
 	return data, nil
 }
 
+// doStream executes an authenticated GET and returns the response body for
+// streaming, leaving it open for the caller to read and close. Used for binary
+// artifacts (e.g. download files) that should not be buffered in memory. The
+// download endpoint 302-redirects to signed storage; the http.Client follows it
+// and strips the Authorization header on the cross-host hop. On a 4xx/5xx the
+// body is drained and closed and an *APIError is returned.
+func (c *Client) doStream(ctx context.Context, path string) (io.ReadCloser, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	// No Accept header: the redirect target (signed storage) may reject a
+	// JSON Accept, mirroring doText.
+
+	resp, err := c.send(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		data, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		return nil, parseHTTPError(resp.StatusCode, data)
+	}
+	return resp.Body, nil
+}
+
 // doMultipart executes an authenticated POST with a raw body and explicit content-type.
 // Used for multipart/form-data uploads where JSON marshaling is not appropriate.
 func (c *Client) doMultipart(ctx context.Context, path string, body io.Reader, contentType string) ([]byte, error) {

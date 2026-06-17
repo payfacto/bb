@@ -1,0 +1,7 @@
+{
+  "$schema": "https://raw.githubusercontent.com/DavidAnson/markdownlint/main/schema/markdownlint-config-schema.json",
+  "MD013": false,
+  "MD024": { "siblings_only": true },
+  "MD036": false,
+  "MD041": false
+}

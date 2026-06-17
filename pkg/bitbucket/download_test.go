@@ -1,9 +1,11 @@
 package bitbucket_test
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -67,6 +69,51 @@ func TestDownloads_Upload(t *testing.T) {
 	err := client.Downloads("testws", "testrepo").Upload(context.Background(), "release.zip", strings.NewReader("binary content"))
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDownloads_Get(t *testing.T) {
+	// The downloads endpoint 302-redirects to a signed storage URL; the client
+	// must follow the redirect and stream the bytes. Model storage with a
+	// separate server. (Go strips the Authorization header only on a cross-host
+	// redirect — in production api.bitbucket.org -> S3 — which cannot be
+	// reproduced with two localhost test servers, so it is not asserted here.)
+	const payload = "binary artifact bytes"
+	storage := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, payload)
+	}))
+	t.Cleanup(storage.Close)
+
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if r.URL.Path != "/repositories/testws/testrepo/downloads/app-v1.0.0.zip" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		http.Redirect(w, r, storage.URL, http.StatusFound)
+	}))
+
+	var buf bytes.Buffer
+	err := client.Downloads("testws", "testrepo").Get(context.Background(), "app-v1.0.0.zip", &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if buf.String() != payload {
+		t.Errorf("unexpected content: %q", buf.String())
+	}
+}
+
+func TestDownloads_Get_NotFound(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		io.WriteString(w, `{"error":{"message":"Not found"}}`)
+	}))
+
+	var buf bytes.Buffer
+	err := client.Downloads("testws", "testrepo").Get(context.Background(), "missing.zip", &buf)
+	if err == nil {
+		t.Fatal("expected error for missing artifact, got nil")
 	}
 }
 

@@ -70,7 +70,7 @@ bb                    (no args → launches TUI)
 ├── webhook list / create / delete
 ├── deploy-key list / create / delete
 ├── restriction list / create / delete
-├── download list / file / upload
+├── download list / get / upload / delete
 ├── workspace list
 └── setup   (interactive config wizard)
 ```

@@ -116,6 +116,7 @@ var commandRegistry = map[string]commandSpec{
 
 	// download ---------------------------------------------------------
 	"download list":   {Action: actionRead, OutputType: "[]Download", Ordering: "unspecified", Example: "bb download list"},
+	"download get":    {Action: actionRead, OutputType: "ResultMap", Example: "bb download get --name artifact.zip"},
 	"download upload": {Action: actionWrite, OutputType: "ResultMap", Example: "bb download upload --file ./artifact.zip"},
 	"download delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb download delete --name artifact.zip"},
 
