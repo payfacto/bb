@@ -14,7 +14,7 @@ import (
 )
 
 // formatDefault is the built-in output format when nothing is configured.
-const formatDefault = config.FormatGCF
+const formatDefault = config.FormatJSON
 
 // validateFormat returns a validation_failed CLIError if f is not one of
 // config.OutputFormats (the canonical valid-format list).
@@ -41,7 +41,7 @@ type formatInputs struct {
 
 // resolveFormatFrom applies precedence (default < config < env < --format) and
 // the non-TTY text guard: when stdout is not a terminal and the resolved format
-// is the human "text" format, coerce to gcf UNLESS --format was set on this
+// is the human "text" format, coerce to json UNLESS --format was set on this
 // invocation (a per-command explicit choice is always honored).
 func resolveFormatFrom(in formatInputs) (string, error) {
 	f := formatDefault
@@ -58,7 +58,7 @@ func resolveFormatFrom(in formatInputs) (string, error) {
 		return "", err
 	}
 	if !in.isTTY && f == config.FormatText && !in.flagChanged {
-		f = config.FormatGCF
+		f = config.FormatJSON
 	}
 	return f, nil
 }

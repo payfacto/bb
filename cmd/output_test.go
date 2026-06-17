@@ -55,14 +55,15 @@ func TestResolveFormatFrom(t *testing.T) {
 		in   formatInputs
 		want string
 	}{
-		{"default when nothing set", formatInputs{isTTY: true}, "gcf"},
-		{"config overrides default", formatInputs{cfgFormat: "json", isTTY: true}, "json"},
-		{"env overrides config", formatInputs{cfgFormat: "json", envFormat: "gcf", isTTY: true}, "gcf"},
+		{"default when nothing set", formatInputs{isTTY: true}, "json"},
+		{"config overrides default", formatInputs{cfgFormat: "gcf", isTTY: true}, "gcf"},
+		{"env overrides config", formatInputs{cfgFormat: "gcf", envFormat: "json", isTTY: true}, "json"},
 		{"flag overrides env", formatInputs{cfgFormat: "json", envFormat: "gcf", flagFormat: "text", flagChanged: true, isTTY: true}, "text"},
-		{"piped text from config coerced to gcf", formatInputs{cfgFormat: "text", isTTY: false}, "gcf"},
-		{"piped text from env coerced to gcf", formatInputs{envFormat: "text", isTTY: false}, "gcf"},
+		{"piped text from config coerced to json", formatInputs{cfgFormat: "text", isTTY: false}, "json"},
+		{"piped text from env coerced to json", formatInputs{envFormat: "text", isTTY: false}, "json"},
 		{"explicit --format text honored when piped", formatInputs{flagFormat: "text", flagChanged: true, isTTY: false}, "text"},
-		{"piped gcf stays gcf", formatInputs{isTTY: false}, "gcf"},
+		{"piped default stays json", formatInputs{isTTY: false}, "json"},
+		{"piped gcf stays gcf", formatInputs{cfgFormat: "gcf", isTTY: false}, "gcf"},
 		{"piped json stays json", formatInputs{cfgFormat: "json", isTTY: false}, "json"},
 	}
 	for _, tt := range tests {
@@ -197,7 +198,7 @@ func TestRenderError_text(t *testing.T) {
 	}
 }
 
-func TestResolveFormat_defaultIsGCF(t *testing.T) {
+func TestResolveFormat_defaultIsJSON(t *testing.T) {
 	old := format
 	defer func() { format = old }()
 	format = formatDefault // simulate unset flag
@@ -206,9 +207,9 @@ func TestResolveFormat_defaultIsGCF(t *testing.T) {
 	if err := resolveFormat(c, &config.Config{}); err != nil {
 		t.Fatal(err)
 	}
-	// In `go test` stdout is not a TTY, but gcf is not text, so no coercion.
-	if format != "gcf" {
-		t.Errorf("default format = %q, want gcf", format)
+	// In `go test` stdout is not a TTY, but json is not text, so no coercion.
+	if format != "json" {
+		t.Errorf("default format = %q, want json", format)
 	}
 }
 
@@ -285,7 +286,7 @@ func TestUserMePreRun_resolvesFormat(t *testing.T) {
 	oldCfgFile := cfgFile
 	defer func() { format = oldFormat; cfgFile = oldCfgFile }()
 
-	format = formatDefault // simulate the unset --format flag default (gcf)
+	format = formatDefault // simulate the unset --format flag default (json)
 	cfgFile = filepath.Join(t.TempDir(), "absent.yaml")
 	t.Setenv("BB_FORMAT", "json")
 
