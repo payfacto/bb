@@ -15,7 +15,10 @@ var repoCmd = &cobra.Command{
 	Short: "Manage repositories",
 }
 
-var repoListSort string
+var (
+	repoListSort    string
+	repoListProject string
+)
 
 var repoListCmd = &cobra.Command{
 	Use:   "list",
@@ -25,12 +28,22 @@ var repoListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		repos, err := client.Repos(ws).List(context.Background(), repoListSort)
+		repos, err := listRepos(ws)
 		if err != nil {
 			return err
 		}
 		return printOutput(repos, func() { render.RepoList(repos) })
 	},
+}
+
+// listRepos fetches repositories, filtering by project key when --project is set.
+// The project-scoped endpoint does not accept a sort parameter, so --sort is
+// ignored when --project is supplied.
+func listRepos(ws string) ([]bitbucket.Repo, error) {
+	if repoListProject != "" {
+		return client.Repos(ws).ListByProject(context.Background(), repoListProject)
+	}
+	return client.Repos(ws).List(context.Background(), repoListSort)
 }
 
 var (
@@ -183,6 +196,8 @@ var repoDeleteCmd = &cobra.Command{
 func init() {
 	repoListCmd.Flags().StringVar(&repoListSort, "sort", "",
 		"sort by Bitbucket field, prefix with - for descending (e.g. -updated_on); empty preserves API default")
+	repoListCmd.Flags().StringVar(&repoListProject, "project", "",
+		"filter by project key (e.g. AISK); --sort is ignored when set")
 
 	repoCreateCmd.Flags().StringVar(&repoCreateName, "name", "", "display name (defaults to slug)")
 	repoCreateCmd.Flags().StringVar(&repoCreateDescription, "description", "", "repository description")

@@ -228,7 +228,7 @@ bb file get --ref REF --path PATH
 ### Repositories
 
 ```
-bb repo list [--sort FIELD]
+bb repo list [--sort FIELD] [--project KEY]
 bb repo get SLUG
 bb repo update SLUG [--description "..."] [--default-branch BRANCH]
 bb repo delete SLUG
