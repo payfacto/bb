@@ -39,10 +39,10 @@ go build -o bb .
 ```bash
 bb setup                    # interactive config wizard
 bb                          # launch interactive TUI
-bb pr list                  # list open PRs (GCF format by default)
-bb pr list -f json          # JSON output
+bb pr list                  # list open PRs (JSON by default)
+bb pr list -f gcf           # compact GCF output (token-efficient for agents)
 bb pr list -f text          # human-readable output
-bb pr get -p 42             # get a specific PR (GCF format by default)
+bb pr get -p 42             # get a specific PR (JSON by default)
 ```
 
 ## Interactive TUI
@@ -134,7 +134,7 @@ bb pr list --workspace myws --repo myrepo
 |------|-------|-------------|
 | `--workspace SLUG` | `-w` | Bitbucket workspace slug |
 | `--repo SLUG` | `-r` | Repository slug |
-| `--format gcf\|json\|text` | `-f` | Output format (default: `gcf`) |
+| `--format json\|gcf\|text` | `-f` | Output format (default: `json`) |
 | `--config PATH` | | Path to config file (default: `~/.bbcloud.yaml`) |
 
 ### Common Shorthands
@@ -307,22 +307,22 @@ bb download upload --file PATH
 | Mode | How to use | When |
 |------|-----------|------|
 | **TUI** | `bb` (no args) | Interactive exploration in a terminal |
-| **GCF** | `bb pr list` (default) | AI agents - compact format, ~71% fewer tokens than JSON |
-| **JSON** | `bb pr list -f json` | Scripts, agents, piping to `jq` |
+| **JSON** | `bb pr list` (default) | Scripts, agents, piping to `jq` |
+| **GCF** | `bb pr list -f gcf` | AI agents - compact format, ~71% fewer tokens than JSON |
 | **Text** | `bb pr list -f text` | Human-readable CLI output with color |
 
-`bb` now defaults to **GCF** ([Graph Compact Format](https://github.com/blackwell-systems/gcf)) - a compact AI-native format that is significantly more token-efficient than JSON. Existing JSON consumers should migrate: set `BB_FORMAT=json` (or `format: json` in `~/.bbcloud.yaml`, or `--format json` per invocation) to keep JSON output.
+`bb` defaults to **JSON** so output works directly with `jq` and standard JSON tooling. For token-sensitive agent workflows, **GCF** ([Graph Compact Format](https://github.com/blackwell-systems/gcf)) is available via `--format gcf` (or `format: gcf` in `~/.bbcloud.yaml`, or `BB_FORMAT=gcf`) - a compact AI-native format ~71% more token-efficient than JSON.
 
 > **What is GCF?** Graph Compact Format is a lossless, line-based wire format designed for LLMs - one header declares field names, rows are positional values, achieving ~71% fewer tokens than JSON. See the spec and language libraries at <https://github.com/blackwell-systems/gcf>.
 
 **Output format precedence (low to high):**
 
-1. Built-in default: `gcf`
+1. Built-in default: `json`
 2. `~/.bbcloud.yaml` `format:` setting
 3. `BB_FORMAT` environment variable
 4. `--format`/`-f` flag
 
-When stdout is not a terminal and the resolved format is `text`, it is automatically coerced to `gcf` unless `--format text` was explicitly passed on that invocation.
+When stdout is not a terminal and the resolved format is `text`, it is automatically coerced to `json` unless `--format text` was explicitly passed on that invocation.
 
 `bb pr diff` and `bb pipeline log` always output plain text regardless of `--format`.
 
@@ -335,7 +335,7 @@ See [`llms.txt`](llms.txt) for a compact machine-readable reference.
 Key notes:
 
 - `bb --describe` emits a JSON capability manifest covering every command, its flags, action class (`read | write | destructive`), output Go type, and an auto-generated JSON Schema for both output and stdin input where applicable. Use this for discovery instead of parsing `--help`.
-- Default output is **GCF** (compact, AI-native). Pass `-f json` for JSON output, or set `BB_FORMAT=json` globally. List commands return arrays; single-resource commands return an object.
+- Default output is **JSON** (pipe-friendly, works with `jq`). For token-efficient output, pass `-f gcf` or set `BB_FORMAT=gcf` globally. List commands return arrays; single-resource commands return an object.
 - Create and update commands accept a JSON body on stdin (`echo '{...}' | bb pr create`) as an alternative to flags. When stdin is piped and non-empty, it replaces all flag values.
 - For multi-paragraph text bodies, prefer the `--*-file` variants over shell quoting / heredocs / stdin: `pr create --description-file PATH`, `issue create --description-file PATH`, `pr comment add --text-file PATH`, `pr comment reply --text-file PATH`. Each is mutually exclusive with its inline counterpart (`--description` / `--text`). Agents should write the body to a temp file and pass the path - no shell-escaping concerns.
 - IDs are integers for PRs, tasks, and issues. UUIDs (with `{}` braces) for pipelines, steps, and environments.

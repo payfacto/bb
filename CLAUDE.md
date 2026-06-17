@@ -109,18 +109,20 @@ callers (`cmd/errors.go`) can map them to stable CLI error codes.
 ### Output
 
 `printOutput(v, textFn)` in `cmd/root.go` delegates to `renderValue` in
-`cmd/output.go`. Supported formats: `gcf | json | text`. The built-in default
-is `gcf` (Graph Compact Format - compact AI-native encoding). `--format text`
+`cmd/output.go`. Supported formats: `json | gcf | text`. The built-in default
+is `json` (pipe-friendly, works with `jq`). `--format text`
 invokes a per-command `textFn`; `--format json` emits indented JSON; `--format gcf`
-encodes via `gcf.EncodeGeneric`. New commands should follow this pattern.
+encodes via `gcf.EncodeGeneric` (Graph Compact Format - compact AI-native
+encoding, ~71% fewer tokens than JSON; opt in via `--format gcf` / `BB_FORMAT=gcf`).
+New commands should follow this pattern.
 
-Format precedence (low to high): built-in default `gcf` < `~/.bbcloud.yaml`
+Format precedence (low to high): built-in default `json` < `~/.bbcloud.yaml`
 `format:` field < `BB_FORMAT` env var < `--format`/`-f` flag. Resolution
 happens in `resolveFormat` / `resolveFormatFrom` in `cmd/output.go`, called
 once in `PersistentPreRunE` after config is loaded.
 
 Non-TTY guard: when stdout is not a terminal and the resolved format is `text`,
-it is coerced to `gcf` (not `json`) unless `--format` was set on this specific
+it is coerced to `json` unless `--format` was set on this specific
 invocation (an explicit per-command `--format text` is always honored).
 
 Commands that override `PersistentPreRunE` but still emit output (e.g. `bb user

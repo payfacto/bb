@@ -67,7 +67,7 @@ bb pr list -w myws -r myrepo
 All commands accept:
 - `-w`, `--workspace SLUG` — Bitbucket workspace slug
 - `-r`, `--repo SLUG` — repository slug
-- `-f`, `--format gcf|json|text` — output format (default: gcf; set BB_FORMAT env var for a persistent non-flag default)
+- `-f`, `--format json|gcf|text` — output format (default: json; set BB_FORMAT env var for a persistent non-flag default, e.g. BB_FORMAT=gcf for token-efficient output)
 - `--config PATH` — path to config file
 - `--describe` — emit a JSON capability manifest (commands, flags, schemas) and exit (no auth required)
 
@@ -266,11 +266,11 @@ bb download delete --name FILENAME
 
 ## Output
 
-Default output is **GCF** (Graph Compact Format) on **stdout** - a compact AI-native encoding ~71% more token-efficient than JSON. Spec and libraries: https://github.com/blackwell-systems/gcf
-Pass `-f json` for JSON, `-f text` for human-readable styled terminal output.
-Format precedence (low to high): built-in default `gcf` < `~/.bbcloud.yaml` `format:` < `BB_FORMAT` env var < `--format`/`-f` flag.
-When stdout is not a TTY and the resolved format is `text`, it is coerced to `gcf` unless `--format text` was explicitly passed.
-Migration: existing JSON consumers should set `BB_FORMAT=json` (or `format: json` in `~/.bbcloud.yaml`, or `--format json`).
+Default output is **JSON** on **stdout** - pipe-friendly and works directly with `jq`.
+For token-sensitive agent workflows, pass `-f gcf` for **GCF** (Graph Compact Format), a compact AI-native encoding ~71% more token-efficient than JSON (spec and libraries: https://github.com/blackwell-systems/gcf). Pass `-f text` for human-readable styled terminal output.
+Format precedence (low to high): built-in default `json` < `~/.bbcloud.yaml` `format:` < `BB_FORMAT` env var < `--format`/`-f` flag.
+When stdout is not a TTY and the resolved format is `text`, it is coerced to `json` unless `--format text` was explicitly passed.
+Token-efficiency: agents that want minimal output should set `BB_FORMAT=gcf` (or `format: gcf` in `~/.bbcloud.yaml`, or `--format gcf`).
 `bb pr diff` and `bb pipeline log` always output plain text regardless of `-f`.
 Errors are emitted on **stderr** in the active format - see "Error format" above.
 
