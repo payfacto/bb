@@ -57,6 +57,44 @@ var downloadUploadCmd = &cobra.Command{
 	},
 }
 
+var (
+	downloadGetName   string
+	downloadGetOutput string
+)
+
+var downloadGetCmd = &cobra.Command{
+	Use:   "get",
+	Short: "Download a download artifact by filename",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+
+		// "-" streams to stdout; empty defaults to the artifact basename in CWD.
+		dest := downloadGetOutput
+		if dest == "" {
+			dest = filepath.Base(downloadGetName)
+		}
+
+		if dest == "-" {
+			return client.Downloads(ws, repo).Get(context.Background(), downloadGetName, os.Stdout)
+		}
+
+		f, err := os.Create(dest)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		if err := client.Downloads(ws, repo).Get(context.Background(), downloadGetName, f); err != nil {
+			return err
+		}
+		return printOutput(map[string]string{"result": "downloaded", "name": downloadGetName, "path": dest}, func() {
+			fmt.Printf("Downloaded '%s' to '%s'.\n", downloadGetName, dest)
+		})
+	},
+}
+
 var downloadDeleteName string
 
 var downloadDeleteCmd = &cobra.Command{
@@ -80,9 +118,13 @@ func init() {
 	downloadUploadCmd.Flags().StringVar(&downloadUploadFile, "file", "", "path to the file to upload (required)")
 	downloadUploadCmd.MarkFlagRequired("file")
 
+	downloadGetCmd.Flags().StringVar(&downloadGetName, "name", "", "filename to download (required)")
+	downloadGetCmd.MarkFlagRequired("name")
+	downloadGetCmd.Flags().StringVar(&downloadGetOutput, "output", "", "destination path; '-' streams to stdout (default: artifact name in current directory)")
+
 	downloadDeleteCmd.Flags().StringVar(&downloadDeleteName, "name", "", "filename to delete (required)")
 	downloadDeleteCmd.MarkFlagRequired("name")
 
-	downloadCmd.AddCommand(downloadListCmd, downloadUploadCmd, downloadDeleteCmd)
+	downloadCmd.AddCommand(downloadListCmd, downloadGetCmd, downloadUploadCmd, downloadDeleteCmd)
 	rootCmd.AddCommand(downloadCmd)
 }

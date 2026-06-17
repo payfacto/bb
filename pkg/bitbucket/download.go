@@ -54,6 +54,20 @@ func (r *DownloadResource) Upload(ctx context.Context, name string, content io.R
 	return err
 }
 
+// Get fetches a download artifact by filename, streaming its contents to w.
+// The endpoint redirects to signed storage; the body is streamed rather than
+// buffered, so large artifacts do not load into memory.
+func (r *DownloadResource) Get(ctx context.Context, filename string, w io.Writer) error {
+	path := fmt.Sprintf("%s/%s", r.basePath(), url.PathEscape(filename))
+	body, err := r.client.doStream(ctx, path)
+	if err != nil {
+		return err
+	}
+	defer body.Close()
+	_, err = io.Copy(w, body)
+	return err
+}
+
 // Delete removes a download artifact by filename.
 func (r *DownloadResource) Delete(ctx context.Context, filename string) error {
 	path := fmt.Sprintf("%s/%s", r.basePath(), url.PathEscape(filename))

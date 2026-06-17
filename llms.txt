@@ -259,6 +259,7 @@ bb restriction delete -i ID
 
 ```
 bb download list
+bb download get --name FILENAME [--output PATH]   # '-' = stdout; default: artifact name in CWD
 bb download upload --file PATH
 bb download delete --name FILENAME
 ```

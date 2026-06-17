@@ -298,7 +298,7 @@ bb restriction delete --restriction-id ID
 
 ```
 bb download list
-bb download file --filename NAME --dest PATH
+bb download get --name FILENAME [--output PATH]
 bb download upload --file PATH
 ```
 

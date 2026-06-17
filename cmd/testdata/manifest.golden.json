@@ -590,6 +590,59 @@
     {
       "path": [
         "download",
+        "get"
+      ],
+      "action": "read",
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "output",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "ResultMap"
+    },
+    {
+      "path": [
+        "download",
         "list"
       ],
       "action": "read",
