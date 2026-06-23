@@ -80,7 +80,7 @@ bb                    (no args → launches TUI)
 Resources are scoped structs returned by the client:
 
 ```go
-client.PRs(workspace, repo).List(ctx, state, sourceBranch, sort)
+client.PRs(workspace, repo).List(ctx, bitbucket.PRListOptions{State, SourceBranch, Sort, Since, Until})
 client.Repos(workspace).List(ctx, sort)
 client.Branches(workspace, repo).List(ctx, sort)
 client.Tags(workspace, repo).List(ctx, sort)
@@ -91,10 +91,13 @@ client.Comments(workspace, repo, prID).Add(ctx, input)
 client.Tasks(workspace, repo, prID).Complete(ctx, taskID)
 ```
 
-List methods whose Bitbucket endpoint accepts a `sort=` query parameter take
+Most List methods whose Bitbucket endpoint accepts a `sort=` query parameter take
 a trailing `sort string` argument. Pass `""` to preserve the endpoint's
 default ordering. The CLI surfaces this via `--sort` on the corresponding
-list command.
+list command. `PRs.List` is the exception: it takes a `bitbucket.PRListOptions`
+struct (State, SourceBranch, Sort, Since, Until) because it accumulates several
+optional filters; Since/Until bound `created_on` via BBQL. List methods follow
+Bitbucket pagination internally and return the full result set.
 
 The generic `decode[T]()` function handles all JSON unmarshaling. HTTP errors
 (4xx/5xx) are wrapped into `*bitbucket.APIError{Status, Message, Body}` so

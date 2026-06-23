@@ -2,15 +2,29 @@ package bitbucket
 
 // PR represents a Bitbucket pull request.
 type PR struct {
-	ID          int      `json:"id"`
-	Title       string   `json:"title"`
-	State       string   `json:"state"`
-	Description string   `json:"description"`
-	Source      Endpoint `json:"source"`
-	Destination Endpoint `json:"destination"`
-	Author      Actor    `json:"author"`
-	Reviewers   []Actor  `json:"reviewers"`
-	Links       Links    `json:"links"`
+	ID           int      `json:"id"`
+	Title        string   `json:"title"`
+	State        string   `json:"state"`
+	Description  string   `json:"description"`
+	Source       Endpoint `json:"source"`
+	Destination  Endpoint `json:"destination"`
+	Author       Actor    `json:"author"`
+	Reviewers    []Actor  `json:"reviewers"`
+	CommentCount int      `json:"comment_count,omitempty"`
+	TaskCount    int      `json:"task_count,omitempty"`
+	CreatedOn    string   `json:"created_on,omitempty"`
+	UpdatedOn    string   `json:"updated_on,omitempty"`
+	Links        Links    `json:"links"`
+}
+
+// PRListOptions holds the filters for listing pull requests. All fields are
+// optional; the zero value lists open PRs in the endpoint's default order.
+type PRListOptions struct {
+	State        string // OPEN, MERGED, DECLINED, SUPERSEDED (empty = API default)
+	SourceBranch string // exact source branch name to filter by
+	Sort         string // Bitbucket sort field, "-" prefix for descending (e.g. -updated_on)
+	Since        string // lower bound on created_on (ISO-8601); empty = no lower bound
+	Until        string // upper bound on created_on (ISO-8601); empty = no upper bound
 }
 
 // UpdatePRReviewersInput is the minimal body for adding a reviewer to a PR.
@@ -56,11 +70,13 @@ type Links struct {
 
 // Comment represents a PR comment.
 type Comment struct {
-	ID      int     `json:"id"`
-	Content Content `json:"content"`
-	User    Actor   `json:"user"`
-	Inline  *Inline `json:"inline,omitempty"`
-	Parent  *Parent `json:"parent,omitempty"`
+	ID        int     `json:"id"`
+	Content   Content `json:"content"`
+	User      Actor   `json:"user"`
+	Inline    *Inline `json:"inline,omitempty"`
+	Parent    *Parent `json:"parent,omitempty"`
+	CreatedOn string  `json:"created_on,omitempty"`
+	UpdatedOn string  `json:"updated_on,omitempty"`
 }
 
 // Content holds the raw text of a comment.

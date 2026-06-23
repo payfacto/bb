@@ -19,18 +19,11 @@ func (r *CommentResource) basePath() string {
 		repoPath(r.workspace, r.repo), r.prID)
 }
 
-// List returns all comments on the pull request.
+// List returns all comments on the pull request, following pagination across
+// all pages.
 func (r *CommentResource) List(ctx context.Context) ([]Comment, error) {
 	q := url.Values{"pagelen": {pagelenLarge}}
-	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
-	if err != nil {
-		return nil, err
-	}
-	page, err := decode[paged[Comment]](data)
-	if err != nil {
-		return nil, err
-	}
-	return page.Values, nil
+	return fetchAllPages[Comment](ctx, r.client, r.basePath(), q)
 }
 
 // Get returns a single comment by ID.
