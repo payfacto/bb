@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/payfacto/bb/pkg/bitbucket"
@@ -23,7 +24,7 @@ func TestPRs_List(t *testing.T) {
 		}
 		mustEncodeJSON(t, w, map[string]any{"values": want})
 	}))
-	got, err := c.PRs("ws", "repo").List(context.Background(), "OPEN", "", "")
+	got, err := c.PRs("ws", "repo").List(context.Background(), bitbucket.PRListOptions{State: "OPEN"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -46,12 +47,73 @@ func TestPRs_List_SourceBranchFilter(t *testing.T) {
 		}
 		mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.PR{{ID: 7}}})
 	}))
-	got, err := c.PRs("ws", "repo").List(context.Background(), "OPEN", "feat/x", "")
+	got, err := c.PRs("ws", "repo").List(context.Background(), bitbucket.PRListOptions{State: "OPEN", SourceBranch: "feat/x"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(got) != 1 || got[0].ID != 7 {
 		t.Errorf("unexpected PRs: %+v", got)
+	}
+}
+
+func TestPRs_List_FollowsPaginationAndDecodesDates(t *testing.T) {
+	var hits int
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		if r.URL.Query().Get("page") == "2" {
+			mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.PR{{ID: 3}}})
+			return
+		}
+		// First page: advertise a next link back to this server.
+		next := "http://" + r.Host + r.URL.Path + "?page=2"
+		mustEncodeJSON(t, w, map[string]any{
+			"next": next,
+			"values": []bitbucket.PR{
+				{ID: 1, CreatedOn: "2025-01-02T00:00:00+00:00", UpdatedOn: "2025-01-03T00:00:00+00:00", CommentCount: 4, TaskCount: 1},
+				{ID: 2},
+			},
+		})
+	}))
+	got, err := c.PRs("ws", "repo").List(context.Background(), bitbucket.PRListOptions{State: "MERGED"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if hits != 2 {
+		t.Fatalf("expected 2 page fetches, got %d", hits)
+	}
+	if len(got) != 3 {
+		t.Fatalf("expected 3 PRs across pages, got %d", len(got))
+	}
+	if got[0].CreatedOn != "2025-01-02T00:00:00+00:00" || got[0].UpdatedOn != "2025-01-03T00:00:00+00:00" {
+		t.Errorf("dates not decoded: %+v", got[0])
+	}
+	if got[0].CommentCount != 4 || got[0].TaskCount != 1 {
+		t.Errorf("counts not decoded: %+v", got[0])
+	}
+}
+
+func TestPRs_List_DateRangeFilter(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query().Get("q")
+		for _, want := range []string{
+			`source.branch.name="feat/x"`,
+			`created_on>="2023-01-01T00:00:00+00:00"`,
+			`created_on<="2024-01-01T00:00:00+00:00"`,
+		} {
+			if !strings.Contains(q, want) {
+				t.Errorf("q %q missing clause %q", q, want)
+			}
+		}
+		mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.PR{{ID: 9}}})
+	}))
+	_, err := c.PRs("ws", "repo").List(context.Background(), bitbucket.PRListOptions{
+		State:        "MERGED",
+		SourceBranch: "feat/x",
+		Since:        "2023-01-01T00:00:00+00:00",
+		Until:        "2024-01-01T00:00:00+00:00",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

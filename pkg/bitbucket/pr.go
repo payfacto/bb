@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 )
 
 // PRResource provides operations on pull requests within a specific repo.
@@ -17,47 +18,46 @@ func (r *PRResource) prPath(prID int) string {
 	return fmt.Sprintf("%s/pullrequests/%d", repoPath(r.workspace, r.repo), prID)
 }
 
-// List returns pull requests filtered by state (e.g. "OPEN", "MERGED").
-// If sourceBranch is non-empty, results are further filtered to PRs whose
-// source branch name matches it exactly (Bitbucket BBQL).
-// sort is the Bitbucket field name to sort by, optionally prefixed with "-"
-// for descending order (e.g. "-updated_on"). An empty string preserves the
-// endpoint's default ordering.
-func (r *PRResource) List(ctx context.Context, state, sourceBranch, sort string) ([]PR, error) {
-	q := url.Values{"state": {state}, "pagelen": {pagelenDefault}}
-	if sourceBranch != "" {
-		q.Set("q", fmt.Sprintf(`source.branch.name="%s"`, sourceBranch))
+// List returns pull requests matching opts, following pagination to return the
+// full result set (not just the first page). State is sent as a query
+// parameter; SourceBranch, Since, and Until are combined into a Bitbucket BBQL
+// "q" expression (Since/Until bound created_on). Sort optionally orders the
+// results ("-" prefix for descending, e.g. "-updated_on").
+func (r *PRResource) List(ctx context.Context, opts PRListOptions) ([]PR, error) {
+	q := url.Values{"pagelen": {pagelenDefault}}
+	if opts.State != "" {
+		q.Set("state", opts.State)
 	}
-	if sort != "" {
-		q.Set("sort", sort)
+	if opts.Sort != "" {
+		q.Set("sort", opts.Sort)
 	}
-	data, err := r.client.do(ctx, "GET", repoPath(r.workspace, r.repo)+"/pullrequests", nil, q)
-	if err != nil {
-		return nil, err
+
+	var clauses []string
+	if opts.SourceBranch != "" {
+		clauses = append(clauses, fmt.Sprintf(`source.branch.name="%s"`, opts.SourceBranch))
 	}
-	page, err := decode[paged[PR]](data)
-	if err != nil {
-		return nil, err
+	if opts.Since != "" {
+		clauses = append(clauses, fmt.Sprintf(`created_on>="%s"`, opts.Since))
 	}
-	return page.Values, nil
+	if opts.Until != "" {
+		clauses = append(clauses, fmt.Sprintf(`created_on<="%s"`, opts.Until))
+	}
+	if len(clauses) > 0 {
+		q.Set("q", strings.Join(clauses, " AND "))
+	}
+
+	return fetchAllPages[PR](ctx, r.client, repoPath(r.workspace, r.repo)+"/pullrequests", q)
 }
 
-// ListByAuthor returns pull requests authored by the given nickname.
+// ListByAuthor returns all pull requests authored by the given nickname,
+// following pagination to return the full result set.
 func (r *PRResource) ListByAuthor(ctx context.Context, nickname string) ([]PR, error) {
 	q := url.Values{
 		"q":       {fmt.Sprintf(`author.nickname="%s"`, nickname)},
 		"state":   {"ALL"},
 		"pagelen": {pagelenDefault},
 	}
-	data, err := r.client.do(ctx, "GET", repoPath(r.workspace, r.repo)+"/pullrequests", nil, q)
-	if err != nil {
-		return nil, err
-	}
-	page, err := decode[paged[PR]](data)
-	if err != nil {
-		return nil, err
-	}
-	return page.Values, nil
+	return fetchAllPages[PR](ctx, r.client, repoPath(r.workspace, r.repo)+"/pullrequests", q)
 }
 
 // Get returns a single pull request by ID.
@@ -108,18 +108,11 @@ func (r *PRResource) Decline(ctx context.Context, prID int) error {
 	return err
 }
 
-// Activity returns the full activity timeline for a pull request.
+// Activity returns the full activity timeline for a pull request, following
+// pagination across all pages.
 func (r *PRResource) Activity(ctx context.Context, prID int) ([]Activity, error) {
 	path := fmt.Sprintf("%s/activity", r.prPath(prID))
-	data, err := r.client.do(ctx, "GET", path, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	page, err := decode[paged[Activity]](data)
-	if err != nil {
-		return nil, err
-	}
-	return page.Values, nil
+	return fetchAllPages[Activity](ctx, r.client, path, url.Values{"pagelen": {pagelenDefault}})
 }
 
 // AddReviewer adds a reviewer (by account_id) to an existing pull request.
@@ -140,16 +133,9 @@ func (r *PRResource) AddReviewer(ctx context.Context, prID int, accountID string
 	return err
 }
 
-// Statuses returns the build statuses associated with the pull request's source commit.
+// Statuses returns the build statuses associated with the pull request's source
+// commit, following pagination across all pages.
 func (r *PRResource) Statuses(ctx context.Context, prID int) ([]PRStatus, error) {
 	path := fmt.Sprintf("%s/statuses", r.prPath(prID))
-	data, err := r.client.do(ctx, "GET", path, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	page, err := decode[paged[PRStatus]](data)
-	if err != nil {
-		return nil, err
-	}
-	return page.Values, nil
+	return fetchAllPages[PRStatus](ctx, r.client, path, url.Values{"pagelen": {pagelenDefault}})
 }

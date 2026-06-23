@@ -16,16 +16,9 @@ func (r *MemberResource) basePath() string {
 	return fmt.Sprintf("/workspaces/%s/members", r.workspace)
 }
 
-// List returns all members of the workspace.
+// List returns all members of the workspace, following pagination across all
+// pages.
 func (r *MemberResource) List(ctx context.Context) ([]WorkspaceMember, error) {
 	q := url.Values{"pagelen": {pagelenDefault}}
-	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
-	if err != nil {
-		return nil, err
-	}
-	page, err := decode[paged[WorkspaceMember]](data)
-	if err != nil {
-		return nil, err
-	}
-	return page.Values, nil
+	return fetchAllPages[WorkspaceMember](ctx, r.client, r.basePath(), q)
 }
