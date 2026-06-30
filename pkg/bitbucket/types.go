@@ -538,7 +538,7 @@ type CreateBranchRestrictionInput struct {
 type CodeSearchResult struct {
 	Type              string                   `json:"type"`
 	ContentMatchCount int                      `json:"content_match_count"`
-	ContentMatches    []CodeSearchContentMatch `json:"content_matches"`
+	ContentMatches    []CodeSearchContentMatch `json:"content_matches,omitempty"`
 	PathMatches       []CodeSearchSegment      `json:"path_matches,omitempty"`
 	File              CodeSearchFile           `json:"file"`
 }

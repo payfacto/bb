@@ -96,21 +96,30 @@ func TestSearchCode_FoldsModifiers(t *testing.T) {
 }
 
 func TestSearchCode_LimitStopsPaging(t *testing.T) {
+	const maxPages = 5 // handler stops advertising "next" after this many pages
 	var calls int
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
-		// Every page returns 2 results and always advertises a next page.
-		next := "http://" + r.Host + "/workspaces/ws/search/code?search_query=x&page=" + r.URL.Query().Get("nextpage")
-		mustEncodeJSON(t, w, map[string]any{
+		page := r.URL.Query().Get("page")
+		if page == "" {
+			page = "1"
+		}
+		resp := map[string]any{
 			"values": []map[string]any{
 				{"file": map[string]any{"path": "a.go"}},
 				{"file": map[string]any{"path": "b.go"}},
 			},
-			"next": next,
-		})
+		}
+		// Only advertise "next" while more pages remain, using a real page token.
+		if calls < maxPages {
+			nextPage := page + "x" // distinct token per page so the URL changes
+			resp["next"] = "http://" + r.Host + "/workspaces/ws/search/code?search_query=x&page=" + nextPage
+		}
+		mustEncodeJSON(t, w, resp)
 	})
 	c := newTestClient(t, handler)
 
+	// Limit: 3 with 2 results per page - should stop after page 2 (early termination).
 	res, err := c.Search("ws").Code(context.Background(), bitbucket.CodeSearchOptions{Query: "x", Limit: 3})
 	if err != nil {
 		t.Fatalf("Code: %v", err)
@@ -120,6 +129,37 @@ func TestSearchCode_LimitStopsPaging(t *testing.T) {
 	}
 	if calls != 2 {
 		t.Errorf("made %d requests, want 2 (2 per page, stop after limit reached)", calls)
+	}
+}
+
+func TestSearchCode_ZeroLimitFetchesAll(t *testing.T) {
+	var calls int
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		resp := map[string]any{
+			"values": []map[string]any{
+				{"file": map[string]any{"path": "a.go"}},
+				{"file": map[string]any{"path": "b.go"}},
+			},
+		}
+		// Page 1 advertises a next link; page 2 does not.
+		if calls == 1 {
+			resp["next"] = "http://" + r.Host + "/workspaces/ws/search/code?search_query=x&page=2"
+		}
+		mustEncodeJSON(t, w, resp)
+	})
+	c := newTestClient(t, handler)
+
+	// Limit: 0 means fetch all pages.
+	res, err := c.Search("ws").Code(context.Background(), bitbucket.CodeSearchOptions{Query: "x", Limit: 0})
+	if err != nil {
+		t.Fatalf("Code: %v", err)
+	}
+	if len(res) != 4 {
+		t.Errorf("got %d results, want 4 (all pages)", len(res))
+	}
+	if calls != 2 {
+		t.Errorf("made %d requests, want 2 (both pages fetched)", calls)
 	}
 }
 
