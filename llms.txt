@@ -264,6 +264,14 @@ bb download upload --file PATH
 bb download delete --name FILENAME
 ```
 
+### Search
+
+```
+bb search code <query>... [--ext] [--lang] [--repo-filter] [--project] [--limit] - search file contents (workspace, default branch, indexed, not regex)
+bb search repos <query>... [--limit] - search repos by name/description
+bb search prs <query>... [--state] [--limit] - search PRs by title/description (current repo only)
+```
+
 ## Output
 
 Default output is **JSON** on **stdout** - pipe-friendly and works directly with `jq`.
