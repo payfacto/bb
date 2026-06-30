@@ -229,6 +229,11 @@ func (c *Client) Repos(workspace string) *RepoResource {
 	return &RepoResource{client: c, workspace: workspace}
 }
 
+// Search returns a resource for workspace-scoped search operations.
+func (c *Client) Search(workspace string) *SearchResource {
+	return &SearchResource{client: c, workspace: workspace}
+}
+
 // Members returns a resource for workspace member operations.
 func (c *Client) Members(workspace string) *MemberResource {
 	return &MemberResource{client: c, workspace: workspace}
@@ -500,6 +505,39 @@ func fetchAllPages[T any](ctx context.Context, c *Client, path string, q url.Val
 			return nil, err
 		}
 		all = append(all, page.Values...)
+		if page.Next == "" {
+			break
+		}
+		nextURL = page.Next
+	}
+	return all, nil
+}
+
+// fetchPagesLimit fetches pages following "next" links until at least `limit`
+// items are collected, then truncates to exactly `limit`. A limit <= 0 fetches
+// every page (identical to fetchAllPages).
+func fetchPagesLimit[T any](ctx context.Context, c *Client, path string, q url.Values, limit int) ([]T, error) {
+	var all []T
+	nextURL := ""
+	for {
+		var data []byte
+		var err error
+		if nextURL != "" {
+			data, err = c.fetchPage(ctx, nextURL)
+		} else {
+			data, err = c.do(ctx, "GET", path, nil, q)
+		}
+		if err != nil {
+			return nil, err
+		}
+		page, err := decode[paged[T]](data)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, page.Values...)
+		if limit > 0 && len(all) >= limit {
+			return all[:limit], nil
+		}
 		if page.Next == "" {
 			break
 		}

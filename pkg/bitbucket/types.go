@@ -531,3 +531,63 @@ type CreateBranchRestrictionInput struct {
 	Pattern         string `json:"pattern"`
 	Value           *int   `json:"value,omitempty"`
 }
+
+// Code search types
+
+// CodeSearchResult is one match returned by the code search API.
+type CodeSearchResult struct {
+	Type              string                   `json:"type"`
+	ContentMatchCount int                      `json:"content_match_count"`
+	ContentMatches    []CodeSearchContentMatch `json:"content_matches"`
+	PathMatches       []CodeSearchSegment      `json:"path_matches,omitempty"`
+	File              CodeSearchFile           `json:"file"`
+}
+
+// CodeSearchContentMatch groups consecutive matched lines within a file.
+type CodeSearchContentMatch struct {
+	Lines []CodeSearchLine `json:"lines"`
+}
+
+// CodeSearchLine is a single line with its segments.
+type CodeSearchLine struct {
+	Line     int                 `json:"line"`
+	Segments []CodeSearchSegment `json:"segments"`
+}
+
+// CodeSearchSegment is a run of text; Match is true when it is part of a hit.
+type CodeSearchSegment struct {
+	Text  string `json:"text"`
+	Match bool   `json:"match,omitempty"`
+}
+
+// CodeSearchFile identifies the matched file and its origin commit/repo.
+type CodeSearchFile struct {
+	Path   string            `json:"path"`
+	Type   string            `json:"type"`
+	Commit *CodeSearchCommit `json:"commit,omitempty"`
+}
+
+// CodeSearchCommit is the commit a matched file belongs to.
+type CodeSearchCommit struct {
+	Hash       string             `json:"hash"`
+	Repository *CodeSearchRepoRef `json:"repository,omitempty"`
+}
+
+// CodeSearchRepoRef is the minimal repository reference in a code search hit.
+type CodeSearchRepoRef struct {
+	Name     string `json:"name"`
+	FullName string `json:"full_name"`
+}
+
+// CodeSearchOptions configures a code search. Query holds the raw search terms
+// (passed through verbatim); Ext/Lang/Repo/Project are folded into Bitbucket
+// search modifiers (comma-separated values produce repeated modifiers). Limit
+// caps the result count; <= 0 returns all matches.
+type CodeSearchOptions struct {
+	Query   string
+	Ext     string
+	Lang    string
+	Repo    string
+	Project string
+	Limit   int
+}
