@@ -16,11 +16,11 @@ var searchCmd = &cobra.Command{
 }
 
 var (
-	searchCodeLimit   int
-	searchCodeExt     string
-	searchCodeLang    string
+	searchCodeLimit      int
+	searchCodeExt        string
+	searchCodeLang       string
 	searchCodeRepoFilter string
-	searchCodeProject string
+	searchCodeProject    string
 )
 
 var searchCodeCmd = &cobra.Command{
