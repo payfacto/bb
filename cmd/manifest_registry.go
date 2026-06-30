@@ -130,6 +130,11 @@ var commandRegistry = map[string]commandSpec{
 	"snippet create": {Action: actionWrite, OutputType: "Snippet", Example: "bb snippet create --title 'demo' --file demo.txt"},
 	"snippet delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb snippet delete {id}"},
 
+	// search -----------------------------------------------------------
+	"search code":  {Action: actionRead, OutputType: "[]CodeSearchResult", Example: "bb search code parseConfig --ext go"},
+	"search repos": {Action: actionRead, OutputType: "[]Repo", Example: "bb search repos payments"},
+	"search prs":   {Action: actionRead, OutputType: "[]PR", Example: "bb search prs 'fix auth' --state OPEN"},
+
 	// workspace --------------------------------------------------------
 	"workspace list": {Action: actionRead, OutputType: "[]Workspace", Ordering: "unspecified", Example: "bb workspace list"},
 
@@ -228,4 +233,7 @@ var typeRegistry = map[string]any{
 
 	"Workspace":   bitbucket.Workspace{},
 	"[]Workspace": []bitbucket.Workspace{},
+
+	"CodeSearchResult":   bitbucket.CodeSearchResult{},
+	"[]CodeSearchResult": []bitbucket.CodeSearchResult{},
 }
