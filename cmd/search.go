@@ -19,7 +19,7 @@ var (
 	searchCodeLimit   int
 	searchCodeExt     string
 	searchCodeLang    string
-	searchCodeRepo    string
+	searchCodeRepoFilter string
 	searchCodeProject string
 )
 
@@ -33,7 +33,7 @@ var searchCodeCmd = &cobra.Command{
 		"  - large, binary, and generated files may not be indexed\n" +
 		"  - requires the workspace to have code search enabled\n\n" +
 		"The query is passed to Bitbucket verbatim, so modifiers work inline\n" +
-		"(e.g. 'bb search code ext:go parseConfig'). The --ext/--lang/--repo/--project\n" +
+		"(e.g. 'bb search code ext:go parseConfig'). The --ext/--lang/--repo-filter/--project\n" +
 		"flags are conveniences folded into the query; comma-separated values are OR-combined.",
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -45,7 +45,7 @@ var searchCodeCmd = &cobra.Command{
 			Query:   strings.Join(args, " "),
 			Ext:     searchCodeExt,
 			Lang:    searchCodeLang,
-			Repo:    searchCodeRepo,
+			Repo:    searchCodeRepoFilter,
 			Project: searchCodeProject,
 			Limit:   searchCodeLimit,
 		})
@@ -109,7 +109,7 @@ func init() {
 	searchCodeCmd.Flags().IntVarP(&searchCodeLimit, "limit", "L", 100, "maximum results (0 = all)")
 	searchCodeCmd.Flags().StringVar(&searchCodeExt, "ext", "", "filter by file extension (comma-separated, e.g. go,mod)")
 	searchCodeCmd.Flags().StringVar(&searchCodeLang, "lang", "", "filter by language (comma-separated, e.g. go,python)")
-	searchCodeCmd.Flags().StringVar(&searchCodeRepo, "repo-filter", "", "limit to repository slug(s) (comma-separated)")
+	searchCodeCmd.Flags().StringVar(&searchCodeRepoFilter, "repo-filter", "", "limit to repository slug(s) (comma-separated)")
 	searchCodeCmd.Flags().StringVar(&searchCodeProject, "project", "", "limit to project key(s) (comma-separated)")
 
 	searchReposCmd.Flags().IntVarP(&searchReposLimit, "limit", "L", 100, "maximum results (0 = all)")
