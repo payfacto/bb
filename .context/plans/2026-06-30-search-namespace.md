@@ -730,7 +730,7 @@ var searchCodeCmd = &cobra.Command{
 		"  - large, binary, and generated files may not be indexed\n" +
 		"  - requires the workspace to have code search enabled\n\n" +
 		"The query is passed to Bitbucket verbatim, so modifiers work inline\n" +
-		"(e.g. 'bb search code ext:go parseConfig'). The --ext/--lang/--repo/--project\n" +
+		"(e.g. 'bb search code ext:go parseConfig'). The --ext/--lang/--repo-filter/--project\n" +
 		"flags are conveniences folded into the query; comma-separated values are OR-combined.",
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
