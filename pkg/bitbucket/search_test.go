@@ -176,3 +176,32 @@ func TestSearchCode_APIError(t *testing.T) {
 		t.Fatalf("want *APIError status 404, got %v", err)
 	}
 }
+
+func TestSearchRepos_BuildsBBQLAndDecodes(t *testing.T) {
+	var gotPath, gotQ string
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotQ = r.URL.Query().Get("q")
+		mustEncodeJSON(t, w, map[string]any{
+			"values": []map[string]any{
+				{"slug": "payments", "name": "Payments", "description": "billing"},
+			},
+		})
+	})
+	c := newTestClient(t, handler)
+
+	repos, err := c.Search("ws").Repos(context.Background(), "pay", 0)
+	if err != nil {
+		t.Fatalf("Repos: %v", err)
+	}
+	if gotPath != "/repositories/ws" {
+		t.Errorf("path = %q, want /repositories/ws", gotPath)
+	}
+	want := `name ~ "pay" OR description ~ "pay"`
+	if gotQ != want {
+		t.Errorf("q = %q, want %q", gotQ, want)
+	}
+	if len(repos) != 1 || repos[0].Slug != "payments" {
+		t.Fatalf("repos decoded wrong: %+v", repos)
+	}
+}

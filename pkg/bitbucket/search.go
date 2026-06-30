@@ -25,6 +25,17 @@ func (s *SearchResource) Code(ctx context.Context, opts CodeSearchOptions) ([]Co
 	return fetchPagesLimit[CodeSearchResult](ctx, s.client, path, q, opts.Limit)
 }
 
+// Repos finds repositories in the workspace whose name or description matches
+// term (BBQL "~" contains). Results are capped by limit (<= 0 = all).
+func (s *SearchResource) Repos(ctx context.Context, term string, limit int) ([]Repo, error) {
+	path := fmt.Sprintf("/repositories/%s", s.workspace)
+	q := url.Values{
+		"q":       {fmt.Sprintf(`name ~ "%s" OR description ~ "%s"`, term, term)},
+		"pagelen": {pagelenSmall},
+	}
+	return fetchPagesLimit[Repo](ctx, s.client, path, q, limit)
+}
+
 // searchQuery assembles the search_query string: raw terms first, then each
 // modifier. Comma-separated modifier values become repeated modifiers, which
 // Bitbucket OR-combines (e.g. Ext "js,jsx" -> "ext:js ext:jsx").
