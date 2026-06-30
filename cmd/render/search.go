@@ -45,4 +45,6 @@ func CodeSearchResultsString(results []bitbucket.CodeSearchResult) string {
 }
 
 // CodeSearchResults prints the grep-style code search output to stdout.
-func CodeSearchResults(results []bitbucket.CodeSearchResult) { fmt.Print(CodeSearchResultsString(results)) }
+func CodeSearchResults(results []bitbucket.CodeSearchResult) {
+	fmt.Print(CodeSearchResultsString(results))
+}
