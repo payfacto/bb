@@ -42,11 +42,14 @@ func (r *PRResource) List(ctx context.Context, opts PRListOptions) ([]PR, error)
 	if opts.Until != "" {
 		clauses = append(clauses, fmt.Sprintf(`created_on<="%s"`, opts.Until))
 	}
+	if opts.Query != "" {
+		clauses = append(clauses, fmt.Sprintf(`(title ~ "%s" OR description ~ "%s")`, opts.Query, opts.Query))
+	}
 	if len(clauses) > 0 {
 		q.Set("q", strings.Join(clauses, " AND "))
 	}
 
-	return fetchAllPages[PR](ctx, r.client, repoPath(r.workspace, r.repo)+"/pullrequests", q)
+	return fetchPagesLimit[PR](ctx, r.client, repoPath(r.workspace, r.repo)+"/pullrequests", q, opts.Limit)
 }
 
 // ListByAuthor returns all pull requests authored by the given nickname,

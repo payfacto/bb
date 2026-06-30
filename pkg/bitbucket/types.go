@@ -25,6 +25,8 @@ type PRListOptions struct {
 	Sort         string // Bitbucket sort field, "-" prefix for descending (e.g. -updated_on)
 	Since        string // lower bound on created_on (ISO-8601); empty = no lower bound
 	Until        string // upper bound on created_on (ISO-8601); empty = no upper bound
+	Query        string // text matched against title/description via BBQL "~"; empty = no text filter
+	Limit        int    // cap on results; <= 0 returns all pages
 }
 
 // UpdatePRReviewersInput is the minimal body for adding a reviewer to a PR.
