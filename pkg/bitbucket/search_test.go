@@ -204,4 +204,47 @@ func TestSearchRepos_BuildsBBQLAndDecodes(t *testing.T) {
 	if len(repos) != 1 || repos[0].Slug != "payments" {
 		t.Fatalf("repos decoded wrong: %+v", repos)
 	}
+	if repos[0].Name != "Payments" {
+		t.Errorf("repos[0].Name = %q, want %q", repos[0].Name, "Payments")
+	}
+	if repos[0].Description != "billing" {
+		t.Errorf("repos[0].Description = %q, want %q", repos[0].Description, "billing")
+	}
+}
+
+func TestSearchRepos_LimitCaps(t *testing.T) {
+	const maxPages = 5 // handler stops advertising "next" after this many pages
+	var calls int
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		page := r.URL.Query().Get("page")
+		if page == "" {
+			page = "1"
+		}
+		resp := map[string]any{
+			"values": []map[string]any{
+				{"slug": "repo-a", "name": "Repo A"},
+				{"slug": "repo-b", "name": "Repo B"},
+			},
+		}
+		// Only advertise "next" while more pages remain, using a real page token.
+		if calls < maxPages {
+			nextPage := page + "x" // distinct token per page so the URL changes
+			resp["next"] = "http://" + r.Host + "/repositories/ws?q=x&page=" + nextPage
+		}
+		mustEncodeJSON(t, w, resp)
+	})
+	c := newTestClient(t, handler)
+
+	// Limit: 3 with 2 results per page - should stop after page 2 (early termination).
+	repos, err := c.Search("ws").Repos(context.Background(), "x", 3)
+	if err != nil {
+		t.Fatalf("Repos: %v", err)
+	}
+	if len(repos) != 3 {
+		t.Errorf("got %d results, want 3 (limit)", len(repos))
+	}
+	if calls != 2 {
+		t.Errorf("made %d requests, want 2 (2 per page, stop after limit reached)", calls)
+	}
 }
