@@ -46,9 +46,7 @@ package bitbucket_test
 
 import (
 	"context"
-	"errors"
 	"net/http"
-	"net/url"
 	"testing"
 
 	"github.com/payfacto/bb/pkg/bitbucket"
@@ -300,7 +298,8 @@ Expected: PASS
 
 - [ ] **Step 7: Add modifier, pagination/limit, and error tests**
 
-Append to `pkg/bitbucket/search_test.go`:
+Add `"errors"` to the import block (the APIError test below uses `errors.As`).
+Then append to `pkg/bitbucket/search_test.go`:
 
 ```go
 func TestSearchCode_FoldsModifiers(t *testing.T) {
@@ -364,11 +363,7 @@ func TestSearchCode_APIError(t *testing.T) {
 		t.Fatalf("want *APIError status 404, got %v", err)
 	}
 }
-
-var _ = url.Values{} // keep net/url import if unused elsewhere
 ```
-
-Note: remove the `var _ = url.Values{}` line if `net/url` is already referenced by another test in the file (it is not in this file initially). Keep imports clean - drop unused imports before committing.
 
 - [ ] **Step 8: Run all search tests**
 
