@@ -37,3 +37,45 @@ func TestCodeSearchResultsString_Empty(t *testing.T) {
 		t.Errorf("empty render = %q", got)
 	}
 }
+
+func TestCodeSearchResultsString_NoContentMatches(t *testing.T) {
+	results := []bitbucket.CodeSearchResult{
+		{
+			File: bitbucket.CodeSearchFile{
+				Path: "cmd/main.go",
+			},
+			ContentMatches: nil,
+		},
+	}
+	got := CodeSearchResultsString(results)
+	if got != "No code matches found.\n" {
+		t.Errorf("no-content-matches render = %q, want sentinel", got)
+	}
+}
+
+func TestCodeSearchResultsString_NameFallback(t *testing.T) {
+	results := []bitbucket.CodeSearchResult{
+		{
+			File: bitbucket.CodeSearchFile{
+				Path: "pkg/util.go",
+				Commit: &bitbucket.CodeSearchCommit{
+					Repository: &bitbucket.CodeSearchRepoRef{
+						FullName: "",
+						Name:     "repo",
+					},
+				},
+			},
+			ContentMatches: []bitbucket.CodeSearchContentMatch{
+				{Lines: []bitbucket.CodeSearchLine{
+					{Line: 5, Segments: []bitbucket.CodeSearchSegment{
+						{Text: "func helper() {}"},
+					}},
+				}},
+			},
+		},
+	}
+	got := CodeSearchResultsString(results)
+	if !strings.Contains(got, "repo/pkg/util.go:5:") {
+		t.Errorf("name-fallback: missing expected location in:\n%s", got)
+	}
+}

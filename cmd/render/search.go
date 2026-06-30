@@ -38,6 +38,9 @@ func CodeSearchResultsString(results []bitbucket.CodeSearchResult) string {
 			}
 		}
 	}
+	if sb.Len() == 0 {
+		return "No code matches found.\n"
+	}
 	return sb.String()
 }
 
