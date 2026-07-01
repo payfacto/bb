@@ -302,6 +302,17 @@ bb download get --name FILENAME [--output PATH]
 bb download upload --file PATH
 ```
 
+### Search
+
+```
+bb search code <query>...   # search file contents across the workspace (default branch, indexed)
+    [--ext go,mod] [--lang go] [--repo-filter slug] [--project KEY] [--limit 100]
+bb search repos <query>...  # find repos by name/description [--limit 100]
+bb search prs <query>...    # find PRs by title/description in the current repo [--state OPEN] [--limit 100]
+```
+
+Code search is workspace-wide over indexed default branches (token-based, not regex); `search prs` is scoped to a single repository.
+
 ## Output Modes
 
 | Mode | How to use | When |

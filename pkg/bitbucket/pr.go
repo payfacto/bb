@@ -34,26 +34,29 @@ func (r *PRResource) List(ctx context.Context, opts PRListOptions) ([]PR, error)
 
 	var clauses []string
 	if opts.SourceBranch != "" {
-		clauses = append(clauses, fmt.Sprintf(`source.branch.name="%s"`, opts.SourceBranch))
+		clauses = append(clauses, fmt.Sprintf(`source.branch.name=%s`, bbqlQuote(opts.SourceBranch)))
 	}
 	if opts.Since != "" {
-		clauses = append(clauses, fmt.Sprintf(`created_on>="%s"`, opts.Since))
+		clauses = append(clauses, fmt.Sprintf(`created_on>=%s`, bbqlQuote(opts.Since)))
 	}
 	if opts.Until != "" {
-		clauses = append(clauses, fmt.Sprintf(`created_on<="%s"`, opts.Until))
+		clauses = append(clauses, fmt.Sprintf(`created_on<=%s`, bbqlQuote(opts.Until)))
+	}
+	if opts.Query != "" {
+		clauses = append(clauses, fmt.Sprintf(`(title ~ %s OR description ~ %s)`, bbqlQuote(opts.Query), bbqlQuote(opts.Query)))
 	}
 	if len(clauses) > 0 {
 		q.Set("q", strings.Join(clauses, " AND "))
 	}
 
-	return fetchAllPages[PR](ctx, r.client, repoPath(r.workspace, r.repo)+"/pullrequests", q)
+	return fetchPagesLimit[PR](ctx, r.client, repoPath(r.workspace, r.repo)+"/pullrequests", q, opts.Limit)
 }
 
 // ListByAuthor returns all pull requests authored by the given nickname,
 // following pagination to return the full result set.
 func (r *PRResource) ListByAuthor(ctx context.Context, nickname string) ([]PR, error) {
 	q := url.Values{
-		"q":       {fmt.Sprintf(`author.nickname="%s"`, nickname)},
+		"q":       {fmt.Sprintf(`author.nickname=%s`, bbqlQuote(nickname))},
 		"state":   {"ALL"},
 		"pagelen": {pagelenDefault},
 	}

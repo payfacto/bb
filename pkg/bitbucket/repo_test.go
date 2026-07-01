@@ -8,6 +8,24 @@ import (
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
+func TestReposListByProject_EscapesQuotesInKey(t *testing.T) {
+	var gotQ string
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQ = r.URL.Query().Get("q")
+		mustEncodeJSON(t, w, map[string]any{"values": []any{}})
+	})
+	c := newTestClient(t, handler)
+
+	_, err := c.Repos("ws").ListByProject(context.Background(), `a"b`)
+	if err != nil {
+		t.Fatalf("ListByProject: %v", err)
+	}
+	want := `project.key="a\"b"`
+	if gotQ != want {
+		t.Errorf("q = %q, want %q", gotQ, want)
+	}
+}
+
 func TestRepos_List(t *testing.T) {
 	repos := []bitbucket.Repo{
 		{Slug: "whosoncall", Name: "Who's On Call", IsPrivate: true},

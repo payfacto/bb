@@ -291,3 +291,78 @@ func TestPRs_Statuses(t *testing.T) {
 		t.Errorf("unexpected statuses: %+v", got)
 	}
 }
+
+func TestPRList_EscapesQuotesInQuery(t *testing.T) {
+	var gotQ string
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQ = r.URL.Query().Get("q")
+		mustEncodeJSON(t, w, map[string]any{"values": []any{}})
+	})
+	c := newTestClient(t, handler)
+
+	_, err := c.PRs("ws", "repo").List(context.Background(), bitbucket.PRListOptions{Query: `x"y`})
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	want := `(title ~ "x\"y" OR description ~ "x\"y")`
+	if gotQ != want {
+		t.Errorf("q = %q, want %q", gotQ, want)
+	}
+}
+
+func TestPRList_EscapesQuotesInSourceBranch(t *testing.T) {
+	var gotQ string
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQ = r.URL.Query().Get("q")
+		mustEncodeJSON(t, w, map[string]any{"values": []any{}})
+	})
+	c := newTestClient(t, handler)
+
+	_, err := c.PRs("ws", "repo").List(context.Background(), bitbucket.PRListOptions{SourceBranch: `a"b`})
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	want := `source.branch.name="a\"b"`
+	if gotQ != want {
+		t.Errorf("q = %q, want %q", gotQ, want)
+	}
+}
+
+func TestPRListByAuthor_EscapesQuotesInNickname(t *testing.T) {
+	var gotQ string
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQ = r.URL.Query().Get("q")
+		mustEncodeJSON(t, w, map[string]any{"values": []any{}})
+	})
+	c := newTestClient(t, handler)
+
+	_, err := c.PRs("ws", "repo").ListByAuthor(context.Background(), `a"b`)
+	if err != nil {
+		t.Fatalf("ListByAuthor: %v", err)
+	}
+	want := `author.nickname="a\"b"`
+	if gotQ != want {
+		t.Errorf("q = %q, want %q", gotQ, want)
+	}
+}
+
+func TestPRList_QueryFiltersTitleAndDescription(t *testing.T) {
+	var gotQ string
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQ = r.URL.Query().Get("q")
+		mustEncodeJSON(t, w, map[string]any{"values": []map[string]any{{"id": 1, "title": "fix login"}}})
+	})
+	c := newTestClient(t, handler)
+
+	prs, err := c.PRs("ws", "repo").List(context.Background(), bitbucket.PRListOptions{Query: "login"})
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	want := `(title ~ "login" OR description ~ "login")`
+	if gotQ != want {
+		t.Errorf("q = %q, want %q", gotQ, want)
+	}
+	if len(prs) != 1 {
+		t.Fatalf("got %d PRs, want 1", len(prs))
+	}
+}
