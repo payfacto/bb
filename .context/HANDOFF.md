@@ -306,3 +306,49 @@ Commits `00ee04d`..HEAD (14 commits on top of `ded53ba`). Full suite green:
   `main` -> (on sign-off) `v0.10.0` tag (all additive; minor bump). Pre-existing
   CRLF gofmt noise on `main.go` / `cmd/render/markdown.go` is unrelated (do not
   "fix" - it flips line endings).
+
+## Session - 2026-07-01 12:23 (Ctrl-C + backlog #5 shipped; next: backlog #6-#11)
+
+### State at handoff
+- Branch `feat/pipeline-ux`, HEAD `37d6e5c`, clean tree, **374 tests green**,
+  `-race`/`vet`/`gofmt` clean, **nothing pushed**.
+- Shipped since the AFK block above: graceful Ctrl-C for `watch` (exit 130) and
+  backlog **#5 rich `pipeline trigger`** (`--tag`/`--commit`/`--custom`/`--var`).
+  Both went through plan -> TDD -> code-review-expert -> clean-code:go. Details
+  are in the "Deferred / follow-ups" bullets above and the two plan docs.
+- Established working pattern this thread (reuse it): per item, `superpowers:
+  writing-plans` -> TDD (tests in `pkg/bitbucket/`; pure `cmd` helpers get table
+  tests; Cobra wiring untested) -> `code-review-expert` (fix all, judgement) ->
+  `clean-code:go` -> docs sync (README + llms.txt + CLAUDE.md) -> commit. Never
+  push without asking. Regenerate the manifest golden (`go test ./cmd/ -update`)
+  whenever a leaf/flag changes; the snapshot strips schemas + examples.
+
+### Next session: backlog #6-#11 (source of truth: the audit doc)
+Read [reference/2026-07-01-pipeline-deploy-enhancement-audit.md](reference/2026-07-01-pipeline-deploy-enhancement-audit.md)
+for the per-item endpoints/shapes. Summary + suggested order (small/independent first):
+- **#7 `pr create` auto-detect** `--repo`/`--source-branch` from git (effort S).
+- **#6 `bb pr update <id> --title/--description`** (effort S; `PUT` on the PR).
+- **#9 `deployment get`, `deployment list --env-uuid`, `pipeline-var update`** (M).
+- **#8 env CRUD + env-var mgmt** (M) - also fixes the CLAUDE.md `env get` doc-drift
+  noted in the audit; larger surface, do after the S items.
+- **#10 investigate `bb pr list` intermittent null returns** (investigation) -
+  audit flags possible RTK proxy interference; reproduce with RTK disabled first.
+- **#11 misc ops** (L): pipeline schedules / enable-disable / test-reports /
+  commit statuses / `pr open` - lowest demand, split into sub-slices.
+
+### Gotchas / decisions to carry
+- **Write ops need explicit sign-off before any live test** (as with #5's trigger
+  and the still-untested live trigger). Unit-assert the request body; do not fire
+  real mutations autonomously.
+- For any API-shape uncertainty, verify against docs/real tools BEFORE building
+  (the #5 `--env-uuid` lesson: the audit can be speculative - `--env-uuid` was
+  dropped because deployment env is not a trigger-body field).
+- Client method signature changes must update ALL call sites incl. `cmd/tui/`
+  (the #5 Trigger change touched `cmd/tui/sections.go`).
+- Still open (not #6-#11): optional live `watch`-manual-gate confirmation on a
+  real paused pipeline; optional live `trigger` smoke test; `gcf-go` sign-off;
+  the eventual PR -> `v0.10.0`.
+
+### Suggested skills next session
+- `superpowers:writing-plans`, then TDD, `code-review-expert`, `clean-code:go`.
+- `handoff` to append the next block.
