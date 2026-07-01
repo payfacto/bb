@@ -196,7 +196,7 @@ bb pr task reopen -p ID --task-id ID
 ```
 bb pipeline list [--sort FIELD]
 bb pipeline get (-u UUID | -n BUILD)
-bb pipeline trigger -b BRANCH
+bb pipeline trigger (-b BRANCH | --tag TAG | --commit SHA) [--custom NAME] [--var K=V ...]
 bb pipeline stop (-u UUID | -n BUILD)
 bb pipeline steps (-u UUID | -n BUILD)
 bb pipeline log (-u UUID | -n BUILD) --step-uuid UUID
@@ -210,6 +210,11 @@ result carries `manual_gate` with the web URL to resume it), `3` timeout, `130`
 interrupted (Ctrl-C cancels the watch cleanly). This makes `bb pipeline watch -n 42
 && deploy` proceed only on success. Progress and `--tail-log` output go to stderr;
 stdout carries only the final result.
+
+`bb pipeline trigger` runs against exactly one of `--branch`/`--tag`/`--commit`.
+`--custom NAME` runs a named custom pipeline (this is how you target a deployment
+environment - run the custom pipeline whose step deploys to it). `--var K=V` sets
+per-run variables (repeatable, unsecured; keep secrets in repo/deployment variables).
 
 ### Branches
 
