@@ -47,6 +47,80 @@ func TestPipelineSelectorValidate(t *testing.T) {
 	}
 }
 
+func TestTriggerRef(t *testing.T) {
+	tests := []struct {
+		name           string
+		branch         string
+		tag            string
+		commit         string
+		wantErr        bool
+		wantBranch     string
+		wantTag        string
+		wantCommitHash string
+	}{
+		{name: "branch", branch: "main", wantBranch: "main"},
+		{name: "tag", tag: "v1.0", wantTag: "v1.0"},
+		{name: "commit", commit: "abc123", wantCommitHash: "abc123"},
+		{name: "none", wantErr: true},
+		{name: "branch and tag", branch: "main", tag: "v1.0", wantErr: true},
+		{name: "all three", branch: "main", tag: "v1.0", commit: "abc123", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ref, err := triggerRef(tt.branch, tt.tag, tt.commit)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				var cliErr *CLIError
+				if !errors.As(err, &cliErr) || cliErr.Code != ErrCodeValidationFailed {
+					t.Errorf("expected validation_failed CLIError, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("expected nil error, got %v", err)
+			}
+			if ref.Branch != tt.wantBranch || ref.Tag != tt.wantTag || ref.Commit != tt.wantCommitHash {
+				t.Errorf("ref = %+v, want branch=%q tag=%q commit=%q", ref, tt.wantBranch, tt.wantTag, tt.wantCommitHash)
+			}
+		})
+	}
+}
+
+func TestParseTriggerVars(t *testing.T) {
+	t.Run("valid pairs, value may contain equals", func(t *testing.T) {
+		got, err := parseTriggerVars([]string{"A=1", "B=x=y"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []bitbucket.TriggerVariable{{Key: "A", Value: "1"}, {Key: "B", Value: "x=y"}}
+		if len(got) != len(want) {
+			t.Fatalf("got %d vars, want %d", len(got), len(want))
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Errorf("var[%d] = %+v, want %+v", i, got[i], want[i])
+			}
+		}
+	})
+	t.Run("empty slice returns nil", func(t *testing.T) {
+		got, err := parseTriggerVars(nil)
+		if err != nil || got != nil {
+			t.Errorf("expected (nil, nil), got (%v, %v)", got, err)
+		}
+	})
+	for _, bad := range []string{"noequals", "=novalue"} {
+		t.Run("invalid "+bad, func(t *testing.T) {
+			_, err := parseTriggerVars([]string{bad})
+			var cliErr *CLIError
+			if !errors.As(err, &cliErr) || cliErr.Code != ErrCodeValidationFailed {
+				t.Errorf("expected validation_failed CLIError for %q, got %v", bad, err)
+			}
+		})
+	}
+}
+
 func TestRunningStep(t *testing.T) {
 	steps := []bitbucket.PipelineStep{
 		{Name: "build", State: bitbucket.PipelineState{Name: "COMPLETED"}},

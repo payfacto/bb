@@ -249,35 +249,94 @@ func TestPipelines_Watch_ContextCancel(t *testing.T) {
 	}
 }
 
-func TestPipelines_Trigger(t *testing.T) {
-	pipeline := bitbucket.Pipeline{UUID: "{new-uuid}", BuildNumber: 43}
+// triggerBody captures the decoded POST pipelines/ body for assertions.
+func triggerBody(t *testing.T, opts bitbucket.TriggerOptions) map[string]any {
+	t.Helper()
+	var body map[string]any
 	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
-		var body map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatalf("decode body: %v", err)
 		}
-		target, _ := body["target"].(map[string]any)
-		if target["ref_name"] != "main" {
-			t.Errorf("expected ref_name=main, got %v", target["ref_name"])
-		}
-		if target["ref_type"] != "branch" {
-			t.Errorf("expected ref_type=branch, got %v", target["ref_type"])
-		}
-		if target["type"] != "pipeline_ref_target" {
-			t.Errorf("expected type=pipeline_ref_target, got %v", target["type"])
-		}
 		w.WriteHeader(http.StatusCreated)
-		mustEncodeJSON(t, w, pipeline)
+		mustEncodeJSON(t, w, bitbucket.Pipeline{UUID: "{new-uuid}", BuildNumber: 43})
 	}))
-	got, err := client.Pipelines("testws", "testrepo").Trigger(context.Background(), "main")
+	got, err := client.Pipelines("testws", "testrepo").Trigger(context.Background(), opts)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got.BuildNumber != 43 {
 		t.Errorf("expected build 43, got %d", got.BuildNumber)
+	}
+	return body
+}
+
+func TestPipelines_Trigger_Branch(t *testing.T) {
+	body := triggerBody(t, bitbucket.TriggerOptions{Ref: bitbucket.TriggerRef{Branch: "main"}})
+	target, _ := body["target"].(map[string]any)
+	if target["type"] != "pipeline_ref_target" {
+		t.Errorf("type = %v, want pipeline_ref_target", target["type"])
+	}
+	if target["ref_type"] != "branch" || target["ref_name"] != "main" {
+		t.Errorf("ref = %v/%v, want branch/main", target["ref_type"], target["ref_name"])
+	}
+	if _, ok := target["selector"]; ok {
+		t.Errorf("did not expect a selector, got %v", target["selector"])
+	}
+	if _, ok := body["variables"]; ok {
+		t.Errorf("did not expect variables, got %v", body["variables"])
+	}
+}
+
+func TestPipelines_Trigger_Tag(t *testing.T) {
+	body := triggerBody(t, bitbucket.TriggerOptions{Ref: bitbucket.TriggerRef{Tag: "v1.0"}})
+	target, _ := body["target"].(map[string]any)
+	if target["type"] != "pipeline_ref_target" {
+		t.Errorf("type = %v, want pipeline_ref_target", target["type"])
+	}
+	if target["ref_type"] != "tag" || target["ref_name"] != "v1.0" {
+		t.Errorf("ref = %v/%v, want tag/v1.0", target["ref_type"], target["ref_name"])
+	}
+}
+
+func TestPipelines_Trigger_Commit(t *testing.T) {
+	body := triggerBody(t, bitbucket.TriggerOptions{Ref: bitbucket.TriggerRef{Commit: "abc123"}})
+	target, _ := body["target"].(map[string]any)
+	if target["type"] != "pipeline_commit_target" {
+		t.Errorf("type = %v, want pipeline_commit_target", target["type"])
+	}
+	if _, ok := target["ref_type"]; ok {
+		t.Errorf("commit target should omit ref_type, got %v", target["ref_type"])
+	}
+	commit, _ := target["commit"].(map[string]any)
+	if commit["type"] != "commit" || commit["hash"] != "abc123" {
+		t.Errorf("commit = %v, want {commit, abc123}", commit)
+	}
+}
+
+func TestPipelines_Trigger_CustomWithVariables(t *testing.T) {
+	body := triggerBody(t, bitbucket.TriggerOptions{
+		Ref:       bitbucket.TriggerRef{Branch: "main"},
+		Custom:    "deploy",
+		Variables: []bitbucket.TriggerVariable{{Key: "FOO", Value: "bar"}},
+	})
+	target, _ := body["target"].(map[string]any)
+	selector, _ := target["selector"].(map[string]any)
+	if selector["type"] != "custom" || selector["pattern"] != "deploy" {
+		t.Errorf("selector = %v, want {custom, deploy}", selector)
+	}
+	vars, _ := body["variables"].([]any)
+	if len(vars) != 1 {
+		t.Fatalf("expected 1 variable, got %v", body["variables"])
+	}
+	v0, _ := vars[0].(map[string]any)
+	if v0["key"] != "FOO" || v0["value"] != "bar" {
+		t.Errorf("variable = %v, want {FOO, bar}", v0)
+	}
+	if _, ok := v0["secured"]; ok {
+		t.Errorf("unsecured variable should omit 'secured', got %v", v0["secured"])
 	}
 }
 

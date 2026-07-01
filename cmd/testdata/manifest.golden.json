@@ -1427,10 +1427,20 @@
           "name": "branch",
           "short": "b",
           "type": "string",
-          "required": true
+          "required": false
+        },
+        {
+          "name": "commit",
+          "type": "string",
+          "required": false
         },
         {
           "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "custom",
           "type": "string",
           "required": false
         },
@@ -1447,6 +1457,11 @@
           "required": false
         },
         {
+          "name": "tag",
+          "type": "string",
+          "required": false
+        },
+        {
           "name": "token",
           "type": "string",
           "required": false
@@ -1454,6 +1469,11 @@
         {
           "name": "username",
           "type": "string",
+          "required": false
+        },
+        {
+          "name": "var",
+          "type": "stringArray",
           "required": false
         },
         {
