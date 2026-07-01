@@ -283,12 +283,26 @@ Commits `00ee04d`..HEAD (14 commits on top of `ded53ba`). Full suite green:
   exits 130 (`exitInterrupted`) with a "watch canceled" stderr note, no error
   envelope. Client cancellation locked by `TestPipelines_Watch_ContextCancel`.
 - Live confirmation of the manual-gate classifier against a real paused pipeline.
-- Backlog #5+ (rich `pipeline trigger`, `pr update`, env CRUD, `deployment get`,
-  `pr list` null-return investigation) - see the audit doc, untouched.
+- DONE (2026-07-01): Backlog #5 rich `pipeline trigger` - `--tag`/`--commit`
+  (+ existing `-b`), `--custom NAME`, repeatable `--var K=V`. Client `Trigger`
+  now takes `TriggerOptions`; builds ref/commit target + custom selector +
+  variables body. Plan: `.context/plans/2026-07-01-rich-pipeline-trigger.md`.
+  **`--env-uuid` deliberately DROPPED**: verified (Atlassian blog, API ref,
+  elpy1/bbtrigger, community) that deployment environment is NOT a trigger-body
+  field - it is bound to a YAML step, so you target it via `--custom NAME`.
+  `--secure-var` omitted (unsecured `--var` only; avoid argv/shell-history
+  secret exposure). **Live write NOT tested** (safe validation paths verified:
+  no-ref/mutual-exclusion/bad-var all error pre-request; help lists flags).
+  Live trigger needs user sign-off (starts a real pipeline).
+- Backlog remaining: #6 `pr update`, #7 `pr create` auto-detect, #8 env CRUD,
+  #9 `deployment get`/`pipeline-var update`, #10 `pr list` null-return, #11 misc
+  ops - see the audit doc, untouched.
 - `gcf-go` dependency sign-off still open from the GCF session.
 
 ### Where to resume
-- Branch `feat/pipeline-ux`, clean tree, all green, nothing pushed. Spec fully
-  implemented. NEXT: user review -> PR against `main` -> (on sign-off) `v0.10.0`
-  tag (all additive; minor bump). Pre-existing CRLF gofmt noise on `main.go` /
-  `cmd/render/markdown.go` is unrelated (do not "fix" - it flips line endings).
+- Branch `feat/pipeline-ux`, clean tree, all green (374 tests), nothing pushed.
+  Pipeline UX spec (#1-#3) + graceful-Ctrl-C + backlog #5 all implemented.
+  NEXT: optional live trigger test (user sign-off) -> user review -> PR against
+  `main` -> (on sign-off) `v0.10.0` tag (all additive; minor bump). Pre-existing
+  CRLF gofmt noise on `main.go` / `cmd/render/markdown.go` is unrelated (do not
+  "fix" - it flips line endings).
