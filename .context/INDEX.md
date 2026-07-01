@@ -32,7 +32,7 @@ are also auto-imported by `CLAUDE.md`.
 
 ### `reference/`
 
-- _(empty — add vendor/API references and external doc snapshots, one subfolder per topic)_
+- [reference/2026-07-01-pipeline-deploy-enhancement-audit.md](reference/2026-07-01-pipeline-deploy-enhancement-audit.md) - bb enhancement audit and roadmap (pipeline/deploy API gaps + session-log friction). First slice: build-number addressing, repo UUID, `pipeline watch`, manual step trigger. Backlog: rich trigger, env CRUD/env-vars, pr update/auto-detect, deployment get, and more.
 
 ### `tools/`
 
