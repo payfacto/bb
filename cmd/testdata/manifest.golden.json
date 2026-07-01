@@ -1467,6 +1467,82 @@
     },
     {
       "path": [
+        "pipeline",
+        "watch"
+      ],
+      "action": "read",
+      "flags": [
+        {
+          "name": "branch",
+          "short": "b",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "build-number",
+          "short": "n",
+          "type": "int",
+          "required": false
+        },
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "interval",
+          "type": "int",
+          "required": false
+        },
+        {
+          "name": "pipeline-uuid",
+          "short": "u",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "tail-log",
+          "type": "bool",
+          "required": false
+        },
+        {
+          "name": "timeout",
+          "type": "int",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "PipelineWatchResult"
+    },
+    {
+      "path": [
         "pipeline-var",
         "create"
       ],

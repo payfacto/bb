@@ -99,15 +99,25 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+// exitCode lets a command signal a non-error, non-zero process exit (e.g.
+// `pipeline watch` reporting a failed/blocked/timed-out pipeline while still
+// printing its normal result to stdout). A RunE sets this and returns nil;
+// Execute honors it after a successful run. Zero means a clean exit.
+var exitCode int
+
 // Execute runs the root command. Errors are emitted to stderr as a single
 // JSON object (see cmd/errors.go) so AI-agent callers can parse them without
-// regex-scraping prose.
+// regex-scraping prose. A command that completed but wants a non-zero status
+// sets exitCode (see `pipeline watch`).
 func Execute() {
 	rootCmd.SilenceErrors = true
 	rootCmd.SilenceUsage = true
 	if err := rootCmd.Execute(); err != nil {
 		emitError(mapError(err))
 		os.Exit(1)
+	}
+	if exitCode != 0 {
+		os.Exit(exitCode)
 	}
 }
 

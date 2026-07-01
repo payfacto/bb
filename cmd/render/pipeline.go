@@ -131,3 +131,25 @@ func PipelineStepsString(steps []bitbucket.PipelineStep) string {
 func PipelineSteps(steps []bitbucket.PipelineStep) {
 	fmt.Print(PipelineStepsString(steps))
 }
+
+// PipelineWatchString returns formatted text for a watch result: the pipeline
+// detail, the resolved terminal status, and (when blocked) the manual gate and
+// the web URL to resume it.
+func PipelineWatchString(res bitbucket.PipelineWatchResult) string {
+	label := func(s string) string {
+		return LabelStyle.Render(fmt.Sprintf("  %-10s", s))
+	}
+	var sb strings.Builder
+	sb.WriteString(PipelineDetailString(res.Pipeline))
+	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Status"), StateBadge(strings.ToUpper(string(res.Status)))))
+	if res.ManualGate != nil {
+		sb.WriteString(fmt.Sprintf("%s  %s\n", label("Gate step"), res.ManualGate.Step))
+		sb.WriteString(fmt.Sprintf("%s  %s\n", label("Resume"), DimStyle.Render(res.ManualGate.URL)))
+	}
+	return sb.String()
+}
+
+// PipelineWatch prints the formatted watch result to stdout.
+func PipelineWatch(res bitbucket.PipelineWatchResult) {
+	fmt.Print(PipelineWatchString(res))
+}
