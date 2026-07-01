@@ -152,7 +152,7 @@ bb pr task reopen -p ID --task-id ID
 ```
 bb pipeline list [--sort FIELD]
 bb pipeline get (-u UUID | -n BUILD)
-bb pipeline trigger -b BRANCH
+bb pipeline trigger (-b BRANCH | --tag TAG | --commit SHA) [--custom NAME] [--var K=V ...]
 bb pipeline stop (-u UUID | -n BUILD)
 bb pipeline steps (-u UUID | -n BUILD)
 bb pipeline log (-u UUID | -n BUILD) --step-uuid UUID
@@ -164,6 +164,9 @@ codes: 0 success, 1 failed, 2 blocked on a manual gate (result has `manual_gate`
 with resume URL), 3 timeout, 130 interrupted (Ctrl-C). No selector watches the
 latest pipeline. Progress and `--tail-log` go to stderr; stdout carries only the
 final result.
+`pipeline trigger` needs exactly one of --branch/--tag/--commit. --custom NAME
+runs a named custom pipeline (also how you target a deployment environment).
+--var K=V sets per-run variables (repeatable, unsecured).
 `repo get` output now includes the repository `uuid`.
 
 ### Branches
