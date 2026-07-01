@@ -340,6 +340,16 @@ func TestPipelines_Trigger_CustomWithVariables(t *testing.T) {
 	}
 }
 
+func TestPipelines_Trigger_NoRefErrors(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("no HTTP request expected when no ref is set")
+	}))
+	_, err := client.Pipelines("testws", "testrepo").Trigger(context.Background(), bitbucket.TriggerOptions{})
+	if err == nil {
+		t.Fatal("expected an error when no branch/tag/commit is set")
+	}
+}
+
 func TestPipelines_Stop(t *testing.T) {
 	stopped := false
 	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
