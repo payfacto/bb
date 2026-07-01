@@ -151,11 +151,11 @@ bb pr task reopen -p ID --task-id ID
 
 ```
 bb pipeline list [--sort FIELD]
-bb pipeline get -u UUID
+bb pipeline get (-u UUID | -n BUILD)
 bb pipeline trigger -b BRANCH
-bb pipeline stop -u UUID
-bb pipeline steps -u UUID
-bb pipeline log -u UUID --step-uuid UUID
+bb pipeline stop (-u UUID | -n BUILD)
+bb pipeline steps (-u UUID | -n BUILD)
+bb pipeline log (-u UUID | -n BUILD) --step-uuid UUID
 ```
 
 ### Branches
