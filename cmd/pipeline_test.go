@@ -3,6 +3,8 @@ package cmd
 import (
 	"errors"
 	"testing"
+
+	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
 // pipelineSelector.validate is pure branching logic (no I/O), so it is unit
@@ -40,6 +42,57 @@ func TestPipelineSelectorValidate(t *testing.T) {
 			}
 			if cliErr.Code != ErrCodeValidationFailed {
 				t.Errorf("expected code %q, got %q", ErrCodeValidationFailed, cliErr.Code)
+			}
+		})
+	}
+}
+
+func TestWatchExitCode(t *testing.T) {
+	cases := map[bitbucket.PipelineWatchStatus]int{
+		bitbucket.WatchSuccess: 0,
+		bitbucket.WatchFailed:  1,
+		bitbucket.WatchBlocked: 2,
+		bitbucket.WatchTimeout: 3,
+	}
+	for status, want := range cases {
+		if got := watchExitCode(status); got != want {
+			t.Errorf("watchExitCode(%q) = %d, want %d", status, got, want)
+		}
+	}
+	if got := watchExitCode(bitbucket.PipelineWatchStatus("unknown")); got != 0 {
+		t.Errorf("watchExitCode(unknown) = %d, want 0", got)
+	}
+}
+
+func TestValidateWatchSelector(t *testing.T) {
+	tests := []struct {
+		name    string
+		sel     pipelineSelector
+		wantErr bool
+	}{
+		{name: "none selects latest", sel: pipelineSelector{}, wantErr: false},
+		{name: "uuid only", sel: pipelineSelector{uuid: "{u}"}, wantErr: false},
+		{name: "build only", sel: pipelineSelector{build: 5}, wantErr: false},
+		{name: "branch only", sel: pipelineSelector{branch: "main"}, wantErr: false},
+		{name: "uuid and build", sel: pipelineSelector{uuid: "{u}", build: 5}, wantErr: true},
+		{name: "build and branch", sel: pipelineSelector{build: 5, branch: "main"}, wantErr: true},
+		{name: "all three", sel: pipelineSelector{uuid: "{u}", build: 5, branch: "main"}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.sel.validateWatchSelector()
+			if !tt.wantErr {
+				if err != nil {
+					t.Fatalf("expected nil error, got %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			var cliErr *CLIError
+			if !errors.As(err, &cliErr) || cliErr.Code != ErrCodeValidationFailed {
+				t.Errorf("expected validation_failed CLIError, got %v", err)
 			}
 		})
 	}

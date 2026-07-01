@@ -49,6 +49,7 @@ var commandRegistry = map[string]commandSpec{
 	"pipeline stop":    {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline stop -n 42"},
 	"pipeline steps":   {Action: actionRead, OutputType: "[]PipelineStep", Example: "bb pipeline steps -n 42"},
 	"pipeline log":     {Action: actionRead, OutputType: "string", Example: "bb pipeline log -n 42 --step-uuid '{step}'"},
+	"pipeline watch":   {Action: actionRead, OutputType: "PipelineWatchResult", Example: "bb pipeline watch -n 42"},
 
 	// pipeline-var -----------------------------------------------------
 	"pipeline-var list":   {Action: actionRead, OutputType: "[]PipelineVariable", Ordering: "unspecified", Example: "bb pipeline-var list"},
@@ -174,6 +175,7 @@ var typeRegistry = map[string]any{
 	"[]Pipeline":                  []bitbucket.Pipeline{},
 	"PipelineStep":                bitbucket.PipelineStep{},
 	"[]PipelineStep":              []bitbucket.PipelineStep{},
+	"PipelineWatchResult":         bitbucket.PipelineWatchResult{},
 	"PipelineVariable":            bitbucket.PipelineVariable{},
 	"[]PipelineVariable":          []bitbucket.PipelineVariable{},
 	"CreatePipelineVariableInput": bitbucket.CreatePipelineVariableInput{},

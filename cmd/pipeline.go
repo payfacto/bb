@@ -3,8 +3,11 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
+	"time"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/payfacto/bb/cmd/render"
 	"github.com/payfacto/bb/pkg/bitbucket"
@@ -15,11 +18,13 @@ var pipelineCmd = &cobra.Command{
 	Short: "Manage Bitbucket Pipelines",
 }
 
-// pipelineSelector identifies a single pipeline by exactly one of its UUID or
-// its integer build number, as supplied to the get/stop/steps/log commands.
+// pipelineSelector identifies a pipeline by its UUID, its integer build number,
+// or (watch only) its branch. get/stop/steps/log require exactly one of
+// uuid/build; watch allows at most one of uuid/build/branch (none = latest).
 type pipelineSelector struct {
-	uuid  string
-	build int
+	uuid   string
+	build  int
+	branch string
 }
 
 // validate enforces that exactly one of the UUID / build-number selectors is
@@ -67,6 +72,58 @@ func (s pipelineSelector) resolveUUID(ctx context.Context, res *bitbucket.Pipeli
 		return "", err
 	}
 	return p.UUID, nil
+}
+
+// validateWatchSelector allows at most one of uuid/build/branch. When none is
+// set, watch targets the most recent pipeline in the repository.
+func (s pipelineSelector) validateWatchSelector() error {
+	set := 0
+	if s.uuid != "" {
+		set++
+	}
+	if s.build > 0 {
+		set++
+	}
+	if s.branch != "" {
+		set++
+	}
+	if set > 1 {
+		return newCLIError(ErrCodeValidationFailed,
+			"--pipeline-uuid, --build-number, and --branch are mutually exclusive", nil)
+	}
+	return nil
+}
+
+// resolveWatchPipeline picks the pipeline to watch: build/uuid address one
+// directly, otherwise the latest pipeline (on branch, if set; repo-wide if not).
+func (s pipelineSelector) resolveWatchPipeline(ctx context.Context, res *bitbucket.PipelineResource) (bitbucket.Pipeline, error) {
+	if err := s.validateWatchSelector(); err != nil {
+		return bitbucket.Pipeline{}, err
+	}
+	switch {
+	case s.build > 0:
+		return res.GetByBuildNumber(ctx, s.build)
+	case s.uuid != "":
+		return res.Get(ctx, s.uuid)
+	default:
+		return res.Latest(ctx, s.branch)
+	}
+}
+
+// watchExitCode maps a terminal watch status to the process exit code, so that
+// `bb pipeline watch ... && next` proceeds only on success (0). Failed is 1,
+// a blocked manual gate is 2, and a timeout is 3.
+func watchExitCode(status bitbucket.PipelineWatchStatus) int {
+	switch status {
+	case bitbucket.WatchFailed:
+		return 1
+	case bitbucket.WatchBlocked:
+		return 2
+	case bitbucket.WatchTimeout:
+		return 3
+	default:
+		return 0
+	}
 }
 
 var pipelineListSort string
@@ -217,6 +274,94 @@ var pipelineLogCmd = &cobra.Command{
 	},
 }
 
+var (
+	pipelineWatchUUID     string
+	pipelineWatchBuild    int
+	pipelineWatchBranch   string
+	pipelineWatchTailLog  bool
+	pipelineWatchInterval int
+	pipelineWatchTimeout  int
+)
+
+var pipelineWatchCmd = &cobra.Command{
+	Use:   "watch",
+	Short: "Watch a pipeline until it reaches a terminal state",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		ctx := context.Background()
+		res := client.Pipelines(ws, repo)
+		sel := pipelineSelector{uuid: pipelineWatchUUID, build: pipelineWatchBuild, branch: pipelineWatchBranch}
+		target, err := sel.resolveWatchPipeline(ctx, res)
+		if err != nil {
+			return err
+		}
+		result, err := res.Watch(ctx, target.UUID, bitbucket.WatchOptions{
+			Interval: time.Duration(pipelineWatchInterval) * time.Second,
+			Timeout:  time.Duration(pipelineWatchTimeout) * time.Second,
+			OnPoll:   watchProgress(ctx, res, pipelineWatchTailLog),
+		})
+		if err != nil {
+			return err
+		}
+		exitCode = watchExitCode(result.Status)
+		return printOutput(result, func() { render.PipelineWatch(result) })
+	},
+}
+
+// watchProgress returns the poll callback for `pipeline watch`. It writes
+// progress (and, with tailLog, the running step's newly-appended log) to stderr
+// only when stderr is a TTY, keeping stdout reserved for the final result. Log
+// streaming is best-effort: a step's log 404s until it produces output.
+func watchProgress(ctx context.Context, res *bitbucket.PipelineResource, tailLog bool) func(bitbucket.Pipeline, []bitbucket.PipelineStep) {
+	if !term.IsTerminal(int(os.Stderr.Fd())) {
+		return nil
+	}
+	printed := make(map[string]int) // step UUID -> bytes already streamed
+	return func(p bitbucket.Pipeline, steps []bitbucket.PipelineStep) {
+		fmt.Fprintf(os.Stderr, "[watch] #%d %s\n", p.BuildNumber, pipelineStateLabel(p.State))
+		if !tailLog {
+			return
+		}
+		step := runningStep(steps)
+		if step == nil {
+			return
+		}
+		log, err := res.Log(ctx, p.UUID, step.UUID)
+		if err != nil {
+			return
+		}
+		if n := printed[step.UUID]; len(log) > n {
+			fmt.Fprint(os.Stderr, log[n:])
+			printed[step.UUID] = len(log)
+		}
+	}
+}
+
+// pipelineStateLabel renders a compact "NAME/STAGE RESULT" progress label.
+func pipelineStateLabel(s bitbucket.PipelineState) string {
+	label := s.Name
+	if s.Stage != nil && s.Stage.Name != "" {
+		label += "/" + s.Stage.Name
+	}
+	if s.Result != nil && s.Result.Name != "" {
+		label += " " + s.Result.Name
+	}
+	return label
+}
+
+// runningStep returns the first IN_PROGRESS step, or nil when none is running.
+func runningStep(steps []bitbucket.PipelineStep) *bitbucket.PipelineStep {
+	for i := range steps {
+		if steps[i].State.Name == "IN_PROGRESS" {
+			return &steps[i]
+		}
+	}
+	return nil
+}
+
 func init() {
 	pipelineListCmd.Flags().StringVar(&pipelineListSort, "sort", "",
 		"sort by Bitbucket field, prefix with - for descending (default -created_on)")
@@ -238,7 +383,14 @@ func init() {
 	pipelineLogCmd.Flags().StringVar(&pipelineLogStepUUID, "step-uuid", "", "step UUID (required)")
 	pipelineLogCmd.MarkFlagRequired("step-uuid")
 
+	pipelineWatchCmd.Flags().StringVarP(&pipelineWatchUUID, "pipeline-uuid", "u", "", "watch the pipeline with this UUID")
+	pipelineWatchCmd.Flags().IntVarP(&pipelineWatchBuild, "build-number", "n", 0, "watch the pipeline with this build number")
+	pipelineWatchCmd.Flags().StringVarP(&pipelineWatchBranch, "branch", "b", "", "watch the latest pipeline on this branch")
+	pipelineWatchCmd.Flags().BoolVar(&pipelineWatchTailLog, "tail-log", false, "stream the running step's log to stderr while polling")
+	pipelineWatchCmd.Flags().IntVar(&pipelineWatchInterval, "interval", 5, "seconds between polls")
+	pipelineWatchCmd.Flags().IntVar(&pipelineWatchTimeout, "timeout", 0, "seconds before giving up (0 = no timeout)")
+
 	pipelineCmd.AddCommand(pipelineListCmd, pipelineGetCmd, pipelineTriggerCmd,
-		pipelineStopCmd, pipelineStepsCmd, pipelineLogCmd)
+		pipelineStopCmd, pipelineStepsCmd, pipelineLogCmd, pipelineWatchCmd)
 	rootCmd.AddCommand(pipelineCmd)
 }
