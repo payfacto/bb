@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -124,6 +125,23 @@ func watchExitCode(status bitbucket.PipelineWatchStatus) int {
 	default:
 		return 0
 	}
+}
+
+// exitInterrupted is the conventional exit code for a process ended by SIGINT
+// (128 + 2). It is distinct from watch's own 0-3 outcome codes.
+const exitInterrupted = 130
+
+// watchErr resolves an error from the watch flow. A user interrupt (Ctrl-C
+// cancels ctx) is not a failure: it reports on stderr and requests exit 130
+// with no error envelope. Any other error is returned unchanged for normal
+// mapping. It sets the package-level exitCode on interrupt.
+func watchErr(ctx context.Context, err error) error {
+	if ctx.Err() != nil {
+		fmt.Fprintln(os.Stderr, "watch canceled")
+		exitCode = exitInterrupted
+		return nil
+	}
+	return err
 }
 
 var pipelineListSort string
@@ -291,12 +309,16 @@ var pipelineWatchCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		ctx := context.Background()
+		// A watch can run for a long time; make Ctrl-C cancel it cleanly rather
+		// than hard-killing the process, so the poll loop unwinds and we exit
+		// with a controlled code.
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
 		res := client.Pipelines(ws, repo)
 		sel := pipelineSelector{uuid: pipelineWatchUUID, build: pipelineWatchBuild, branch: pipelineWatchBranch}
 		target, err := sel.resolveWatchPipeline(ctx, res)
 		if err != nil {
-			return err
+			return watchErr(ctx, err)
 		}
 		result, err := res.Watch(ctx, target.UUID, bitbucket.WatchOptions{
 			Interval: time.Duration(pipelineWatchInterval) * time.Second,
@@ -304,7 +326,7 @@ var pipelineWatchCmd = &cobra.Command{
 			OnPoll:   watchProgress(ctx, res, pipelineWatchTailLog),
 		})
 		if err != nil {
-			return err
+			return watchErr(ctx, err)
 		}
 		exitCode = watchExitCode(result.Status)
 		return printOutput(result, func() { render.PipelineWatch(result) })
