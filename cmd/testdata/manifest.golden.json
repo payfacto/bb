@@ -2253,6 +2253,11 @@
           "required": false
         },
         {
+          "name": "since",
+          "type": "string",
+          "required": false
+        },
+        {
           "name": "sort",
           "type": "string",
           "required": false
@@ -2270,6 +2275,11 @@
         },
         {
           "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "until",
           "type": "string",
           "required": false
         },

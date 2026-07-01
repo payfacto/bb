@@ -19,6 +19,8 @@ var (
 	prListState        string
 	prListSourceBranch string
 	prListSort         string
+	prListSince        string
+	prListUntil        string
 )
 
 var prListCmd = &cobra.Command{
@@ -29,7 +31,13 @@ var prListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		prs, err := client.PRs(ws, r).List(context.Background(), prListState, prListSourceBranch, prListSort)
+		prs, err := client.PRs(ws, r).List(context.Background(), bitbucket.PRListOptions{
+			State:        prListState,
+			SourceBranch: prListSourceBranch,
+			Sort:         prListSort,
+			Since:        prListSince,
+			Until:        prListUntil,
+		})
 		if err != nil {
 			return err
 		}
@@ -259,6 +267,10 @@ func init() {
 		"filter to PRs whose source branch matches this name exactly")
 	prListCmd.Flags().StringVar(&prListSort, "sort", "",
 		"sort by Bitbucket field, prefix with - for descending (e.g. -updated_on); empty preserves API default")
+	prListCmd.Flags().StringVar(&prListSince, "since", "",
+		"only PRs created on or after this ISO-8601 timestamp (e.g. 2023-01-01T00:00:00+00:00)")
+	prListCmd.Flags().StringVar(&prListUntil, "until", "",
+		"only PRs created on or before this ISO-8601 timestamp")
 
 	prGetCmd.Flags().IntVarP(&prGetID, "pr-id", "p", 0, "pull request ID")
 	prGetCmd.MarkFlagRequired("pr-id")

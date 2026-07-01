@@ -1643,7 +1643,7 @@ func newPRListView(client *bitbucket.Client, ws, repo string, pageSize int) *lis
 		TableRenderer: prTableRenderer,
 		FilterStyle:   prStateStyle,
 		Fetch: func(ctx context.Context, filter string) ([]listItem, error) {
-			prs, err := client.PRs(ws, repo).List(ctx, filter, "", "")
+			prs, err := client.PRs(ws, repo).List(ctx, bitbucket.PRListOptions{State: filter})
 			if err != nil {
 				return nil, err
 			}

@@ -29,6 +29,38 @@ func TestComments_List(t *testing.T) {
 	}
 }
 
+func TestComments_List_FollowsPaginationAndDecodesDates(t *testing.T) {
+	var hits int
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		if r.URL.Query().Get("page") == "2" {
+			mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.Comment{{ID: 3}}})
+			return
+		}
+		next := "http://" + r.Host + r.URL.Path + "?page=2"
+		mustEncodeJSON(t, w, map[string]any{
+			"next": next,
+			"values": []bitbucket.Comment{
+				{ID: 1, CreatedOn: "2025-05-02T12:16:37+00:00", UpdatedOn: "2025-05-02T12:20:00+00:00"},
+				{ID: 2},
+			},
+		})
+	}))
+	got, err := c.Comments("ws", "repo", 42).List(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if hits != 2 {
+		t.Fatalf("expected 2 page fetches, got %d", hits)
+	}
+	if len(got) != 3 {
+		t.Fatalf("expected 3 comments across pages, got %d", len(got))
+	}
+	if got[0].CreatedOn != "2025-05-02T12:16:37+00:00" || got[0].UpdatedOn != "2025-05-02T12:20:00+00:00" {
+		t.Errorf("dates not decoded: %+v", got[0])
+	}
+}
+
 func TestComments_Add(t *testing.T) {
 	var receivedBody map[string]any
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

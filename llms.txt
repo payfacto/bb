@@ -118,7 +118,7 @@ bb pr comment reply -p 42 -c 7 --text-file /tmp/reply.md
 ### Pull Requests
 
 ```
-bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED] [--source-branch BRANCH] [--sort FIELD]
+bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED] [--source-branch BRANCH] [--sort FIELD] [--since TS] [--until TS]
 bb pr get -p ID
 bb pr create -T "..." --from-branch BRANCH --to-branch BRANCH [-d "..." | --description-file PATH] [--close-source-branch] [--draft]
 bb pr diff -p ID
@@ -282,6 +282,7 @@ Errors are emitted on **stderr** in the active format - see "Error format" above
 - The CLI exits non-zero on errors and writes to stderr in the active format (see "Error format"). With `format=json` the envelope is `{"error": {"code", "message", "details"}}`.
 - Use `bb --describe` to enumerate every command, flag, action class, and JSON Schema in a single call.
 - `--sort` is available on `pr list`, `pipeline list`, `branch list`, `tag list`, `commit list`, `repo list`, and `issue list`. Other list commands do not accept `--sort` because the underlying Bitbucket endpoint does not — sort their JSON output client-side if you need deterministic ordering.
+- List commands follow Bitbucket pagination and return the **full** result set, not just the first page. For `pr list`, bound large result sets with `--since`/`--until` (ISO-8601 timestamps filtering PR `created_on`). PRs include `created_on`, `updated_on`, `comment_count`, `task_count`; comments include `created_on`, `updated_on`.
 - Workspace and repo can be omitted from flags if set in `~/.bbcloud.yaml`.
 - All long flags have short equivalents: `-p` (pr-id), `-s` (state), `-b` (branch), `-u` (pipeline-uuid), `-c` (comment-id), `-t` (text), `-T` (title), `-d` (description), `-n` (name), `-i` (id), `-k` (kind or key), `-v` (value), `-x` (hash).
 - Pipeline variable UUIDs are returned as strings with `{}` braces (e.g. `{abc-123}`); pass the full UUID including braces to `--uuid`.
