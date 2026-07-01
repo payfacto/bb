@@ -176,3 +176,59 @@ the **GCF (Graph Compact Format) output format** feature. All on local `main`
 ### Suggested skills for next session
 
 - `skill-vetter` — for the `gcf-go` dependency sign-off.
+
+## Session - 2026-06-30 21:59 (Search shipped + v0.9.0; pipeline UX spec ready)
+
+### Shipped this session
+- `bb search` namespace (code/repos/prs) built via brainstorm -> spec -> plan ->
+  subagent-driven TDD. Merged (PR #3) with list-pagination (PR #2).
+- BBQL input escaping hardening: `bbqlQuote` helper applied to all `q=` clauses
+  (search.go, pr.go, repo.go). Commit `0593783`.
+- Released **v0.9.0** (tag on `main` fc285ff): GitHub Release + Homebrew tap
+  updated, GoReleaser workflow green. All additive, no breaking changes.
+- Enhancement audit + roadmap saved to
+  `.context/reference/2026-07-01-pipeline-deploy-enhancement-audit.md` (commit
+  `2f7a615`) from two research passes (Bitbucket API gap audit + session-log
+  friction mining across ~1076 transcripts). This is the durable backlog.
+
+### Current state / where to resume
+- On branch **`feat/pipeline-ux`** (HEAD `93bdd2d`), based on `origin/main` = v0.9.0.
+- Spec **APPROVED** and committed: `.context/specs/2026-07-01-pipeline-ux-design.md`.
+- NEXT STEP: invoke `superpowers:writing-plans` for that spec, then run
+  `superpowers:subagent-driven-development` to build it (same pipeline as search),
+  then PR against `main`, then (on user sign-off) a v0.10.0 tag release.
+
+### Slice scope (first slice of the roadmap)
+- #1 `-n/--build-number` on `pipeline get/stop/steps/log` (exactly one of `-u`/`-n`).
+- #2 add `uuid` to the `Repo` struct so `bb repo get` surfaces it.
+- #3 `bb pipeline watch` [-n|-u|-b|latest]: poll-to-terminal, ONE final JSON on
+  non-TTY / live view on TTY, `--tail-log` to stderr, exit codes
+  0 success / 1 failed / 2 blocked-manual-gate / 3 timeout, manual-gate deep-link.
+- #4 (resume manual step) DROPPED: no public API (open FR BCLOUD-20050); its value
+  folded into watch's blocked/deep-link handling.
+
+### Verify during TDD (flagged in spec)
+- Confirm `GET pipelines/{build_number}` accepts the plain integer path form.
+- Confirm the Bitbucket pipeline/step state fields that identify a paused manual
+  gate; add minimal struct fields for the classifier (keep it a pure, tested fn).
+
+### Backlog (not this slice) - see the audit doc
+- #5 rich `pipeline trigger` (--custom/--var/--tag/--commit/--env-uuid)
+- #6 `bb pr update`; #7 `pr create` auto-detect --repo/--source-branch
+- #8 env CRUD + env-var mgmt (also fixes CLAUDE.md `env get` doc-drift)
+- #9 `deployment get`, `deployment list --env`, `pipeline-var update`
+- #10 investigate `bb pr list` intermittent null returns (possible RTK interference)
+- #11 pipeline schedules / enable-disable / test-reports / commit statuses / `pr open`
+
+### Working conventions / gotchas
+- Never push to git/bitbucket without explicit user confirmation (global rule).
+- origin is GitHub (`github.com/payfacto/bb`); use `gh`. Releases fire on `v*` tags.
+- Repo dating skew: docs written this session are dated 2026-07-01; system clock
+  said 2026-06-30. Harmless.
+- Local `main` pointer is stale (5497516); `origin/main` is the source of truth
+  (fc285ff / v0.9.0). Re-point local main before the next release if needed.
+- SDD scratch/ledger lives under `.superpowers/sdd/` (git-ignored).
+
+### Suggested skills next session
+- `superpowers:writing-plans` (immediate next step), then
+  `superpowers:subagent-driven-development`, then `verify` / release flow.
