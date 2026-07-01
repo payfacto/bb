@@ -528,3 +528,4 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ## Deferred / to confirm during implementation
 
 - **Live-API confirmation of the integer path form** (`GET pipelines/{build_number}`) is a spec "open item". The unit test asserts bb's constructed path regardless; a live smoke test (`bb pipeline get -n <n>` against a real repo) is a nice-to-have but is not a gate for this slice and needs real credentials + an existing pipeline.
+  - **CONFIRMED LIVE 2026-07-01:** `bb pipeline get -n 59` against the live Bitbucket API returned the full pipeline (`build_number: 59`, COMPLETED/SUCCESSFUL), proving `GET pipelines/59` (plain integer path, no braces) is accepted. This also de-risks slice #3 (`pipeline watch` reuses `GetByBuildNumber` for its `-n` selector).
