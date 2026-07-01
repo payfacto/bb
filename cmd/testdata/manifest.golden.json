@@ -1151,6 +1151,12 @@
       "action": "read",
       "flags": [
         {
+          "name": "build-number",
+          "short": "n",
+          "type": "int",
+          "required": false
+        },
+        {
           "name": "config",
           "type": "string",
           "required": false
@@ -1165,7 +1171,7 @@
           "name": "pipeline-uuid",
           "short": "u",
           "type": "string",
-          "required": true
+          "required": false
         },
         {
           "name": "repo",
@@ -1248,6 +1254,12 @@
       "action": "read",
       "flags": [
         {
+          "name": "build-number",
+          "short": "n",
+          "type": "int",
+          "required": false
+        },
+        {
           "name": "config",
           "type": "string",
           "required": false
@@ -1262,7 +1274,7 @@
           "name": "pipeline-uuid",
           "short": "u",
           "type": "string",
-          "required": true
+          "required": false
         },
         {
           "name": "repo",
@@ -1302,6 +1314,12 @@
       "action": "read",
       "flags": [
         {
+          "name": "build-number",
+          "short": "n",
+          "type": "int",
+          "required": false
+        },
+        {
           "name": "config",
           "type": "string",
           "required": false
@@ -1316,7 +1334,7 @@
           "name": "pipeline-uuid",
           "short": "u",
           "type": "string",
-          "required": true
+          "required": false
         },
         {
           "name": "repo",
@@ -1351,6 +1369,12 @@
       "action": "destructive",
       "flags": [
         {
+          "name": "build-number",
+          "short": "n",
+          "type": "int",
+          "required": false
+        },
+        {
           "name": "config",
           "type": "string",
           "required": false
@@ -1365,7 +1389,7 @@
           "name": "pipeline-uuid",
           "short": "u",
           "type": "string",
-          "required": true
+          "required": false
         },
         {
           "name": "repo",

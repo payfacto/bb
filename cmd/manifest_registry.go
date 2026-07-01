@@ -44,11 +44,11 @@ var commandRegistry = map[string]commandSpec{
 
 	// pipeline ---------------------------------------------------------
 	"pipeline list":    {Action: actionRead, OutputType: "[]Pipeline", Example: "bb pipeline list"},
-	"pipeline get":     {Action: actionRead, OutputType: "Pipeline", Example: "bb pipeline get --uuid '{uuid}'"},
+	"pipeline get":     {Action: actionRead, OutputType: "Pipeline", Example: "bb pipeline get -n 42"},
 	"pipeline trigger": {Action: actionWrite, OutputType: "Pipeline", Example: "bb pipeline trigger --branch main"},
-	"pipeline stop":    {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline stop --uuid '{uuid}'"},
-	"pipeline steps":   {Action: actionRead, OutputType: "[]PipelineStep", Example: "bb pipeline steps --uuid '{uuid}'"},
-	"pipeline log":     {Action: actionRead, OutputType: "string", Example: "bb pipeline log --uuid '{uuid}' --step-uuid '{step}'"},
+	"pipeline stop":    {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline stop -n 42"},
+	"pipeline steps":   {Action: actionRead, OutputType: "[]PipelineStep", Example: "bb pipeline steps -n 42"},
+	"pipeline log":     {Action: actionRead, OutputType: "string", Example: "bb pipeline log -n 42 --step-uuid '{step}'"},
 
 	// pipeline-var -----------------------------------------------------
 	"pipeline-var list":   {Action: actionRead, OutputType: "[]PipelineVariable", Ordering: "unspecified", Example: "bb pipeline-var list"},
