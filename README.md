@@ -145,6 +145,7 @@ bb pr list --workspace myws --repo myrepo
 | `-s` | `--state` | `pr list` |
 | `-b` | `--branch` | `commit list`, `pipeline trigger` |
 | `-u` | `--pipeline-uuid` | `pipeline get/stop/steps/log` |
+| `-n` | `--build-number` | `pipeline get/stop/steps/log` |
 | `-c` | `--comment-id` | `comment get`, `comment reply` |
 | `-t` | `--text` | `comment add`, `comment reply` |
 | `-T` | `--title` | `pr create`, `issue create` |
@@ -194,11 +195,11 @@ bb pr task reopen -p ID --task-id ID
 
 ```
 bb pipeline list [--sort FIELD]
-bb pipeline get -u UUID
+bb pipeline get (-u UUID | -n BUILD)
 bb pipeline trigger -b BRANCH
-bb pipeline stop -u UUID
-bb pipeline steps -u UUID
-bb pipeline log -u UUID --step-uuid UUID
+bb pipeline stop (-u UUID | -n BUILD)
+bb pipeline steps (-u UUID | -n BUILD)
+bb pipeline log (-u UUID | -n BUILD) --step-uuid UUID
 ```
 
 ### Branches
