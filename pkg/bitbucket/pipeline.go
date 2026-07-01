@@ -3,7 +3,9 @@ package bitbucket
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
+	"time"
 )
 
 // PipelineResource provides operations on repository pipelines.
@@ -99,6 +101,79 @@ func firstIncompleteStep(steps []PipelineStep) string {
 		}
 	}
 	return ""
+}
+
+// Latest returns the most recent pipeline in the repository, or the most recent
+// on branch when branch != "". It filters the -created_on list client-side and
+// returns a 404 *APIError when no pipeline matches.
+func (r *PipelineResource) Latest(ctx context.Context, branch string) (Pipeline, error) {
+	pipelines, err := r.List(ctx, "-created_on")
+	if err != nil {
+		return Pipeline{}, err
+	}
+	for _, p := range pipelines {
+		if branch == "" || p.Target.RefName == branch {
+			return p, nil
+		}
+	}
+	msg := "no pipelines found"
+	if branch != "" {
+		msg = fmt.Sprintf("no pipelines found for branch %q", branch)
+	}
+	return Pipeline{}, &APIError{Status: http.StatusNotFound, Message: msg}
+}
+
+// WatchOptions configures Watch. Interval defaults to 5s when <= 0. Timeout <= 0
+// means watch indefinitely (until a terminal or blocked state). OnPoll, when
+// set, is invoked with each poll's pipeline and steps before the stop check.
+type WatchOptions struct {
+	Interval time.Duration
+	Timeout  time.Duration
+	OnPoll   func(Pipeline, []PipelineStep)
+}
+
+// Watch polls a pipeline until it reaches a terminal state (completed or blocked
+// on a manual gate) or the timeout elapses, then returns the classified result.
+// A blocked result carries the ManualGate with the web URL to resume it.
+func (r *PipelineResource) Watch(ctx context.Context, pipelineUUID string, opts WatchOptions) (PipelineWatchResult, error) {
+	interval := opts.Interval
+	if interval <= 0 {
+		interval = 5 * time.Second
+	}
+	start := time.Now()
+	for {
+		p, err := r.Get(ctx, pipelineUUID)
+		if err != nil {
+			return PipelineWatchResult{}, err
+		}
+		steps, err := r.Steps(ctx, pipelineUUID)
+		if err != nil {
+			return PipelineWatchResult{}, err
+		}
+		if opts.OnPoll != nil {
+			opts.OnPoll(p, steps)
+		}
+		if status, gateStep, terminal := classifyPipelineState(p, steps); terminal {
+			result := PipelineWatchResult{Pipeline: p, Steps: steps, Status: status}
+			if status == WatchBlocked {
+				result.ManualGate = &ManualGate{Step: gateStep, URL: r.pipelineWebURL(p.BuildNumber)}
+			}
+			return result, nil
+		}
+		if opts.Timeout > 0 && time.Since(start) >= opts.Timeout {
+			return PipelineWatchResult{Pipeline: p, Steps: steps, Status: WatchTimeout}, nil
+		}
+		select {
+		case <-ctx.Done():
+			return PipelineWatchResult{}, ctx.Err()
+		case <-time.After(interval):
+		}
+	}
+}
+
+// pipelineWebURL builds the Bitbucket web URL for a pipeline's result page.
+func (r *PipelineResource) pipelineWebURL(buildNumber int) string {
+	return fmt.Sprintf("https://bitbucket.org/%s/%s/pipelines/results/%d", r.workspace, r.repo, buildNumber)
 }
 
 // Trigger starts a new pipeline on the given branch.

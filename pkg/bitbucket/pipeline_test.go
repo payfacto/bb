@@ -3,9 +3,12 @@ package bitbucket_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
@@ -83,6 +86,149 @@ func TestPipelines_GetByBuildNumber(t *testing.T) {
 	}
 	if got.BuildNumber != 42 {
 		t.Errorf("expected build 42, got %d", got.BuildNumber)
+	}
+}
+
+func TestPipelines_Latest_NoBranch(t *testing.T) {
+	pipelines := []bitbucket.Pipeline{
+		{UUID: "{p2}", BuildNumber: 2, Target: bitbucket.PipelineTarget{RefName: "main"}},
+		{UUID: "{p1}", BuildNumber: 1, Target: bitbucket.PipelineTarget{RefName: "dev"}},
+	}
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("sort") != "-created_on" {
+			t.Errorf("expected sort=-created_on, got %s", r.URL.Query().Get("sort"))
+		}
+		mustEncodeJSON(t, w, map[string]any{"values": pipelines})
+	}))
+	got, err := client.Pipelines("testws", "testrepo").Latest(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.BuildNumber != 2 {
+		t.Errorf("expected latest build 2, got %d", got.BuildNumber)
+	}
+}
+
+func TestPipelines_Latest_Branch(t *testing.T) {
+	pipelines := []bitbucket.Pipeline{
+		{UUID: "{p3}", BuildNumber: 3, Target: bitbucket.PipelineTarget{RefName: "main"}},
+		{UUID: "{p2}", BuildNumber: 2, Target: bitbucket.PipelineTarget{RefName: "feature"}},
+		{UUID: "{p1}", BuildNumber: 1, Target: bitbucket.PipelineTarget{RefName: "feature"}},
+	}
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mustEncodeJSON(t, w, map[string]any{"values": pipelines})
+	}))
+	got, err := client.Pipelines("testws", "testrepo").Latest(context.Background(), "feature")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.BuildNumber != 2 {
+		t.Errorf("expected latest feature build 2, got %d", got.BuildNumber)
+	}
+}
+
+func TestPipelines_Latest_NotFound(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mustEncodeJSON(t, w, map[string]any{"values": []any{}})
+	}))
+	_, err := client.Pipelines("testws", "testrepo").Latest(context.Background(), "")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var apiErr *bitbucket.APIError
+	if !errors.As(err, &apiErr) || apiErr.Status != http.StatusNotFound {
+		t.Errorf("expected 404 APIError, got %v", err)
+	}
+}
+
+// watchPipelineHandler serves the pipeline-get and steps requests Watch makes.
+// getState is called per pipeline-get to advance the pipeline's state across
+// polls; steps are returned verbatim.
+func watchPipelineHandler(t *testing.T, buildNumber int, steps []bitbucket.PipelineStep, getState func(poll int32) bitbucket.PipelineState) http.HandlerFunc {
+	var polls atomic.Int32
+	return func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/steps/") {
+			mustEncodeJSON(t, w, map[string]any{"values": steps})
+			return
+		}
+		n := polls.Add(1)
+		mustEncodeJSON(t, w, bitbucket.Pipeline{UUID: "{p1}", BuildNumber: buildNumber, State: getState(n)})
+	}
+}
+
+func TestPipelines_Watch_PollToSuccess(t *testing.T) {
+	handler := watchPipelineHandler(t, 7, nil, func(poll int32) bitbucket.PipelineState {
+		if poll >= 2 {
+			return bitbucket.PipelineState{Name: "COMPLETED", Result: &bitbucket.PipelineResult{Name: "SUCCESSFUL"}}
+		}
+		return bitbucket.PipelineState{Name: "IN_PROGRESS", Stage: &bitbucket.PipelineStage{Name: "RUNNING"}}
+	})
+	client := newTestClient(t, handler)
+	res, err := client.Pipelines("testws", "testrepo").Watch(context.Background(), "{p1}", bitbucket.WatchOptions{Interval: time.Millisecond})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != bitbucket.WatchSuccess {
+		t.Errorf("expected success, got %s", res.Status)
+	}
+}
+
+func TestPipelines_Watch_PollToFailure(t *testing.T) {
+	handler := watchPipelineHandler(t, 8, nil, func(poll int32) bitbucket.PipelineState {
+		if poll >= 2 {
+			return bitbucket.PipelineState{Name: "COMPLETED", Result: &bitbucket.PipelineResult{Name: "FAILED"}}
+		}
+		return bitbucket.PipelineState{Name: "IN_PROGRESS", Stage: &bitbucket.PipelineStage{Name: "RUNNING"}}
+	})
+	client := newTestClient(t, handler)
+	res, err := client.Pipelines("testws", "testrepo").Watch(context.Background(), "{p1}", bitbucket.WatchOptions{Interval: time.Millisecond})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != bitbucket.WatchFailed {
+		t.Errorf("expected failed, got %s", res.Status)
+	}
+}
+
+func TestPipelines_Watch_Blocked(t *testing.T) {
+	steps := []bitbucket.PipelineStep{
+		{Name: "build", State: bitbucket.PipelineState{Name: "COMPLETED"}},
+		{Name: "deploy", State: bitbucket.PipelineState{Name: "PENDING"}},
+	}
+	handler := watchPipelineHandler(t, 9, steps, func(poll int32) bitbucket.PipelineState {
+		return bitbucket.PipelineState{Name: "IN_PROGRESS", Stage: &bitbucket.PipelineStage{Name: "PAUSED"}}
+	})
+	client := newTestClient(t, handler)
+	res, err := client.Pipelines("testws", "testrepo").Watch(context.Background(), "{p1}", bitbucket.WatchOptions{Interval: time.Millisecond})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != bitbucket.WatchBlocked {
+		t.Fatalf("expected blocked, got %s", res.Status)
+	}
+	if res.ManualGate == nil {
+		t.Fatal("expected manual gate, got nil")
+	}
+	if res.ManualGate.Step != "deploy" {
+		t.Errorf("expected gate step deploy, got %q", res.ManualGate.Step)
+	}
+	if !strings.HasSuffix(res.ManualGate.URL, "/pipelines/results/9") {
+		t.Errorf("expected gate URL ending /pipelines/results/9, got %q", res.ManualGate.URL)
+	}
+}
+
+func TestPipelines_Watch_Timeout(t *testing.T) {
+	handler := watchPipelineHandler(t, 5, nil, func(poll int32) bitbucket.PipelineState {
+		return bitbucket.PipelineState{Name: "IN_PROGRESS", Stage: &bitbucket.PipelineStage{Name: "RUNNING"}}
+	})
+	client := newTestClient(t, handler)
+	res, err := client.Pipelines("testws", "testrepo").Watch(context.Background(), "{p1}",
+		bitbucket.WatchOptions{Interval: time.Millisecond, Timeout: 15 * time.Millisecond})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != bitbucket.WatchTimeout {
+		t.Errorf("expected timeout, got %s", res.Status)
 	}
 }
 
