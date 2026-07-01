@@ -46,6 +46,23 @@ func (r *PipelineResource) Get(ctx context.Context, pipelineUUID string) (Pipeli
 	return decode[Pipeline](data)
 }
 
+// GetByBuildNumber returns a single pipeline addressed by its integer build
+// number - the "#42" agents already see in `pipeline list` output - rather
+// than its UUID. Bitbucket Cloud's pipeline resource accepts either form:
+//
+//	GET /repositories/{ws}/{repo}/pipelines/{build_number}
+//
+// The build number is a plain integer path segment; unlike the UUID form it
+// carries no surrounding braces.
+func (r *PipelineResource) GetByBuildNumber(ctx context.Context, buildNumber int) (Pipeline, error) {
+	path := fmt.Sprintf("%s%d", r.basePath(), buildNumber)
+	data, err := r.client.do(ctx, "GET", path, nil, nil)
+	if err != nil {
+		return Pipeline{}, err
+	}
+	return decode[Pipeline](data)
+}
+
 // Trigger starts a new pipeline on the given branch.
 func (r *PipelineResource) Trigger(ctx context.Context, branch string) (Pipeline, error) {
 	input := TriggerPipelineInput{
