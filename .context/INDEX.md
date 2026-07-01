@@ -18,6 +18,7 @@ are also auto-imported by `CLAUDE.md`.
 
 ### `specs/`
 
+- [specs/2026-07-01-pipeline-ux-design.md](specs/2026-07-01-pipeline-ux-design.md) - Design for the pipeline UX slice: build-number addressing (`-n`), repo UUID in `repo get`, and `bb pipeline watch` (poll-to-terminal, manual-gate detect + deep-link). First slice of the pipeline/deploy roadmap.
 - [specs/2026-06-30-search-namespace-design.md](specs/2026-06-30-search-namespace-design.md) - Design for the `bb search` namespace: native `code` search plus BBQL-backed `repos` and repo-scoped `prs`.
 - [specs/2026-06-15-gcf-output-format-design.md](specs/2026-06-15-gcf-output-format-design.md) — Design for GCF output format: add `gcf`, make it the default, persist preferred format.
 - [specs/2026-05-29-api-token-auth-design.md](specs/2026-05-29-api-token-auth-design.md) — Design for Bitbucket API token authentication.
