@@ -111,6 +111,9 @@ func RepoDetailString(r bitbucket.Repo) string {
 	}
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("  %s  %s\n", LabelStyle.Render("Slug:       "), IDStyle.Render(r.Slug)))
+	if r.UUID != "" {
+		sb.WriteString(fmt.Sprintf("  %s  %s\n", LabelStyle.Render("UUID:       "), DimStyle.Render(r.UUID)))
+	}
 	sb.WriteString(fmt.Sprintf("  %s  %s\n", LabelStyle.Render("Name:       "), BranchStyle.Render(r.Name)))
 	sb.WriteString(fmt.Sprintf("  %s  %s\n", LabelStyle.Render("Full name:  "), r.FullName))
 	sb.WriteString(fmt.Sprintf("  %s  %s\n", LabelStyle.Render("Access:     "), StateBadge(privacy)))
