@@ -232,3 +232,62 @@ the **GCF (Graph Compact Format) output format** feature. All on local `main`
 ### Suggested skills next session
 - `superpowers:writing-plans` (immediate next step), then
   `superpowers:subagent-driven-development`, then `verify` / release flow.
+
+## Session - 2026-07-01 (Pipeline UX slices #1-#3 built, AFK)
+
+### Shipped this session (all on `feat/pipeline-ux`, NOT pushed)
+Built the entire pipeline UX spec (`.context/specs/2026-07-01-pipeline-ux-design.md`)
+across all three slices, each via plan -> TDD -> code-review-expert -> clean-code:go.
+Commits `00ee04d`..HEAD (14 commits on top of `ded53ba`). Full suite green:
+357 tests, `-race` clean, `go vet` clean, gofmt clean.
+
+- **Slice #1 - build-number addressing.** `-n/--build-number` on `pipeline
+  get/stop/steps/log` (exactly one of `-u`/`-n`, validated in RunE; dropped
+  `MarkFlagRequired` on pipeline-uuid). New client `GetByBuildNumber`. Selector
+  logic refactored into a `pipelineSelector` type (clean-code F1 fix). Plan:
+  `.context/plans/2026-07-01-pipeline-build-number-addressing.md`.
+  **CONFIRMED LIVE:** `bb pipeline get -n 59` returns the pipeline (plain-integer
+  path `GET pipelines/59` works).
+- **Slice #2 - repo uuid.** Added `Repo.UUID` (`json:"uuid"`); rendered in
+  `repo get`. The API already returned it; the struct had dropped it.
+- **Slice #3 - `bb pipeline watch`.** `[-n|-u|-b|latest] [--tail-log]
+  [--interval 5] [--timeout 0]`. Client `Latest(ctx, branch)` + `Watch(ctx,
+  uuid, WatchOptions)` + pure `classifyPipelineState`. Single-JSON contract on
+  stdout; progress (TTY-gated) and `--tail-log` (always when requested) to
+  stderr. Exit codes 0/1/2/3 via a new package-level `exitCode` honored by
+  `cmd.Execute`. Manual-gate detection: pipeline `IN_PROGRESS` + stage
+  `PAUSED`/`HALTED` => `blocked` with a `manual_gate` {step, resume URL}.
+  Plan: `.context/plans/2026-07-01-pipeline-ux-slices-2-3.md`.
+  **VERIFIED LIVE:** `watch -n 59` -> success/exit 0; no-selector -> latest;
+  `-n` + `-b` -> validation_failed/exit 1.
+
+### Key decisions / judgement calls
+- **Manual-gate state model** taken from Atlassian docs (IN_PROGRESS+PAUSED =
+  manual/workflow gate; HALTED = system gate) - both classified `blocked`. The
+  classifier is pure + unit-tested, but the exact PAUSED/HALTED strings are NOT
+  yet confirmed against a live *paused* pipeline. **Confirm before relying on the
+  `blocked` exit code (2) in automation.**
+- **`Latest` branch filter is client-side** over the first `-created_on` page
+  (25). A branch whose newest pipeline is older than a full page of others could
+  be missed. Acceptable for "latest"; revisit if it bites.
+- **TTY "live view" simplified** to a per-poll stderr status line (not a
+  repainting TUI) - keeps stdout clean + testable.
+- **Manifest snapshot strips `example` strings**, so example edits are not
+  snapshot-locked (they still improve live `--describe`).
+- **Exit codes** use a package-level `exitCode` var read by `Execute` (watch
+  prints a normal result + sets a non-zero code; it is not an error path).
+
+### Deferred / follow-ups (not done)
+- Graceful SIGINT for a long `watch --timeout 0` (currently `context.Background()`;
+  Ctrl-C hard-kills). A `signal.NotifyContext` would make the `ctx.Done()` branch
+  live but diverges from the rest of the CLI. Noted, not done.
+- Live confirmation of the manual-gate classifier against a real paused pipeline.
+- Backlog #5+ (rich `pipeline trigger`, `pr update`, env CRUD, `deployment get`,
+  `pr list` null-return investigation) - see the audit doc, untouched.
+- `gcf-go` dependency sign-off still open from the GCF session.
+
+### Where to resume
+- Branch `feat/pipeline-ux`, clean tree, all green, nothing pushed. Spec fully
+  implemented. NEXT: user review -> PR against `main` -> (on sign-off) `v0.10.0`
+  tag (all additive; minor bump). Pre-existing CRLF gofmt noise on `main.go` /
+  `cmd/render/markdown.go` is unrelated (do not "fix" - it flips line endings).
