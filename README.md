@@ -143,9 +143,9 @@ bb pr list --workspace myws --repo myrepo
 |-------|------|---------|
 | `-p` | `--pr-id` | All PR, comment, and task commands |
 | `-s` | `--state` | `pr list` |
-| `-b` | `--branch` | `commit list`, `pipeline trigger` |
-| `-u` | `--pipeline-uuid` | `pipeline get/stop/steps/log` |
-| `-n` | `--build-number` | `pipeline get/stop/steps/log` |
+| `-b` | `--branch` | `commit list`, `pipeline trigger`, `pipeline watch` |
+| `-u` | `--pipeline-uuid` | `pipeline get/stop/steps/log/watch` |
+| `-n` | `--build-number` | `pipeline get/stop/steps/log/watch` |
 | `-c` | `--comment-id` | `comment get`, `comment reply` |
 | `-t` | `--text` | `comment add`, `comment reply` |
 | `-T` | `--title` | `pr create`, `issue create` |
@@ -200,7 +200,15 @@ bb pipeline trigger -b BRANCH
 bb pipeline stop (-u UUID | -n BUILD)
 bb pipeline steps (-u UUID | -n BUILD)
 bb pipeline log (-u UUID | -n BUILD) --step-uuid UUID
+bb pipeline watch [-n BUILD | -u UUID | -b BRANCH] [--tail-log] [--interval 5] [--timeout 0]
 ```
+
+`bb pipeline watch` polls a pipeline (build/uuid/branch, or the latest when no
+selector is given) until it reaches a terminal state, then emits a single result
+object. Exit codes: `0` success, `1` failed, `2` blocked on a manual gate (the
+result carries `manual_gate` with the web URL to resume it), `3` timeout. This
+makes `bb pipeline watch -n 42 && deploy` proceed only on success. Progress and
+`--tail-log` output go to stderr; stdout carries only the final result.
 
 ### Branches
 

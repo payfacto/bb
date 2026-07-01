@@ -55,7 +55,7 @@ bb                    (no args → launches TUI)
 │   ├── activity / statuses / add-reviewer
 │   ├── comment list / get / add / reply
 │   └── task list / complete / reopen
-├── pipeline list / get / trigger / stop / steps / log
+├── pipeline list / get / trigger / stop / steps / log / watch
 ├── pipeline-var list / create / delete
 ├── branch list / create / delete
 ├── tag list / create / delete

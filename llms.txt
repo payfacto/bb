@@ -156,7 +156,14 @@ bb pipeline trigger -b BRANCH
 bb pipeline stop (-u UUID | -n BUILD)
 bb pipeline steps (-u UUID | -n BUILD)
 bb pipeline log (-u UUID | -n BUILD) --step-uuid UUID
+bb pipeline watch [-n BUILD | -u UUID | -b BRANCH] [--tail-log] [--interval 5] [--timeout 0]
 ```
+
+`pipeline watch` polls to a terminal state and emits one result object. Exit
+codes: 0 success, 1 failed, 2 blocked on a manual gate (result has `manual_gate`
+with resume URL), 3 timeout. No selector watches the latest pipeline. Progress
+and `--tail-log` go to stderr; stdout carries only the final result.
+`repo get` output now includes the repository `uuid`.
 
 ### Branches
 
