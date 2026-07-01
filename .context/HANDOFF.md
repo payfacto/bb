@@ -277,10 +277,11 @@ Commits `00ee04d`..HEAD (14 commits on top of `ded53ba`). Full suite green:
 - **Exit codes** use a package-level `exitCode` var read by `Execute` (watch
   prints a normal result + sets a non-zero code; it is not an error path).
 
-### Deferred / follow-ups (not done)
-- Graceful SIGINT for a long `watch --timeout 0` (currently `context.Background()`;
-  Ctrl-C hard-kills). A `signal.NotifyContext` would make the `ctx.Done()` branch
-  live but diverges from the rest of the CLI. Noted, not done.
+### Deferred / follow-ups
+- DONE (2026-07-01): Graceful SIGINT for `watch`. `watch` now uses
+  `signal.NotifyContext(ctx, os.Interrupt)`; Ctrl-C cancels the poll loop and
+  exits 130 (`exitInterrupted`) with a "watch canceled" stderr note, no error
+  envelope. Client cancellation locked by `TestPipelines_Watch_ContextCancel`.
 - Live confirmation of the manual-gate classifier against a real paused pipeline.
 - Backlog #5+ (rich `pipeline trigger`, `pr update`, env CRUD, `deployment get`,
   `pr list` null-return investigation) - see the audit doc, untouched.

@@ -206,9 +206,10 @@ bb pipeline watch [-n BUILD | -u UUID | -b BRANCH] [--tail-log] [--interval 5] [
 `bb pipeline watch` polls a pipeline (build/uuid/branch, or the latest when no
 selector is given) until it reaches a terminal state, then emits a single result
 object. Exit codes: `0` success, `1` failed, `2` blocked on a manual gate (the
-result carries `manual_gate` with the web URL to resume it), `3` timeout. This
-makes `bb pipeline watch -n 42 && deploy` proceed only on success. Progress and
-`--tail-log` output go to stderr; stdout carries only the final result.
+result carries `manual_gate` with the web URL to resume it), `3` timeout, `130`
+interrupted (Ctrl-C cancels the watch cleanly). This makes `bb pipeline watch -n 42
+&& deploy` proceed only on success. Progress and `--tail-log` output go to stderr;
+stdout carries only the final result.
 
 ### Branches
 

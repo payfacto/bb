@@ -232,6 +232,23 @@ func TestPipelines_Watch_Timeout(t *testing.T) {
 	}
 }
 
+func TestPipelines_Watch_ContextCancel(t *testing.T) {
+	handler := watchPipelineHandler(t, 3, nil, func(poll int32) bitbucket.PipelineState {
+		return bitbucket.PipelineState{Name: "IN_PROGRESS", Stage: &bitbucket.PipelineStage{Name: "RUNNING"}}
+	})
+	client := newTestClient(t, handler)
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err := client.Pipelines("testws", "testrepo").Watch(ctx, "{p1}", bitbucket.WatchOptions{
+		Interval: time.Millisecond,
+		// Cancel mid-watch, as a Ctrl-C signal would. Watch must stop and return
+		// the cancellation rather than polling forever.
+		OnPoll: func(bitbucket.Pipeline, []bitbucket.PipelineStep) { cancel() },
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("expected context.Canceled, got %v", err)
+	}
+}
+
 func TestPipelines_Trigger(t *testing.T) {
 	pipeline := bitbucket.Pipeline{UUID: "{new-uuid}", BuildNumber: 43}
 	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
