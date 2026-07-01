@@ -38,7 +38,7 @@ func (r *RepoResource) List(ctx context.Context, sort string) ([]Repo, error) {
 func (r *RepoResource) ListByProject(ctx context.Context, projectKey string) ([]Repo, error) {
 	path := fmt.Sprintf("/repositories/%s", r.workspace)
 	q := url.Values{
-		"q":       {fmt.Sprintf(`project.key="%s"`, projectKey)},
+		"q":       {fmt.Sprintf(`project.key=%s`, bbqlQuote(projectKey))},
 		"pagelen": {pagelenLarge},
 	}
 	return fetchAllPages[Repo](ctx, r.client, path, q)

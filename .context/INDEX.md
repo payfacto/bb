@@ -18,12 +18,14 @@ are also auto-imported by `CLAUDE.md`.
 
 ### `specs/`
 
+- [specs/2026-06-30-search-namespace-design.md](specs/2026-06-30-search-namespace-design.md) - Design for the `bb search` namespace: native `code` search plus BBQL-backed `repos` and repo-scoped `prs`.
 - [specs/2026-06-15-gcf-output-format-design.md](specs/2026-06-15-gcf-output-format-design.md) — Design for GCF output format: add `gcf`, make it the default, persist preferred format.
 - [specs/2026-05-29-api-token-auth-design.md](specs/2026-05-29-api-token-auth-design.md) — Design for Bitbucket API token authentication.
 - [specs/2026-05-29-secret-input-reveal-design.md](specs/2026-05-29-secret-input-reveal-design.md) — Design for timed reveal-then-mask secret input.
 
 ### `plans/`
 
+- [plans/2026-06-30-search-namespace.md](plans/2026-06-30-search-namespace.md) - TDD plan (6 tasks) for the `bb search` namespace (code/repos/prs).
 - [plans/2026-06-15-gcf-output-format.md](plans/2026-06-15-gcf-output-format.md) — TDD plan (9 tasks) for the GCF output format feature.
 - [plans/2026-05-29-api-token-auth.md](plans/2026-05-29-api-token-auth.md) — TDD implementation plan for API token auth.
 - [plans/2026-05-29-secret-input-reveal.md](plans/2026-05-29-secret-input-reveal.md) — TDD implementation plan for reveal-then-mask secret input.

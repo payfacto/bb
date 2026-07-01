@@ -72,6 +72,7 @@ bb                    (no args → launches TUI)
 ├── restriction list / create / delete
 ├── download list / get / upload / delete
 ├── workspace list
+├── search code / repos / prs
 └── setup   (interactive config wizard)
 ```
 
@@ -80,7 +81,7 @@ bb                    (no args → launches TUI)
 Resources are scoped structs returned by the client:
 
 ```go
-client.PRs(workspace, repo).List(ctx, bitbucket.PRListOptions{State, SourceBranch, Sort, Since, Until})
+client.PRs(workspace, repo).List(ctx, bitbucket.PRListOptions{State, SourceBranch, Sort, Since, Until, Query, Limit})
 client.Repos(workspace).List(ctx, sort)
 client.Branches(workspace, repo).List(ctx, sort)
 client.Tags(workspace, repo).List(ctx, sort)
@@ -89,14 +90,17 @@ client.Issues(workspace, repo).List(ctx, sort)
 client.Pipelines(workspace, repo).List(ctx, sort)
 client.Comments(workspace, repo, prID).Add(ctx, input)
 client.Tasks(workspace, repo, prID).Complete(ctx, taskID)
+client.Search(workspace).Code(ctx, bitbucket.CodeSearchOptions{Query, Ext, Lang, Repo, Project, Limit})
+client.Search(workspace).Repos(ctx, term, limit)
 ```
 
 Most List methods whose Bitbucket endpoint accepts a `sort=` query parameter take
 a trailing `sort string` argument. Pass `""` to preserve the endpoint's
 default ordering. The CLI surfaces this via `--sort` on the corresponding
 list command. `PRs.List` is the exception: it takes a `bitbucket.PRListOptions`
-struct (State, SourceBranch, Sort, Since, Until) because it accumulates several
-optional filters; Since/Until bound `created_on` via BBQL. List methods follow
+struct (State, SourceBranch, Sort, Since, Until, Query, Limit) because it
+accumulates several optional filters; Since/Until bound `created_on` via BBQL;
+Query/Limit support `search prs` title/description filtering. List methods follow
 Bitbucket pagination internally and return the full result set.
 
 The generic `decode[T]()` function handles all JSON unmarshaling. HTTP errors
