@@ -15,13 +15,19 @@ var pipelineCmd = &cobra.Command{
 	Short: "Manage Bitbucket Pipelines",
 }
 
-// validatePipelineSelector enforces that exactly one of the UUID / build-number
-// selectors is set for the get/stop/steps/log commands. A build number counts
-// as "set" when it is > 0: Bitbucket build numbers start at 1, so 0 is the
-// flag's unset zero value.
-func validatePipelineSelector(uuid string, buildNumber int) error {
-	hasUUID := uuid != ""
-	hasBuild := buildNumber > 0
+// pipelineSelector identifies a single pipeline by exactly one of its UUID or
+// its integer build number, as supplied to the get/stop/steps/log commands.
+type pipelineSelector struct {
+	uuid  string
+	build int
+}
+
+// validate enforces that exactly one of the UUID / build-number selectors is
+// set. A build number counts as "set" when it is > 0: Bitbucket build numbers
+// start at 1, so 0 is the flag's unset zero value.
+func (s pipelineSelector) validate() error {
+	hasUUID := s.uuid != ""
+	hasBuild := s.build > 0
 	switch {
 	case hasUUID && hasBuild:
 		return newCLIError(ErrCodeValidationFailed,
@@ -33,17 +39,30 @@ func validatePipelineSelector(uuid string, buildNumber int) error {
 	return nil
 }
 
-// pipelineTargetUUID validates the selector and resolves it to a pipeline UUID.
-// When a build number is supplied it fetches the pipeline to obtain its UUID so
-// the existing UUID-based stop/steps/log methods can be reused unchanged.
-func pipelineTargetUUID(ctx context.Context, res *bitbucket.PipelineResource, uuid string, buildNumber int) (string, error) {
-	if err := validatePipelineSelector(uuid, buildNumber); err != nil {
+// resolvePipeline validates the selector and fetches the full pipeline it
+// refers to, addressing it by build number or UUID as appropriate.
+func (s pipelineSelector) resolvePipeline(ctx context.Context, res *bitbucket.PipelineResource) (bitbucket.Pipeline, error) {
+	if err := s.validate(); err != nil {
+		return bitbucket.Pipeline{}, err
+	}
+	if s.build > 0 {
+		return res.GetByBuildNumber(ctx, s.build)
+	}
+	return res.Get(ctx, s.uuid)
+}
+
+// resolveUUID validates the selector and resolves it to a pipeline UUID. A
+// build number is resolved with one fetch; a UUID is returned directly (no
+// fetch), so the stop/steps/log commands keep their existing single-request
+// behavior when addressed by UUID before calling the UUID-based methods.
+func (s pipelineSelector) resolveUUID(ctx context.Context, res *bitbucket.PipelineResource) (string, error) {
+	if err := s.validate(); err != nil {
 		return "", err
 	}
-	if uuid != "" {
-		return uuid, nil
+	if s.uuid != "" {
+		return s.uuid, nil
 	}
-	p, err := res.GetByBuildNumber(ctx, buildNumber)
+	p, err := res.GetByBuildNumber(ctx, s.build)
 	if err != nil {
 		return "", err
 	}
@@ -81,17 +100,8 @@ var pipelineGetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := validatePipelineSelector(pipelineGetUUID, pipelineGetBuild); err != nil {
-			return err
-		}
-		ctx := context.Background()
-		res := client.Pipelines(ws, repo)
-		var p bitbucket.Pipeline
-		if pipelineGetBuild > 0 {
-			p, err = res.GetByBuildNumber(ctx, pipelineGetBuild)
-		} else {
-			p, err = res.Get(ctx, pipelineGetUUID)
-		}
+		sel := pipelineSelector{uuid: pipelineGetUUID, build: pipelineGetBuild}
+		p, err := sel.resolvePipeline(context.Background(), client.Pipelines(ws, repo))
 		if err != nil {
 			return err
 		}
@@ -135,7 +145,8 @@ var pipelineStopCmd = &cobra.Command{
 		}
 		ctx := context.Background()
 		res := client.Pipelines(ws, repo)
-		uuid, err := pipelineTargetUUID(ctx, res, pipelineStopUUID, pipelineStopBuild)
+		sel := pipelineSelector{uuid: pipelineStopUUID, build: pipelineStopBuild}
+		uuid, err := sel.resolveUUID(ctx, res)
 		if err != nil {
 			return err
 		}
@@ -163,7 +174,8 @@ var pipelineStepsCmd = &cobra.Command{
 		}
 		ctx := context.Background()
 		res := client.Pipelines(ws, repo)
-		uuid, err := pipelineTargetUUID(ctx, res, pipelineStepsUUID, pipelineStepsBuild)
+		sel := pipelineSelector{uuid: pipelineStepsUUID, build: pipelineStepsBuild}
+		uuid, err := sel.resolveUUID(ctx, res)
 		if err != nil {
 			return err
 		}
@@ -191,7 +203,8 @@ var pipelineLogCmd = &cobra.Command{
 		}
 		ctx := context.Background()
 		res := client.Pipelines(ws, repo)
-		uuid, err := pipelineTargetUUID(ctx, res, pipelineLogPipelineUUID, pipelineLogBuild)
+		sel := pipelineSelector{uuid: pipelineLogPipelineUUID, build: pipelineLogBuild}
+		uuid, err := sel.resolveUUID(ctx, res)
 		if err != nil {
 			return err
 		}
