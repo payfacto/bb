@@ -212,6 +212,25 @@ func TestSearchRepos_BuildsBBQLAndDecodes(t *testing.T) {
 	}
 }
 
+func TestSearchRepos_EscapesQuotesAndBackslashesInTerm(t *testing.T) {
+	var gotQ string
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQ = r.URL.Query().Get("q")
+		mustEncodeJSON(t, w, map[string]any{"values": []any{}})
+	})
+	c := newTestClient(t, handler)
+
+	// A term with a double-quote and a backslash must not break the BBQL string.
+	_, err := c.Search("ws").Repos(context.Background(), `a"b\c`, 0)
+	if err != nil {
+		t.Fatalf("Repos: %v", err)
+	}
+	want := `name ~ "a\"b\\c" OR description ~ "a\"b\\c"`
+	if gotQ != want {
+		t.Errorf("q = %q, want %q", gotQ, want)
+	}
+}
+
 func TestSearchRepos_LimitCaps(t *testing.T) {
 	const maxPages = 5 // handler stops advertising "next" after this many pages
 	var calls int

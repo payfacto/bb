@@ -30,7 +30,7 @@ func (s *SearchResource) Code(ctx context.Context, opts CodeSearchOptions) ([]Co
 func (s *SearchResource) Repos(ctx context.Context, term string, limit int) ([]Repo, error) {
 	path := fmt.Sprintf("/repositories/%s", s.workspace)
 	q := url.Values{
-		"q":       {fmt.Sprintf(`name ~ "%s" OR description ~ "%s"`, term, term)},
+		"q":       {fmt.Sprintf(`name ~ %s OR description ~ %s`, bbqlQuote(term), bbqlQuote(term))},
 		"pagelen": {pagelenSmall},
 	}
 	return fetchPagesLimit[Repo](ctx, s.client, path, q, limit)
