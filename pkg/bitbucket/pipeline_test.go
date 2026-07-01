@@ -61,6 +61,31 @@ func TestPipelines_Get(t *testing.T) {
 	}
 }
 
+func TestPipelines_GetByBuildNumber(t *testing.T) {
+	pipeline := bitbucket.Pipeline{UUID: "{abc-123}", BuildNumber: 42}
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		// A build number is addressed as a plain integer path segment, with no
+		// braces - unlike the UUID form, which requires them.
+		if !strings.HasSuffix(r.URL.Path, "/pipelines/42") {
+			t.Errorf("expected path to end with /pipelines/42, got %s", r.URL.Path)
+		}
+		mustEncodeJSON(t, w, pipeline)
+	}))
+	got, err := client.Pipelines("testws", "testrepo").GetByBuildNumber(context.Background(), 42)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.UUID != "{abc-123}" {
+		t.Errorf("expected uuid {abc-123}, got %s", got.UUID)
+	}
+	if got.BuildNumber != 42 {
+		t.Errorf("expected build 42, got %d", got.BuildNumber)
+	}
+}
+
 func TestPipelines_Trigger(t *testing.T) {
 	pipeline := bitbucket.Pipeline{UUID: "{new-uuid}", BuildNumber: 43}
 	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
