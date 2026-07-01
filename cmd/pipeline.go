@@ -201,7 +201,7 @@ var pipelineTriggerCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		ref, err := triggerRef(pipelineTriggerBranch, pipelineTriggerTag, pipelineTriggerCommit)
+		ref, err := resolveTriggerRef(pipelineTriggerBranch, pipelineTriggerTag, pipelineTriggerCommit)
 		if err != nil {
 			return err
 		}
@@ -223,8 +223,8 @@ var pipelineTriggerCmd = &cobra.Command{
 	},
 }
 
-// triggerRef validates that exactly one ref selector is set and returns it.
-func triggerRef(branch, tag, commit string) (bitbucket.TriggerRef, error) {
+// resolveTriggerRef validates that exactly one ref selector is set and returns it.
+func resolveTriggerRef(branch, tag, commit string) (bitbucket.TriggerRef, error) {
 	set := 0
 	for _, v := range []string{branch, tag, commit} {
 		if v != "" {
