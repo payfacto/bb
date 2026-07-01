@@ -63,6 +63,44 @@ func (r *PipelineResource) GetByBuildNumber(ctx context.Context, buildNumber int
 	return decode[Pipeline](data)
 }
 
+// classifyPipelineState returns the terminal watch status for a pipeline and
+// whether it has reached a terminal state. gateStep names the step the pipeline
+// is blocked on when the status is blocked (best-effort; may be "").
+//
+// A COMPLETED pipeline is success only when its result is SUCCESSFUL; any other
+// result (FAILED, ERROR, STOPPED, ...) or a missing result is a failure. An
+// IN_PROGRESS pipeline whose stage is PAUSED (a manual/workflow gate) or HALTED
+// (a system gate) is blocked - it will not advance without manual intervention.
+// Every other state (PENDING, IN_PROGRESS/RUNNING) is not yet terminal.
+func classifyPipelineState(p Pipeline, steps []PipelineStep) (status PipelineWatchStatus, gateStep string, terminal bool) {
+	switch p.State.Name {
+	case "COMPLETED":
+		if p.State.Result != nil && p.State.Result.Name == "SUCCESSFUL" {
+			return WatchSuccess, "", true
+		}
+		return WatchFailed, "", true
+	case "IN_PROGRESS":
+		if p.State.Stage != nil {
+			switch p.State.Stage.Name {
+			case "PAUSED", "HALTED":
+				return WatchBlocked, firstIncompleteStep(steps), true
+			}
+		}
+	}
+	return "", "", false
+}
+
+// firstIncompleteStep returns the name of the first step not yet COMPLETED, or
+// "" when every step is complete or there are none.
+func firstIncompleteStep(steps []PipelineStep) string {
+	for _, s := range steps {
+		if s.State.Name != "COMPLETED" {
+			return s.Name
+		}
+	}
+	return ""
+}
+
 // Trigger starts a new pipeline on the given branch.
 func (r *PipelineResource) Trigger(ctx context.Context, branch string) (Pipeline, error) {
 	input := TriggerPipelineInput{

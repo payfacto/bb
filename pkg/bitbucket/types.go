@@ -170,6 +170,33 @@ type PipelineStep struct {
 	CompletedOn string        `json:"completed_on"`
 }
 
+// PipelineWatchStatus is the terminal outcome reported by `pipeline watch`.
+type PipelineWatchStatus string
+
+const (
+	WatchSuccess PipelineWatchStatus = "success"
+	WatchFailed  PipelineWatchStatus = "failed"
+	WatchBlocked PipelineWatchStatus = "blocked"
+	WatchTimeout PipelineWatchStatus = "timeout"
+)
+
+// ManualGate identifies the step a pipeline is paused on and the Bitbucket web
+// URL where it can be resumed. The public API cannot resume a manual step (see
+// feature request BCLOUD-20050), so watch surfaces the gate instead.
+type ManualGate struct {
+	Step string `json:"step"`
+	URL  string `json:"url"`
+}
+
+// PipelineWatchResult is the single object `pipeline watch` emits when a
+// pipeline reaches a terminal state.
+type PipelineWatchResult struct {
+	Pipeline   Pipeline            `json:"pipeline"`
+	Steps      []PipelineStep      `json:"steps"`
+	Status     PipelineWatchStatus `json:"status"`
+	ManualGate *ManualGate         `json:"manual_gate,omitempty"`
+}
+
 // PipelineVariable represents a repository-level pipeline variable.
 type PipelineVariable struct {
 	UUID    string `json:"uuid"`
