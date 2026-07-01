@@ -37,6 +37,37 @@ func TestPipelineDetailString_fields(t *testing.T) {
 	}
 }
 
+func TestPipelineWatchString_blockedShowsGate(t *testing.T) {
+	res := bitbucket.PipelineWatchResult{
+		Pipeline: bitbucket.Pipeline{BuildNumber: 9, UUID: "{p9}", State: bitbucket.PipelineState{Name: "IN_PROGRESS", Stage: &bitbucket.PipelineStage{Name: "PAUSED"}}, Target: bitbucket.PipelineTarget{RefName: "main"}},
+		Status:   bitbucket.WatchBlocked,
+		ManualGate: &bitbucket.ManualGate{
+			Step: "deploy",
+			URL:  "https://bitbucket.org/ws/repo/pipelines/results/9",
+		},
+	}
+	out := render.PipelineWatchString(res)
+	for _, want := range []string{"#9", "BLOCKED", "deploy", "https://bitbucket.org/ws/repo/pipelines/results/9"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q, got:\n%s", want, out)
+		}
+	}
+}
+
+func TestPipelineWatchString_successOmitsGate(t *testing.T) {
+	res := bitbucket.PipelineWatchResult{
+		Pipeline: bitbucket.Pipeline{BuildNumber: 7, State: bitbucket.PipelineState{Name: "COMPLETED", Result: &bitbucket.PipelineResult{Name: "SUCCESSFUL"}}},
+		Status:   bitbucket.WatchSuccess,
+	}
+	out := render.PipelineWatchString(res)
+	if !strings.Contains(out, "SUCCESS") {
+		t.Errorf("expected SUCCESS status, got:\n%s", out)
+	}
+	if strings.Contains(out, "Resume") {
+		t.Errorf("did not expect a resume line for a successful watch, got:\n%s", out)
+	}
+}
+
 func TestPipelineStepsString_empty(t *testing.T) {
 	out := render.PipelineStepsString(nil)
 	if !strings.Contains(out, "No steps found.") {

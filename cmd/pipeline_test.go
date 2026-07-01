@@ -47,6 +47,25 @@ func TestPipelineSelectorValidate(t *testing.T) {
 	}
 }
 
+func TestRunningStep(t *testing.T) {
+	steps := []bitbucket.PipelineStep{
+		{Name: "build", State: bitbucket.PipelineState{Name: "COMPLETED"}},
+		{Name: "test", State: bitbucket.PipelineState{Name: "IN_PROGRESS"}},
+		{Name: "deploy", State: bitbucket.PipelineState{Name: "PENDING"}},
+	}
+	got := runningStep(steps)
+	if got == nil || got.Name != "test" {
+		t.Fatalf("expected running step 'test', got %+v", got)
+	}
+	if runningStep(nil) != nil {
+		t.Error("expected nil for no steps")
+	}
+	done := []bitbucket.PipelineStep{{Name: "build", State: bitbucket.PipelineState{Name: "COMPLETED"}}}
+	if runningStep(done) != nil {
+		t.Error("expected nil when no step is running")
+	}
+}
+
 func TestWatchExitCode(t *testing.T) {
 	cases := map[bitbucket.PipelineWatchStatus]int{
 		bitbucket.WatchSuccess: 0,

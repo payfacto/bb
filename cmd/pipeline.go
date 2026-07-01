@@ -311,17 +311,22 @@ var pipelineWatchCmd = &cobra.Command{
 	},
 }
 
-// watchProgress returns the poll callback for `pipeline watch`. It writes
-// progress (and, with tailLog, the running step's newly-appended log) to stderr
-// only when stderr is a TTY, keeping stdout reserved for the final result. Log
-// streaming is best-effort: a step's log 404s until it produces output.
+// watchProgress returns the poll callback for `pipeline watch`, or nil when
+// there is nothing to emit. Incidental progress lines are written to stderr only
+// when stderr is a TTY (so they never pollute a redirected/piped stream), while
+// an explicitly requested --tail-log always streams the running step's
+// newly-appended log to stderr. Both keep stdout reserved for the final result.
+// Log streaming is best-effort: a step's log 404s until it produces output.
 func watchProgress(ctx context.Context, res *bitbucket.PipelineResource, tailLog bool) func(bitbucket.Pipeline, []bitbucket.PipelineStep) {
-	if !term.IsTerminal(int(os.Stderr.Fd())) {
+	showProgress := term.IsTerminal(int(os.Stderr.Fd()))
+	if !showProgress && !tailLog {
 		return nil
 	}
 	printed := make(map[string]int) // step UUID -> bytes already streamed
 	return func(p bitbucket.Pipeline, steps []bitbucket.PipelineStep) {
-		fmt.Fprintf(os.Stderr, "[watch] #%d %s\n", p.BuildNumber, pipelineStateLabel(p.State))
+		if showProgress {
+			fmt.Fprintf(os.Stderr, "[watch] #%d %s\n", p.BuildNumber, pipelineStateLabel(p.State))
+		}
 		if !tailLog {
 			return
 		}
