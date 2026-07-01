@@ -1935,7 +1935,8 @@ func newPipelineListView(client *bitbucket.Client, ws, repo string, pageSize int
 			}
 			return nil, pushViewCmd(newInputView("Trigger Pipeline — Branch", "main", func(branch string) tea.Cmd {
 				return executeAction(func() error {
-					_, err := client.Pipelines(ws, repo).Trigger(context.Background(), branch)
+					_, err := client.Pipelines(ws, repo).Trigger(context.Background(),
+						bitbucket.TriggerOptions{Ref: bitbucket.TriggerRef{Branch: branch}})
 					return err
 				}, fmt.Sprintf("Pipeline triggered on %q", branch))
 			}))

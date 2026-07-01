@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -184,25 +185,79 @@ var pipelineGetCmd = &cobra.Command{
 	},
 }
 
-var pipelineTriggerBranch string
+var (
+	pipelineTriggerBranch string
+	pipelineTriggerTag    string
+	pipelineTriggerCommit string
+	pipelineTriggerCustom string
+	pipelineTriggerVars   []string
+)
 
 var pipelineTriggerCmd = &cobra.Command{
 	Use:   "trigger",
-	Short: "Trigger a new pipeline on a branch",
+	Short: "Trigger a new pipeline (branch/tag/commit, optional custom pipeline + variables)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, repo, err := workspaceAndRepo()
 		if err != nil {
 			return err
 		}
-		p, err := client.Pipelines(ws, repo).Trigger(context.Background(), pipelineTriggerBranch)
+		ref, err := triggerRef(pipelineTriggerBranch, pipelineTriggerTag, pipelineTriggerCommit)
+		if err != nil {
+			return err
+		}
+		vars, err := parseTriggerVars(pipelineTriggerVars)
+		if err != nil {
+			return err
+		}
+		p, err := client.Pipelines(ws, repo).Trigger(context.Background(), bitbucket.TriggerOptions{
+			Ref:       ref,
+			Custom:    pipelineTriggerCustom,
+			Variables: vars,
+		})
 		if err != nil {
 			return err
 		}
 		return printOutput(p, func() {
-			fmt.Printf("Pipeline #%d triggered on branch '%s'\nUUID: %s\n",
-				p.BuildNumber, pipelineTriggerBranch, p.UUID)
+			fmt.Printf("Pipeline #%d triggered.\nUUID: %s\n", p.BuildNumber, p.UUID)
 		})
 	},
+}
+
+// triggerRef validates that exactly one ref selector is set and returns it.
+func triggerRef(branch, tag, commit string) (bitbucket.TriggerRef, error) {
+	set := 0
+	for _, v := range []string{branch, tag, commit} {
+		if v != "" {
+			set++
+		}
+	}
+	switch {
+	case set == 0:
+		return bitbucket.TriggerRef{}, newCLIError(ErrCodeValidationFailed,
+			"one of --branch, --tag, or --commit is required", nil)
+	case set > 1:
+		return bitbucket.TriggerRef{}, newCLIError(ErrCodeValidationFailed,
+			"--branch, --tag, and --commit are mutually exclusive", nil)
+	}
+	return bitbucket.TriggerRef{Branch: branch, Tag: tag, Commit: commit}, nil
+}
+
+// parseTriggerVars parses repeated KEY=VALUE flags into unsecured per-run
+// pipeline variables. VALUE may contain '='; KEY must not be empty.
+func parseTriggerVars(pairs []string) ([]bitbucket.TriggerVariable, error) {
+	if len(pairs) == 0 {
+		return nil, nil
+	}
+	vars := make([]bitbucket.TriggerVariable, 0, len(pairs))
+	for _, p := range pairs {
+		key, value, ok := strings.Cut(p, "=")
+		if !ok || key == "" {
+			return nil, newCLIError(ErrCodeValidationFailed,
+				fmt.Sprintf("invalid --var %q: expected KEY=VALUE", p), nil)
+		}
+		vars = append(vars, bitbucket.TriggerVariable{Key: key, Value: value})
+	}
+	return vars, nil
 }
 
 var (
@@ -396,8 +451,11 @@ func init() {
 	pipelineGetCmd.Flags().StringVarP(&pipelineGetUUID, "pipeline-uuid", "u", "", "pipeline UUID (alternative to --build-number)")
 	pipelineGetCmd.Flags().IntVarP(&pipelineGetBuild, "build-number", "n", 0, "pipeline build number (alternative to --pipeline-uuid)")
 
-	pipelineTriggerCmd.Flags().StringVarP(&pipelineTriggerBranch, "branch", "b", "", "branch to trigger pipeline on (required)")
-	pipelineTriggerCmd.MarkFlagRequired("branch")
+	pipelineTriggerCmd.Flags().StringVarP(&pipelineTriggerBranch, "branch", "b", "", "branch to run the pipeline on")
+	pipelineTriggerCmd.Flags().StringVar(&pipelineTriggerTag, "tag", "", "tag to run the pipeline on")
+	pipelineTriggerCmd.Flags().StringVar(&pipelineTriggerCommit, "commit", "", "commit hash to run the pipeline on")
+	pipelineTriggerCmd.Flags().StringVar(&pipelineTriggerCustom, "custom", "", "name of a custom pipeline to run")
+	pipelineTriggerCmd.Flags().StringArrayVar(&pipelineTriggerVars, "var", nil, "per-run variable KEY=VALUE (repeatable)")
 
 	pipelineStopCmd.Flags().StringVarP(&pipelineStopUUID, "pipeline-uuid", "u", "", "pipeline UUID (alternative to --build-number)")
 	pipelineStopCmd.Flags().IntVarP(&pipelineStopBuild, "build-number", "n", 0, "pipeline build number (alternative to --pipeline-uuid)")

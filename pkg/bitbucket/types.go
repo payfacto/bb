@@ -213,13 +213,48 @@ type CreatePipelineVariableInput struct {
 }
 
 type TriggerPipelineInput struct {
-	Target TriggerTarget `json:"target"`
+	Target    TriggerTarget     `json:"target"`
+	Variables []TriggerVariable `json:"variables,omitempty"`
 }
 
 type TriggerTarget struct {
-	RefType string `json:"ref_type"`
-	Type    string `json:"type"`
-	RefName string `json:"ref_name"`
+	Type     string           `json:"type"`               // pipeline_ref_target | pipeline_commit_target
+	RefType  string           `json:"ref_type,omitempty"` // branch | tag (ref targets only)
+	RefName  string           `json:"ref_name,omitempty"` // ref targets only
+	Commit   *TriggerCommit   `json:"commit,omitempty"`   // commit targets only
+	Selector *TriggerSelector `json:"selector,omitempty"` // custom pipeline
+}
+
+type TriggerCommit struct {
+	Type string `json:"type"` // always "commit"
+	Hash string `json:"hash"`
+}
+
+type TriggerSelector struct {
+	Type    string `json:"type"` // always "custom"
+	Pattern string `json:"pattern"`
+}
+
+type TriggerVariable struct {
+	Key     string `json:"key"`
+	Value   string `json:"value"`
+	Secured bool   `json:"secured,omitempty"`
+}
+
+// TriggerRef selects what a pipeline runs against: exactly one of Branch, Tag,
+// or Commit. Validation of "exactly one" lives in the cmd layer.
+type TriggerRef struct {
+	Branch string
+	Tag    string
+	Commit string
+}
+
+// TriggerOptions is the ergonomic input to PipelineResource.Trigger. Custom, when
+// set, runs the named custom pipeline; Variables are per-run pipeline variables.
+type TriggerOptions struct {
+	Ref       TriggerRef
+	Custom    string
+	Variables []TriggerVariable
 }
 
 // Branch types

@@ -176,20 +176,46 @@ func (r *PipelineResource) pipelineWebURL(buildNumber int) string {
 	return fmt.Sprintf("https://bitbucket.org/%s/%s/pipelines/results/%d", r.workspace, r.repo, buildNumber)
 }
 
-// Trigger starts a new pipeline on the given branch.
-func (r *PipelineResource) Trigger(ctx context.Context, branch string) (Pipeline, error) {
-	input := TriggerPipelineInput{
-		Target: TriggerTarget{
-			RefType: "branch",
-			Type:    "pipeline_ref_target",
-			RefName: branch,
-		},
+// Trigger starts a new pipeline. opts.Ref selects the target (exactly one of
+// Branch/Tag/Commit; the cmd layer validates this). opts.Custom runs a named
+// custom pipeline; opts.Variables are per-run pipeline variables.
+func (r *PipelineResource) Trigger(ctx context.Context, opts TriggerOptions) (Pipeline, error) {
+	target, err := buildTriggerTarget(opts)
+	if err != nil {
+		return Pipeline{}, err
 	}
+	input := TriggerPipelineInput{Target: target, Variables: opts.Variables}
 	data, err := r.client.do(ctx, "POST", r.basePath(), input, nil)
 	if err != nil {
 		return Pipeline{}, err
 	}
 	return decode[Pipeline](data)
+}
+
+// buildTriggerTarget maps a TriggerOptions to the API target body. It expects
+// exactly one ref to be set (guaranteed by the cmd layer) and errors otherwise
+// so a misuse is not silently sent as an empty target.
+func buildTriggerTarget(opts TriggerOptions) (TriggerTarget, error) {
+	var t TriggerTarget
+	switch {
+	case opts.Ref.Commit != "":
+		t.Type = "pipeline_commit_target"
+		t.Commit = &TriggerCommit{Type: "commit", Hash: opts.Ref.Commit}
+	case opts.Ref.Branch != "":
+		t.Type = "pipeline_ref_target"
+		t.RefType = "branch"
+		t.RefName = opts.Ref.Branch
+	case opts.Ref.Tag != "":
+		t.Type = "pipeline_ref_target"
+		t.RefType = "tag"
+		t.RefName = opts.Ref.Tag
+	default:
+		return TriggerTarget{}, fmt.Errorf("trigger: no ref selected (branch, tag, or commit required)")
+	}
+	if opts.Custom != "" {
+		t.Selector = &TriggerSelector{Type: "custom", Pattern: opts.Custom}
+	}
+	return t, nil
 }
 
 // Stop requests cancellation of a running pipeline.
