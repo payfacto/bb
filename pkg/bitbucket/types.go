@@ -275,6 +275,7 @@ type ProjectRef struct {
 
 type Repo struct {
 	Slug        string      `json:"slug"`
+	UUID        string      `json:"uuid"`
 	Name        string      `json:"name"`
 	Description string      `json:"description"`
 	IsPrivate   bool        `json:"is_private"`

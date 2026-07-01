@@ -26,6 +26,20 @@ func TestReposListByProject_EscapesQuotesInKey(t *testing.T) {
 	}
 }
 
+func TestRepos_GetDecodesUUID(t *testing.T) {
+	repo := bitbucket.Repo{Slug: "app", UUID: "{repo-uuid-1}"}
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mustEncodeJSON(t, w, repo)
+	}))
+	got, err := client.Repos("testws").Get(context.Background(), "app")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.UUID != "{repo-uuid-1}" {
+		t.Errorf("expected uuid {repo-uuid-1}, got %q", got.UUID)
+	}
+}
+
 func TestRepos_List(t *testing.T) {
 	repos := []bitbucket.Repo{
 		{Slug: "whosoncall", Name: "Who's On Call", IsPrivate: true},
