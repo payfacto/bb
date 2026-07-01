@@ -47,7 +47,7 @@ func TestPipelineSelectorValidate(t *testing.T) {
 	}
 }
 
-func TestTriggerRef(t *testing.T) {
+func TestResolveTriggerRef(t *testing.T) {
 	tests := []struct {
 		name           string
 		branch         string
@@ -67,7 +67,7 @@ func TestTriggerRef(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ref, err := triggerRef(tt.branch, tt.tag, tt.commit)
+			ref, err := resolveTriggerRef(tt.branch, tt.tag, tt.commit)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatal("expected error, got nil")
