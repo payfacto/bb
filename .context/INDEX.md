@@ -26,6 +26,7 @@ are also auto-imported by `CLAUDE.md`.
 
 ### `plans/`
 
+- [plans/2026-07-01-pipeline-build-number-addressing.md](plans/2026-07-01-pipeline-build-number-addressing.md) - TDD plan (3 tasks) for slice #1 of the pipeline UX spec: `-n/--build-number` addressing on `pipeline get/stop/steps/log`.
 - [plans/2026-06-30-search-namespace.md](plans/2026-06-30-search-namespace.md) - TDD plan (6 tasks) for the `bb search` namespace (code/repos/prs).
 - [plans/2026-06-15-gcf-output-format.md](plans/2026-06-15-gcf-output-format.md) — TDD plan (9 tasks) for the GCF output format feature.
 - [plans/2026-05-29-api-token-auth.md](plans/2026-05-29-api-token-auth.md) — TDD implementation plan for API token auth.
