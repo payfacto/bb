@@ -1825,6 +1825,75 @@
     },
     {
       "path": [
+        "pipeline-var",
+        "update"
+      ],
+      "action": "write",
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "key",
+          "short": "k",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "secured",
+          "type": "bool",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "uuid",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "value",
+          "short": "v",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "stdin": {
+        "type": "CreatePipelineVariableInput",
+        "behavior": "replaces_flags"
+      },
+      "output_type": "PipelineVariable"
+    },
+    {
+      "path": [
         "pr",
         "activity"
       ],

@@ -87,6 +87,65 @@ var pipelineVarGetCmd = &cobra.Command{
 	},
 }
 
+var (
+	pipelineVarUpdateUUID    string
+	pipelineVarUpdateKey     string
+	pipelineVarUpdateValue   string
+	pipelineVarUpdateSecured bool
+)
+
+var pipelineVarUpdateCmd = &cobra.Command{
+	Use:   "update",
+	Short: "Update a pipeline variable by UUID",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		if err := requireFlag("uuid", pipelineVarUpdateUUID); err != nil {
+			return err
+		}
+		res := client.PipelineVariables(ws, repo)
+
+		var input bitbucket.CreatePipelineVariableInput
+		consumed, err := stdinInputOr(&input, func() bitbucket.CreatePipelineVariableInput {
+			return bitbucket.CreatePipelineVariableInput{
+				Key:     pipelineVarUpdateKey,
+				Value:   pipelineVarUpdateValue,
+				Secured: pipelineVarUpdateSecured,
+			}
+		})
+		if err != nil {
+			return err
+		}
+
+		if !consumed {
+			// Flag path: --value is required; default key/secured from the
+			// current variable unless overridden. (A secured variable's value
+			// is not readable, so we never reuse the fetched value.)
+			if err := requireFlag("value", pipelineVarUpdateValue); err != nil {
+				return err
+			}
+			current, err := res.Get(context.Background(), pipelineVarUpdateUUID)
+			if err != nil {
+				return err
+			}
+			if !cmd.Flags().Changed("key") {
+				input.Key = current.Key
+			}
+			if !cmd.Flags().Changed("secured") {
+				input.Secured = current.Secured
+			}
+		}
+
+		v, err := res.Update(context.Background(), pipelineVarUpdateUUID, input)
+		if err != nil {
+			return err
+		}
+		return printOutput(v, func() { render.PipelineVariableDetail(v) })
+	},
+}
+
 var pipelineVarDeleteUUID string
 
 var pipelineVarDeleteCmd = &cobra.Command{
@@ -115,9 +174,15 @@ func init() {
 	pipelineVarGetCmd.Flags().StringVar(&pipelineVarGetUUID, "uuid", "", "variable UUID (required)")
 	pipelineVarGetCmd.MarkFlagRequired("uuid")
 
+	pipelineVarUpdateCmd.Flags().StringVar(&pipelineVarUpdateUUID, "uuid", "", "variable UUID (required)")
+	pipelineVarUpdateCmd.Flags().StringVarP(&pipelineVarUpdateKey, "key", "k", "", "new key (defaults to current)")
+	pipelineVarUpdateCmd.Flags().StringVarP(&pipelineVarUpdateValue, "value", "v", "", "new value (required unless piping JSON)")
+	pipelineVarUpdateCmd.Flags().BoolVar(&pipelineVarUpdateSecured, "secured", false, "mark variable as secured (defaults to current)")
+	// no MarkFlagRequired -- uuid/value are validated in RunE so stdin JSON works.
+
 	pipelineVarDeleteCmd.Flags().StringVar(&pipelineVarDeleteUUID, "uuid", "", "variable UUID (required)")
 	pipelineVarDeleteCmd.MarkFlagRequired("uuid")
 
-	pipelineVarCmd.AddCommand(pipelineVarListCmd, pipelineVarGetCmd, pipelineVarCreateCmd, pipelineVarDeleteCmd)
+	pipelineVarCmd.AddCommand(pipelineVarListCmd, pipelineVarGetCmd, pipelineVarCreateCmd, pipelineVarUpdateCmd, pipelineVarDeleteCmd)
 	rootCmd.AddCommand(pipelineVarCmd)
 }

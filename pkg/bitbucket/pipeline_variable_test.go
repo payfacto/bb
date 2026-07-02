@@ -98,3 +98,32 @@ func TestPipelineVariables_Get(t *testing.T) {
 		t.Errorf("unexpected variable: %+v", got)
 	}
 }
+
+func TestPipelineVariables_Update(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			t.Errorf("expected PUT, got %s", r.Method)
+		}
+		if r.URL.Path != "/repositories/testws/testrepo/pipelines_config/variables/uuid-1" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		if body["key"] != "ENV" || body["value"] != "staging" {
+			t.Errorf("unexpected body: %+v", body)
+		}
+		mustEncodeJSON(t, w, bitbucket.PipelineVariable{UUID: "uuid-1", Key: "ENV", Value: "staging"})
+	}))
+	got, err := client.PipelineVariables("testws", "testrepo").Update(context.Background(), "uuid-1", bitbucket.CreatePipelineVariableInput{
+		Key:   "ENV",
+		Value: "staging",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Value != "staging" {
+		t.Errorf("expected value staging, got %s", got.Value)
+	}
+}
