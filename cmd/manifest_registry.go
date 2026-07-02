@@ -96,7 +96,9 @@ var commandRegistry = map[string]commandSpec{
 	"deployment get":  {Action: actionRead, OutputType: "Deployment", Example: "bb deployment get --uuid '{uuid}'"},
 
 	// env-var ----------------------------------------------------------
-	"env-var list": {Action: actionRead, OutputType: "[]PipelineVariable", Ordering: "unspecified", Example: "bb env-var list --env-uuid '{uuid}'"},
+	"env-var list":   {Action: actionRead, OutputType: "[]PipelineVariable", Ordering: "unspecified", Example: "bb env-var list --env-uuid '{uuid}'"},
+	"env-var create": {Action: actionWrite, OutputType: "PipelineVariable", StdinType: "CreatePipelineVariableInput", Example: "bb env-var create --env-uuid '{uuid}' --key API_URL --value https://x"},
+	"env-var delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb env-var delete --env-uuid '{uuid}' --uuid '{var-uuid}'"},
 
 	// env --------------------------------------------------------------
 	"env list":   {Action: actionRead, OutputType: "[]Environment", Ordering: "unspecified", Example: "bb env list"},
