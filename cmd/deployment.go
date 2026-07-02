@@ -6,12 +6,16 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/payfacto/bb/cmd/render"
+	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
 var deploymentCmd = &cobra.Command{
 	Use:   "deployment",
 	Short: "View repository deployments",
 }
+
+var deploymentListEnvUUID string
+var deploymentListSort string
 
 var deploymentListCmd = &cobra.Command{
 	Use:   "list",
@@ -21,7 +25,11 @@ var deploymentListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		deployments, err := client.Deployments(ws, repo).List(context.Background())
+		opts := bitbucket.DeploymentListOptions{
+			EnvUUID: deploymentListEnvUUID,
+			Sort:    deploymentListSort,
+		}
+		deployments, err := client.Deployments(ws, repo).List(context.Background(), opts)
 		if err != nil {
 			return err
 		}
@@ -48,6 +56,8 @@ var deploymentGetCmd = &cobra.Command{
 }
 
 func init() {
+	deploymentListCmd.Flags().StringVar(&deploymentListEnvUUID, "env-uuid", "", "filter to a single environment UUID")
+	deploymentListCmd.Flags().StringVar(&deploymentListSort, "sort", "", "sort field (e.g. -last_update_time)")
 	deploymentGetCmd.Flags().StringVar(&deploymentGetUUID, "uuid", "", "deployment UUID (required)")
 	deploymentGetCmd.MarkFlagRequired("uuid")
 	deploymentCmd.AddCommand(deploymentListCmd, deploymentGetCmd)

@@ -355,7 +355,7 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 				PageSize:      ps,
 				TableRenderer: deploymentsTableRenderer,
 				Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
-					deps, err := client.Deployments(ws, repo).List(ctx)
+					deps, err := client.Deployments(ws, repo).List(ctx, bitbucket.DeploymentListOptions{})
 					if err != nil {
 						return nil, err
 					}

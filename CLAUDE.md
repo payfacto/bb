@@ -63,7 +63,7 @@ bb                    (no args → launches TUI)
 ├── file get
 ├── repo list / get / create / update / delete / fork
 ├── issue list / get / create / close / reopen
-├── deployment list / get
+├── deployment list [--env-uuid UUID] [--sort FIELD] / get
 ├── env list / get
 ├── member list
 ├── user me / get
