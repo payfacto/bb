@@ -8,6 +8,62 @@ import (
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
+func TestDeploymentDetailString_full(t *testing.T) {
+	status := bitbucket.DeploymentStatus{Name: "SUCCESSFUL"}
+	pipeline := bitbucket.DeployablePipeline{UUID: "{pipe-1}"}
+	d := bitbucket.Deployment{
+		UUID:        "{dep-1}",
+		State:       bitbucket.DeploymentState{Name: "COMPLETED", Status: &status},
+		Environment: bitbucket.DeploymentEnvRef{UUID: "{env-1}"},
+		Deployable: bitbucket.Deployable{
+			Commit:   &bitbucket.DeployableCommit{Hash: "abc123def456"},
+			Pipeline: &pipeline,
+		},
+		LastUpdateTime: "2026-07-01T12:00:00Z",
+	}
+	out := render.DeploymentDetailString(d)
+	if !strings.Contains(out, "{dep-1}") {
+		t.Errorf("expected UUID, got: %q", out)
+	}
+	if !strings.Contains(out, "COMPLETED (SUCCESSFUL)") {
+		t.Errorf("expected State (Status) form, got: %q", out)
+	}
+	if !strings.Contains(out, "{env-1}") {
+		t.Errorf("expected env UUID, got: %q", out)
+	}
+	if !strings.Contains(out, "abc123def456") {
+		t.Errorf("expected commit hash, got: %q", out)
+	}
+	if !strings.Contains(out, "{pipe-1}") {
+		t.Errorf("expected pipeline UUID, got: %q", out)
+	}
+	if !strings.Contains(out, "2026-07-01T12:00:00Z") {
+		t.Errorf("expected updated time, got: %q", out)
+	}
+}
+
+func TestDeploymentDetailString_nilOptionals(t *testing.T) {
+	d := bitbucket.Deployment{
+		UUID:           "{dep-2}",
+		State:          bitbucket.DeploymentState{Name: "PENDING"},
+		Environment:    bitbucket.DeploymentEnvRef{UUID: "{env-2}"},
+		LastUpdateTime: "2026-07-01T09:00:00Z",
+	}
+	out := render.DeploymentDetailString(d)
+	if strings.Contains(out, "Commit:") {
+		t.Errorf("did not expect Commit: line, got: %q", out)
+	}
+	if strings.Contains(out, "Pipeline:") {
+		t.Errorf("did not expect Pipeline: line, got: %q", out)
+	}
+	if !strings.Contains(out, "PENDING") {
+		t.Errorf("expected bare state name, got: %q", out)
+	}
+	if strings.Contains(out, "(") {
+		t.Errorf("did not expect parenthesized status, got: %q", out)
+	}
+}
+
 func TestDeploymentListString_empty(t *testing.T) {
 	if out := render.DeploymentListString(nil); !strings.Contains(out, "No deployments found.") {
 		t.Errorf("got: %q", out)

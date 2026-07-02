@@ -114,16 +114,23 @@ func TestPipelineVariables_Update(t *testing.T) {
 		if body["key"] != "ENV" || body["value"] != "staging" {
 			t.Errorf("unexpected body: %+v", body)
 		}
-		mustEncodeJSON(t, w, bitbucket.PipelineVariable{UUID: "uuid-1", Key: "ENV", Value: "staging"})
+		if body["secured"] != true {
+			t.Errorf("expected secured=true in body, got: %v", body["secured"])
+		}
+		mustEncodeJSON(t, w, bitbucket.PipelineVariable{UUID: "uuid-1", Key: "ENV", Value: "staging", Secured: true})
 	}))
 	got, err := client.PipelineVariables("testws", "testrepo").Update(context.Background(), "uuid-1", bitbucket.CreatePipelineVariableInput{
-		Key:   "ENV",
-		Value: "staging",
+		Key:     "ENV",
+		Value:   "staging",
+		Secured: true,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got.Value != "staging" {
 		t.Errorf("expected value staging, got %s", got.Value)
+	}
+	if !got.Secured {
+		t.Errorf("expected secured=true, got false")
 	}
 }
