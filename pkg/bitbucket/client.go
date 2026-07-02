@@ -493,7 +493,7 @@ func (c *Client) fetchPage(ctx context.Context, rawURL string) ([]byte, error) {
 
 // fetchAllPages fetches all pages for a given path+query, following "next" links.
 func fetchAllPages[T any](ctx context.Context, c *Client, path string, q url.Values) ([]T, error) {
-	var all []T
+	all := []T{}
 	nextURL := ""
 	for {
 		var data []byte
@@ -523,7 +523,7 @@ func fetchAllPages[T any](ctx context.Context, c *Client, path string, q url.Val
 // items are collected, then truncates to exactly `limit`. A limit <= 0 fetches
 // every page (identical to fetchAllPages).
 func fetchPagesLimit[T any](ctx context.Context, c *Client, path string, q url.Values, limit int) ([]T, error) {
-	var all []T
+	all := []T{}
 	nextURL := ""
 	for {
 		var data []byte
