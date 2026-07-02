@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -29,7 +30,49 @@ var envListCmd = &cobra.Command{
 	},
 }
 
+var envGetUUID string
+
+var envGetCmd = &cobra.Command{
+	Use:   "get",
+	Short: "Get a deployment environment by UUID",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		env, err := client.Environments(ws, repo).Get(context.Background(), envGetUUID)
+		if err != nil {
+			return err
+		}
+		return printOutput(env, func() { render.EnvDetail(env) })
+	},
+}
+
+var envDeleteUUID string
+
+var envDeleteCmd = &cobra.Command{
+	Use:   "delete",
+	Short: "Delete a deployment environment by UUID",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		if err := client.Environments(ws, repo).Delete(context.Background(), envDeleteUUID); err != nil {
+			return err
+		}
+		result := map[string]any{"deleted": true, "uuid": envDeleteUUID}
+		return printOutput(result, func() { fmt.Printf("Environment %s deleted\n", envDeleteUUID) })
+	},
+}
+
 func init() {
-	envCmd.AddCommand(envListCmd)
+	envGetCmd.Flags().StringVar(&envGetUUID, "uuid", "", "Environment UUID (including braces)")
+	_ = envGetCmd.MarkFlagRequired("uuid")
+
+	envDeleteCmd.Flags().StringVar(&envDeleteUUID, "uuid", "", "Environment UUID (including braces)")
+	_ = envDeleteCmd.MarkFlagRequired("uuid")
+
+	envCmd.AddCommand(envListCmd, envGetCmd, envDeleteCmd)
 	rootCmd.AddCommand(envCmd)
 }

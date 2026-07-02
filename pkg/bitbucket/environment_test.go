@@ -46,3 +46,37 @@ func TestEnvironments_List(t *testing.T) {
 		t.Errorf("expected EnvironmentType.Name=Production, got %s", got[0].EnvironmentType.Name)
 	}
 }
+
+func TestEnvironments_Get(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if r.URL.EscapedPath() != "/repositories/testws/testrepo/environments/%7Benv-1%7D" {
+			t.Errorf("unexpected path: %s", r.URL.EscapedPath())
+		}
+		mustEncodeJSON(t, w, bitbucket.Environment{UUID: "{env-1}", Name: "Staging", EnvironmentType: bitbucket.EnvironmentType{Name: "Staging"}})
+	}))
+	got, err := client.Environments("testws", "testrepo").Get(context.Background(), "{env-1}")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Name != "Staging" {
+		t.Errorf("unexpected env: %+v", got)
+	}
+}
+
+func TestEnvironments_Delete(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("expected DELETE, got %s", r.Method)
+		}
+		if r.URL.EscapedPath() != "/repositories/testws/testrepo/environments/%7Benv-1%7D" {
+			t.Errorf("unexpected path: %s", r.URL.EscapedPath())
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	if err := client.Environments("testws", "testrepo").Delete(context.Background(), "{env-1}"); err != nil {
+		t.Fatal(err)
+	}
+}
