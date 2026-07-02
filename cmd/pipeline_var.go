@@ -120,8 +120,8 @@ var pipelineVarUpdateCmd = &cobra.Command{
 		}
 
 		if !consumed {
-			// Flag path: --value is required; default key/secured from the
-			// current variable unless overridden. (A secured variable's value
+			// Flag path: stdinInputOr already populated input from flag vars; requireFlag validates the --value flag is present.
+			// Default key/secured from the current variable unless overridden. (A secured variable's value
 			// is not readable, so we never reuse the fetched value.)
 			if err := requireFlag("value", pipelineVarUpdateValue); err != nil {
 				return err
@@ -169,7 +169,7 @@ func init() {
 	pipelineVarCreateCmd.Flags().StringVarP(&pipelineVarCreateKey, "key", "k", "", "variable key (required)")
 	pipelineVarCreateCmd.Flags().StringVarP(&pipelineVarCreateValue, "value", "v", "", "variable value")
 	pipelineVarCreateCmd.Flags().BoolVar(&pipelineVarCreateSecured, "secured", false, "mark variable as secured (value hidden in UI)")
-	// no MarkFlagRequired on "key" — pipeline-var create accepts JSON on stdin.
+	// no MarkFlagRequired on "key" -- pipeline-var create accepts JSON on stdin.
 
 	pipelineVarGetCmd.Flags().StringVar(&pipelineVarGetUUID, "uuid", "", "variable UUID (required)")
 	pipelineVarGetCmd.MarkFlagRequired("uuid")
