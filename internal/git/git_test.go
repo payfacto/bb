@@ -8,11 +8,11 @@ import (
 
 func TestParseBitbucketRemote(t *testing.T) {
 	tests := []struct {
-		name    string
-		url     string
-		wantWs  string
-		wantRe  string
-		wantOK  bool
+		name   string
+		url    string
+		wantWs string
+		wantRe string
+		wantOK bool
 	}{
 		{"ssh scp with .git", "git@bitbucket.org:payfacto/bb.git", "payfacto", "bb", true},
 		{"ssh scp without .git", "git@bitbucket.org:payfacto/bb", "payfacto", "bb", true},
