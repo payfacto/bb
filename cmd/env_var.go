@@ -51,6 +51,9 @@ var envVarCreateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		if err := requireFlag("env-uuid", envVarCreateEnvUUID); err != nil {
+			return err
+		}
 		var input bitbucket.CreatePipelineVariableInput
 		consumed, err := stdinInputOr(&input, func() bitbucket.CreatePipelineVariableInput {
 			return bitbucket.CreatePipelineVariableInput{
@@ -63,9 +66,6 @@ var envVarCreateCmd = &cobra.Command{
 			return err
 		}
 		if !consumed {
-			if err := requireFlag("env-uuid", envVarCreateEnvUUID); err != nil {
-				return err
-			}
 			if err := requireFlag("key", envVarCreateKey); err != nil {
 				return err
 			}
