@@ -304,6 +304,16 @@ type CommitParent struct {
 	Hash string `json:"hash"`
 }
 
+// CommitStatus is a build/CI status attached to a commit (e.g. a pipeline result).
+type CommitStatus struct {
+	Key         string `json:"key"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	State       string `json:"state"` // SUCCESSFUL | FAILED | INPROGRESS | STOPPED
+	URL         string `json:"url"`
+	RefName     string `json:"refname"`
+}
+
 // User type
 
 type User struct {

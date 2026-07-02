@@ -50,6 +50,13 @@ func (r *CommitResource) Get(ctx context.Context, hash string) (Commit, error) {
 	return decode[Commit](data)
 }
 
+// Statuses returns the build/CI statuses attached to a commit.
+func (r *CommitResource) Statuses(ctx context.Context, hash string) ([]CommitStatus, error) {
+	path := fmt.Sprintf("%s/commit/%s/statuses", repoPath(r.workspace, r.repo), url.PathEscape(hash))
+	q := url.Values{"pagelen": {pagelenDefault}}
+	return fetchAllPages[CommitStatus](ctx, r.client, path, q)
+}
+
 // File returns the raw content of a file at the given ref (branch, tag, or commit hash).
 // The response is plain text, not JSON.
 func (r *CommitResource) File(ctx context.Context, ref, filePath string) (string, error) {

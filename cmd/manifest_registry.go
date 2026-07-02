@@ -71,8 +71,9 @@ var commandRegistry = map[string]commandSpec{
 	"tag delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb tag delete --name v1.0.0"},
 
 	// commit -----------------------------------------------------------
-	"commit list": {Action: actionRead, OutputType: "[]Commit", Example: "bb commit list --branch main"},
-	"commit get":  {Action: actionRead, OutputType: "Commit", Example: "bb commit get --hash {sha}"},
+	"commit list":     {Action: actionRead, OutputType: "[]Commit", Example: "bb commit list --branch main"},
+	"commit get":      {Action: actionRead, OutputType: "Commit", Example: "bb commit get --hash {sha}"},
+	"commit statuses": {Action: actionRead, OutputType: "[]CommitStatus", Ordering: "unspecified", Example: "bb commit statuses --hash '{hash}'"},
 
 	// file (top-level, sibling of commit) ------------------------------
 	"file get": {Action: actionRead, OutputType: "string", Example: "bb file get --ref main --path README.md"},
@@ -203,8 +204,10 @@ var typeRegistry = map[string]any{
 	"[]Tag":          []bitbucket.Tag{},
 	"CreateTagInput": bitbucket.CreateTagInput{},
 
-	"Commit":   bitbucket.Commit{},
-	"[]Commit": []bitbucket.Commit{},
+	"Commit":         bitbucket.Commit{},
+	"[]Commit":       []bitbucket.Commit{},
+	"CommitStatus":   bitbucket.CommitStatus{},
+	"[]CommitStatus": []bitbucket.CommitStatus{},
 
 	"Repo":            bitbucket.Repo{},
 	"[]Repo":          []bitbucket.Repo{},

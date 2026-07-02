@@ -59,7 +59,7 @@ bb                    (no args → launches TUI)
 ├── pipeline-var list / get / create / update / delete
 ├── branch list / create / delete
 ├── tag list / create / delete
-├── commit list / get
+├── commit list / get / statuses
 ├── file get
 ├── repo list / get / create / update / delete / fork
 ├── issue list / get / create / close / reopen

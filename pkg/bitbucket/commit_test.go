@@ -50,6 +50,28 @@ func TestCommits_Get(t *testing.T) {
 	}
 }
 
+func TestCommits_Statuses(t *testing.T) {
+	statuses := []bitbucket.CommitStatus{
+		{Key: "PIPELINE", Name: "Build #42", State: "SUCCESSFUL", URL: "https://ci/42", RefName: "main"},
+	}
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if r.URL.EscapedPath() != "/repositories/testws/testrepo/commit/abc123/statuses" {
+			t.Errorf("unexpected path: %s", r.URL.EscapedPath())
+		}
+		mustEncodeJSON(t, w, map[string]any{"values": statuses})
+	}))
+	got, err := client.Commits("testws", "testrepo").Statuses(context.Background(), "abc123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].State != "SUCCESSFUL" || got[0].Key != "PIPELINE" {
+		t.Errorf("unexpected result: %+v", got)
+	}
+}
+
 func TestCommits_File(t *testing.T) {
 	fileContent := "package main\n\nfunc main() {}\n"
 	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

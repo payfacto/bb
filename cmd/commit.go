@@ -53,6 +53,24 @@ var commitGetCmd = &cobra.Command{
 	},
 }
 
+var commitStatusesHash string
+
+var commitStatusesCmd = &cobra.Command{
+	Use:   "statuses",
+	Short: "List build/CI statuses for a commit",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		statuses, err := client.Commits(ws, repo).Statuses(context.Background(), commitStatusesHash)
+		if err != nil {
+			return err
+		}
+		return printOutput(statuses, func() { render.CommitStatusList(statuses) })
+	},
+}
+
 var fileCmd = &cobra.Command{
 	Use:   "file",
 	Short: "Read file contents from the repository",
@@ -89,12 +107,15 @@ func init() {
 	commitGetCmd.Flags().StringVarP(&commitGetHash, "hash", "x", "", "commit hash (required)")
 	commitGetCmd.MarkFlagRequired("hash")
 
+	commitStatusesCmd.Flags().StringVarP(&commitStatusesHash, "hash", "x", "", "commit hash (required)")
+	commitStatusesCmd.MarkFlagRequired("hash")
+
 	fileGetCmd.Flags().StringVar(&fileGetRef, "ref", "", "branch name, tag, or commit hash (required)")
 	fileGetCmd.Flags().StringVar(&fileGetPath, "path", "", "file path within the repository (required)")
 	fileGetCmd.MarkFlagRequired("ref")
 	fileGetCmd.MarkFlagRequired("path")
 
-	commitCmd.AddCommand(commitListCmd, commitGetCmd)
+	commitCmd.AddCommand(commitListCmd, commitGetCmd, commitStatusesCmd)
 	fileCmd.AddCommand(fileGetCmd)
 	rootCmd.AddCommand(commitCmd, fileCmd)
 }
