@@ -26,9 +26,22 @@ func (r *DeploymentResource) Get(ctx context.Context, uuid string) (Deployment, 
 	return decode[Deployment](data)
 }
 
-// List returns the most recent deployments.
-func (r *DeploymentResource) List(ctx context.Context) ([]Deployment, error) {
+// DeploymentListOptions filters and orders a deployment listing.
+type DeploymentListOptions struct {
+	EnvUUID string // filter to a single environment UUID (empty = all)
+	Sort    string // Bitbucket sort field, "-" prefix for descending (empty = default)
+}
+
+// List returns the most recent deployments, optionally filtered by environment
+// and ordered by Sort.
+//
+// NOTE: The Bitbucket deployments endpoint silently ignores q= BBQL filters,
+// so EnvUUID filtering is applied client-side after fetching.
+func (r *DeploymentResource) List(ctx context.Context, opts DeploymentListOptions) ([]Deployment, error) {
 	q := url.Values{"pagelen": {pagelenSmall}}
+	if opts.Sort != "" {
+		q.Set("sort", opts.Sort)
+	}
 	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
 	if err != nil {
 		return nil, err
@@ -37,5 +50,14 @@ func (r *DeploymentResource) List(ctx context.Context) ([]Deployment, error) {
 	if err != nil {
 		return nil, err
 	}
-	return page.Values, nil
+	if opts.EnvUUID == "" {
+		return page.Values, nil
+	}
+	filtered := make([]Deployment, 0, len(page.Values))
+	for _, d := range page.Values {
+		if d.Environment.UUID == opts.EnvUUID {
+			filtered = append(filtered, d)
+		}
+	}
+	return filtered, nil
 }

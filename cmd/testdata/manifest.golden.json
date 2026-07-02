@@ -556,6 +556,11 @@
           "required": false
         },
         {
+          "name": "env-uuid",
+          "type": "string",
+          "required": false
+        },
+        {
           "name": "format",
           "short": "f",
           "type": "string",
@@ -564,6 +569,11 @@
         {
           "name": "repo",
           "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "sort",
           "type": "string",
           "required": false
         },
