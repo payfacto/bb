@@ -288,7 +288,8 @@ Pipe a full JSON body to skip the flag path entirely.
 bb deployment list [--env-uuid UUID] [--sort FIELD]
 bb deployment get --uuid UUID
 bb env list
-bb env get --env-uuid UUID
+bb env get --uuid UUID
+bb env delete --uuid UUID
 ```
 
 ### Members & Users

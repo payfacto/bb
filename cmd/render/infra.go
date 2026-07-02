@@ -102,6 +102,19 @@ func EnvListString(envs []bitbucket.Environment) string {
 // EnvList prints the formatted environment list to stdout.
 func EnvList(envs []bitbucket.Environment) { fmt.Print(EnvListString(envs)) }
 
+// EnvDetailString returns formatted text for a single environment.
+func EnvDetailString(e bitbucket.Environment) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "UUID: %s\n", e.UUID)
+	fmt.Fprintf(&b, "Name: %s\n", e.Name)
+	fmt.Fprintf(&b, "Type: %s\n", e.EnvironmentType.Name)
+	fmt.Fprintf(&b, "Lock: %s\n", e.Lock.Name)
+	return b.String()
+}
+
+// EnvDetail prints the formatted environment detail to stdout.
+func EnvDetail(e bitbucket.Environment) { fmt.Print(EnvDetailString(e)) }
+
 // WebhookListString returns formatted text for a list of webhooks.
 func WebhookListString(hooks []bitbucket.Webhook) string {
 	if len(hooks) == 0 {
