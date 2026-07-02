@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/payfacto/bb/cmd/render"
+	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
 var envCmd = &cobra.Command{
@@ -48,6 +49,45 @@ var envGetCmd = &cobra.Command{
 	},
 }
 
+var (
+	envCreateName string
+	envCreateType string
+)
+
+var envCreateCmd = &cobra.Command{
+	Use:   "create",
+	Short: "Create a deployment environment",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		var input bitbucket.CreateEnvironmentInput
+		consumed, err := stdinInputOr(&input, func() bitbucket.CreateEnvironmentInput {
+			return bitbucket.CreateEnvironmentInput{
+				Name:            envCreateName,
+				EnvironmentType: bitbucket.EnvironmentType{Name: envCreateType},
+			}
+		})
+		if err != nil {
+			return err
+		}
+		if !consumed {
+			if err := requireFlag("name", envCreateName); err != nil {
+				return err
+			}
+			if err := requireFlag("type", envCreateType); err != nil {
+				return err
+			}
+		}
+		env, err := client.Environments(ws, repo).Create(context.Background(), input)
+		if err != nil {
+			return err
+		}
+		return printOutput(env, func() { render.EnvDetail(env) })
+	},
+}
+
 var envDeleteUUID string
 
 var envDeleteCmd = &cobra.Command{
@@ -70,9 +110,13 @@ func init() {
 	envGetCmd.Flags().StringVar(&envGetUUID, "uuid", "", "Environment UUID (including braces)")
 	_ = envGetCmd.MarkFlagRequired("uuid")
 
+	envCreateCmd.Flags().StringVar(&envCreateName, "name", "", "environment name (required)")
+	envCreateCmd.Flags().StringVar(&envCreateType, "type", "", "environment type: Test, Staging, or Production (required)")
+	// no MarkFlagRequired -- name/type validated in RunE so stdin JSON works.
+
 	envDeleteCmd.Flags().StringVar(&envDeleteUUID, "uuid", "", "Environment UUID (including braces)")
 	_ = envDeleteCmd.MarkFlagRequired("uuid")
 
-	envCmd.AddCommand(envListCmd, envGetCmd, envDeleteCmd)
+	envCmd.AddCommand(envListCmd, envGetCmd, envCreateCmd, envDeleteCmd)
 	rootCmd.AddCommand(envCmd)
 }

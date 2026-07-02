@@ -793,6 +793,63 @@
     {
       "path": [
         "env",
+        "create"
+      ],
+      "action": "write",
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "stdin": {
+        "type": "CreateEnvironmentInput",
+        "behavior": "replaces_flags"
+      },
+      "output_type": "Environment"
+    },
+    {
+      "path": [
+        "env",
         "delete"
       ],
       "action": "destructive",

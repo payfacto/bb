@@ -32,6 +32,15 @@ func (r *EnvironmentResource) Delete(ctx context.Context, uuid string) error {
 	return err
 }
 
+// Create adds a new deployment environment to the repository.
+func (r *EnvironmentResource) Create(ctx context.Context, input CreateEnvironmentInput) (Environment, error) {
+	data, err := r.client.do(ctx, "POST", r.basePath(), input, nil)
+	if err != nil {
+		return Environment{}, err
+	}
+	return decode[Environment](data)
+}
+
 // List returns all deployment environments in the repository.
 func (r *EnvironmentResource) List(ctx context.Context) ([]Environment, error) {
 	q := url.Values{"pagelen": {pagelenDefault}}
