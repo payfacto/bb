@@ -157,11 +157,6 @@ func mapAPIError(apiErr *bitbucket.APIError) *CLIError {
 	}
 }
 
-// emitError writes the error to stderr in the active output format.
-func emitError(e *CLIError) {
-	renderError(e)
-}
-
 // emitErrorJSON writes a single JSON object to stderr in the shape
 //
 //	{"error": {"code": "...", "message": "...", "details": {...}}}

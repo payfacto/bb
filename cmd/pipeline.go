@@ -483,7 +483,7 @@ func pipelineStateLabel(s bitbucket.PipelineState) string {
 // runningStep returns the first IN_PROGRESS step, or nil when none is running.
 func runningStep(steps []bitbucket.PipelineStep) *bitbucket.PipelineStep {
 	for i := range steps {
-		if steps[i].State.Name == "IN_PROGRESS" {
+		if steps[i].State.Name == bitbucket.StateInProgress {
 			return &steps[i]
 		}
 	}

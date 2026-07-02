@@ -13,7 +13,7 @@ import (
 // classifyPipelineState, firstIncompleteStep, and the cmd-layer step helpers,
 // preventing typos and drift across call sites.
 const (
-	stateInProgress  = "IN_PROGRESS"
+	StateInProgress  = "IN_PROGRESS"
 	stateCompleted   = "COMPLETED"
 	resultSuccessful = "SUCCESSFUL"
 	stagePaused      = "PAUSED"
@@ -101,7 +101,7 @@ func classifyPipelineState(p Pipeline, steps []PipelineStep) (status PipelineWat
 			return WatchSuccess, "", true
 		}
 		return WatchFailed, "", true
-	case stateInProgress:
+	case StateInProgress:
 		if p.State.Stage != nil {
 			switch p.State.Stage.Name {
 			case stagePaused, stageHalted:

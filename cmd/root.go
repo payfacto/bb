@@ -122,7 +122,7 @@ func Execute() {
 	rootCmd.SilenceErrors = true
 	rootCmd.SilenceUsage = true
 	if err := rootCmd.Execute(); err != nil {
-		emitError(mapError(err))
+		renderError(mapError(err))
 		os.Exit(1)
 	}
 	if exitCode != 0 {
