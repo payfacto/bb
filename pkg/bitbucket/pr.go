@@ -81,6 +81,30 @@ func (r *PRResource) Create(ctx context.Context, input CreatePRInput) (PR, error
 	return decode[PR](data)
 }
 
+// Update edits a pull request's title and/or description. Bitbucket's PUT
+// requires the title and treats the body as a partial update, so Update first
+// fetches the current PR, overlays any non-empty fields from input onto the
+// current values, then PUTs the merged result. This keeps the required title
+// present and never clears the description for a title-only edit.
+func (r *PRResource) Update(ctx context.Context, prID int, input UpdatePRInput) (PR, error) {
+	current, err := r.Get(ctx, prID)
+	if err != nil {
+		return PR{}, fmt.Errorf("get PR: %w", err)
+	}
+	body := UpdatePRInput{Title: current.Title, Description: current.Description}
+	if input.Title != "" {
+		body.Title = input.Title
+	}
+	if input.Description != "" {
+		body.Description = input.Description
+	}
+	data, err := r.client.do(ctx, "PUT", r.prPath(prID), body, nil)
+	if err != nil {
+		return PR{}, err
+	}
+	return decode[PR](data)
+}
+
 // Diff returns the raw patch text for the pull request.
 // The response is plain text (not JSON).
 func (r *PRResource) Diff(ctx context.Context, prID int) (string, error) {
