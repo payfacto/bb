@@ -98,6 +98,7 @@ var commandRegistry = map[string]commandSpec{
 	// env --------------------------------------------------------------
 	"env list":   {Action: actionRead, OutputType: "[]Environment", Ordering: "unspecified", Example: "bb env list"},
 	"env get":    {Action: actionRead, OutputType: "Environment", Example: "bb env get --uuid '{uuid}'"},
+	"env create": {Action: actionWrite, OutputType: "Environment", StdinType: "CreateEnvironmentInput", Example: "bb env create --name QA --type Test"},
 	"env delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb env delete --uuid '{uuid}'"},
 
 	// member -----------------------------------------------------------
@@ -211,8 +212,9 @@ var typeRegistry = map[string]any{
 	"Deployment":   bitbucket.Deployment{},
 	"[]Deployment": []bitbucket.Deployment{},
 
-	"Environment":   bitbucket.Environment{},
-	"[]Environment": []bitbucket.Environment{},
+	"Environment":            bitbucket.Environment{},
+	"[]Environment":          []bitbucket.Environment{},
+	"CreateEnvironmentInput": bitbucket.CreateEnvironmentInput{},
 
 	"WorkspaceMember":   bitbucket.WorkspaceMember{},
 	"[]WorkspaceMember": []bitbucket.WorkspaceMember{},

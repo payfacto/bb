@@ -64,7 +64,7 @@ bb                    (no args → launches TUI)
 ├── repo list / get / create / update / delete / fork
 ├── issue list / get / create / close / reopen
 ├── deployment list [--env-uuid UUID] [--sort FIELD] / get
-├── env list / get / delete
+├── env list / get / create / delete
 ├── member list
 ├── user me / get
 ├── webhook list / create / delete

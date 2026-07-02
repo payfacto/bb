@@ -496,6 +496,14 @@ type EnvironmentLock struct {
 	Name string `json:"name"` // "UNLOCKED", "LOCKED"
 }
 
+// CreateEnvironmentInput is the request body for creating a deployment
+// environment. EnvironmentType.Name must be one of "Test", "Staging",
+// "Production" (case-sensitive).
+type CreateEnvironmentInput struct {
+	Name            string          `json:"name"`
+	EnvironmentType EnvironmentType `json:"environment_type"`
+}
+
 // Deployment types
 
 type Deployment struct {

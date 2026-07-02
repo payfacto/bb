@@ -2,6 +2,7 @@ package bitbucket_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -78,5 +79,39 @@ func TestEnvironments_Delete(t *testing.T) {
 	}))
 	if err := client.Environments("testws", "testrepo").Delete(context.Background(), "{env-1}"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestEnvironments_Create(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+		if r.URL.Path != "/repositories/testws/testrepo/environments/" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		if body["name"] != "QA" {
+			t.Errorf("expected name=QA, got %v", body["name"])
+		}
+		et, ok := body["environment_type"].(map[string]any)
+		if !ok || et["name"] != "Test" {
+			t.Errorf("expected environment_type.name=Test, got %v", body["environment_type"])
+		}
+		w.WriteHeader(http.StatusCreated)
+		mustEncodeJSON(t, w, bitbucket.Environment{UUID: "{env-9}", Name: "QA", EnvironmentType: bitbucket.EnvironmentType{Name: "Test"}})
+	}))
+	got, err := client.Environments("testws", "testrepo").Create(context.Background(), bitbucket.CreateEnvironmentInput{
+		Name:            "QA",
+		EnvironmentType: bitbucket.EnvironmentType{Name: "Test"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Name != "QA" {
+		t.Errorf("expected name QA, got %s", got.Name)
 	}
 }
