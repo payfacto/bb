@@ -415,7 +415,7 @@ func init() {
 	prDeclineCmd.Flags().IntVarP(&prDeclineID, "pr-id", "p", 0, "pull request ID")
 	prDeclineCmd.MarkFlagRequired("pr-id")
 
-	prOpenCmd.Flags().IntVarP(&prOpenID, "pr-id", "p", 0, "pull request ID (required)")
+	prOpenCmd.Flags().IntVarP(&prOpenID, "pr-id", "p", 0, "pull request ID")
 	prOpenCmd.MarkFlagRequired("pr-id")
 
 	prActivityCmd.Flags().IntVarP(&prActivityID, "pr-id", "p", 0, "pull request ID")

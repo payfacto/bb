@@ -67,7 +67,7 @@ func TestCommits_Statuses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got[0].State != "SUCCESSFUL" || got[0].Key != "PIPELINE" {
+	if len(got) != 1 || got[0].State != "SUCCESSFUL" || got[0].Key != "PIPELINE" || got[0].Name != "Build #42" || got[0].RefName != "main" {
 		t.Errorf("unexpected result: %+v", got)
 	}
 }
