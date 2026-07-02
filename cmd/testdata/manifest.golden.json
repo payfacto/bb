@@ -1734,6 +1734,54 @@
     {
       "path": [
         "pipeline-var",
+        "get"
+      ],
+      "action": "read",
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "uuid",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "PipelineVariable"
+    },
+    {
+      "path": [
+        "pipeline-var",
         "list"
       ],
       "action": "read",

@@ -69,6 +69,24 @@ var pipelineVarCreateCmd = &cobra.Command{
 	},
 }
 
+var pipelineVarGetUUID string
+
+var pipelineVarGetCmd = &cobra.Command{
+	Use:   "get",
+	Short: "Get a pipeline variable by UUID",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		v, err := client.PipelineVariables(ws, repo).Get(context.Background(), pipelineVarGetUUID)
+		if err != nil {
+			return err
+		}
+		return printOutput(v, func() { render.PipelineVariableDetail(v) })
+	},
+}
+
 var pipelineVarDeleteUUID string
 
 var pipelineVarDeleteCmd = &cobra.Command{
@@ -94,9 +112,12 @@ func init() {
 	pipelineVarCreateCmd.Flags().BoolVar(&pipelineVarCreateSecured, "secured", false, "mark variable as secured (value hidden in UI)")
 	// no MarkFlagRequired on "key" — pipeline-var create accepts JSON on stdin.
 
+	pipelineVarGetCmd.Flags().StringVar(&pipelineVarGetUUID, "uuid", "", "variable UUID (required)")
+	pipelineVarGetCmd.MarkFlagRequired("uuid")
+
 	pipelineVarDeleteCmd.Flags().StringVar(&pipelineVarDeleteUUID, "uuid", "", "variable UUID (required)")
 	pipelineVarDeleteCmd.MarkFlagRequired("uuid")
 
-	pipelineVarCmd.AddCommand(pipelineVarListCmd, pipelineVarCreateCmd, pipelineVarDeleteCmd)
+	pipelineVarCmd.AddCommand(pipelineVarListCmd, pipelineVarGetCmd, pipelineVarCreateCmd, pipelineVarDeleteCmd)
 	rootCmd.AddCommand(pipelineVarCmd)
 }

@@ -79,3 +79,22 @@ func TestPipelineVariables_Delete(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestPipelineVariables_Get(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if r.URL.Path != "/repositories/testws/testrepo/pipelines_config/variables/uuid-1" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		mustEncodeJSON(t, w, bitbucket.PipelineVariable{UUID: "uuid-1", Key: "ENV", Value: "prod", Secured: false})
+	}))
+	got, err := client.PipelineVariables("testws", "testrepo").Get(context.Background(), "uuid-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Key != "ENV" || got.Value != "prod" {
+		t.Errorf("unexpected variable: %+v", got)
+	}
+}
