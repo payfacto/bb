@@ -136,6 +136,48 @@ var prCreateCmd = &cobra.Command{
 	},
 }
 
+var (
+	prUpdateID              int
+	prUpdateTitle           string
+	prUpdateDescription     string
+	prUpdateDescriptionFile string
+)
+
+var prUpdateCmd = &cobra.Command{
+	Use:   "update",
+	Short: "Update a pull request's title and/or description",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, r, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		description, err := resolveTextBody(prUpdateDescription, prUpdateDescriptionFile, "description", "description-file")
+		if err != nil {
+			return err
+		}
+		var input bitbucket.UpdatePRInput
+		if _, err := stdinInputOr(&input, func() bitbucket.UpdatePRInput {
+			return bitbucket.UpdatePRInput{
+				Title:       prUpdateTitle,
+				Description: description,
+			}
+		}); err != nil {
+			return err
+		}
+		if input.Title == "" && input.Description == "" {
+			return newCLIError(ErrCodeValidationFailed,
+				"nothing to update: provide --title and/or --description (or pipe JSON on stdin)", nil)
+		}
+		pr, err := client.PRs(ws, r).Update(context.Background(), prUpdateID, input)
+		if err != nil {
+			return err
+		}
+		return printOutput(pr, func() {
+			fmt.Printf("PR #%d updated: %s\n", pr.ID, pr.Links.HTML.Href)
+		})
+	},
+}
+
 var prDiffID int
 
 var prDiffCmd = &cobra.Command{
@@ -275,7 +317,7 @@ var prStatusesCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(prCmd)
-	prCmd.AddCommand(prListCmd, prGetCmd, prCreateCmd, prDiffCmd, prApproveCmd, prMergeCmd, prDeclineCmd, prActivityCmd, prStatusesCmd, prAddReviewerCmd)
+	prCmd.AddCommand(prListCmd, prGetCmd, prCreateCmd, prUpdateCmd, prDiffCmd, prApproveCmd, prMergeCmd, prDeclineCmd, prActivityCmd, prStatusesCmd, prAddReviewerCmd)
 
 	prListCmd.Flags().StringVarP(&prListState, "state", "s", "OPEN",
 		"filter by state: OPEN, MERGED, DECLINED, SUPERSEDED")
@@ -302,6 +344,15 @@ func init() {
 		"create as a draft PR (no reviewer notifications)")
 	// no MarkFlagRequired — pr create accepts JSON on stdin as an alternative
 	// to flags. RunE validates required fields when stdin is not consumed.
+
+	prUpdateCmd.Flags().IntVarP(&prUpdateID, "pr-id", "p", 0, "pull request ID")
+	prUpdateCmd.MarkFlagRequired("pr-id")
+	prUpdateCmd.Flags().StringVarP(&prUpdateTitle, "title", "T", "", "new PR title")
+	prUpdateCmd.Flags().StringVarP(&prUpdateDescription, "description", "d", "", "new PR description")
+	prUpdateCmd.Flags().StringVar(&prUpdateDescriptionFile, "description-file", "",
+		"path to a file containing the new PR description (mutually exclusive with --description)")
+	// pr-id addresses the PR in the URL (not the body), so it stays required
+	// even though title/description may arrive via stdin JSON.
 
 	prDiffCmd.Flags().IntVarP(&prDiffID, "pr-id", "p", 0, "pull request ID")
 	prDiffCmd.MarkFlagRequired("pr-id")

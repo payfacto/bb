@@ -51,7 +51,7 @@ Command hierarchy:
 ```
 bb                    (no args → launches TUI)
 ├── pr
-│   ├── list / get / create / diff / approve / merge / decline
+│   ├── list / get / create / update / diff / approve / merge / decline
 │   ├── activity / statuses / add-reviewer
 │   ├── comment list / get / add / reply
 │   └── task list / complete / reopen
