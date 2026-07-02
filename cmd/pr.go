@@ -361,7 +361,7 @@ func init() {
 		"close source branch after merge")
 	prCreateCmd.Flags().BoolVar(&prCreateDraft, "draft", false,
 		"create as a draft PR (no reviewer notifications)")
-	// no MarkFlagRequired — pr create accepts JSON on stdin as an alternative
+	// no MarkFlagRequired - pr create accepts JSON on stdin as an alternative
 	// to flags. RunE validates required fields when stdin is not consumed.
 
 	prUpdateCmd.Flags().IntVarP(&prUpdateID, "pr-id", "p", 0, "pull request ID")
