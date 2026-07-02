@@ -121,6 +121,7 @@ bb pr comment reply -p 42 -c 7 --text-file /tmp/reply.md
 bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED] [--source-branch BRANCH] [--sort FIELD] [--since TS] [--until TS]
 bb pr get -p ID
 bb pr create -T "..." --from-branch BRANCH --to-branch BRANCH [-d "..." | --description-file PATH] [--close-source-branch] [--draft]
+bb pr update -p ID [-T "..."] [-d "..." | --description-file PATH]
 bb pr diff -p ID
 bb pr approve -p ID
 bb pr merge -p ID [--strategy merge_commit|squash|fast_forward]
