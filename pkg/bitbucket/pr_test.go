@@ -492,3 +492,39 @@ func TestPRList_QueryFiltersTitleAndDescription(t *testing.T) {
 		t.Fatalf("got %d PRs, want 1", len(prs))
 	}
 }
+
+func TestPRs_List_EmptyReturnsNonNilSlice(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mustEncodeJSON(t, w, map[string]any{"values": []any{}})
+	})
+	c := newTestClient(t, handler)
+
+	got, err := c.PRs("ws", "repo").List(context.Background(), bitbucket.PRListOptions{State: "OPEN"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got == nil {
+		t.Fatal("List returned nil slice for empty result; want non-nil empty slice so JSON marshals to [] not null")
+	}
+	if len(got) != 0 {
+		t.Fatalf("expected 0 PRs, got %d", len(got))
+	}
+}
+
+func TestPRs_ListByAuthor_EmptyReturnsNonNilSlice(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mustEncodeJSON(t, w, map[string]any{"values": []any{}})
+	})
+	c := newTestClient(t, handler)
+
+	got, err := c.PRs("ws", "repo").ListByAuthor(context.Background(), "nobody")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got == nil {
+		t.Fatal("ListByAuthor returned nil slice for empty result; want non-nil empty slice so JSON marshals to [] not null")
+	}
+	if len(got) != 0 {
+		t.Fatalf("expected 0 PRs, got %d", len(got))
+	}
+}
