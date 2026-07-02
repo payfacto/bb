@@ -352,3 +352,72 @@ for the per-item endpoints/shapes. Summary + suggested order (small/independent 
 ### Suggested skills next session
 - `superpowers:writing-plans`, then TDD, `code-review-expert`, `clean-code:go`.
 - `handoff` to append the next block.
+
+## Session - 2026-07-02 11:19 (Backlog #7 + #6 shipped; v0.10.0 review-hardening + clean-code; all on local main)
+
+### Shipped this session (all merged linearly to local `main`, NOT pushed)
+Followed the established loop per item (brainstorm -> writing-plans -> subagent-driven
+TDD -> per-task review -> final whole-branch review -> merge --ff-only to main).
+- **Backlog #7 - `bb pr create` auto-detect.** Infers `--workspace`/`--repo` from the
+  git `origin` remote (bitbucket.org only) and `--from-branch` from the current branch
+  when unset; config/flags win; notes to stderr. New `internal/git` package
+  (`ParseBitbucketRemote` pure + `OriginURL`/`CurrentBranch` exec wrappers, 3s timeout);
+  pure resolvers `inferWorkspaceRepo`/`inferFromBranch` in `cmd/pr_infer.go`. Commits
+  be853d5, a968e74, 8dd69d7, c67640a. Plan: [plans/2026-07-01-pr-create-autodetect.md](plans/2026-07-01-pr-create-autodetect.md).
+- **Backlog #6 - `bb pr update -p ID [-T][-d|--description-file]`** (+ stdin JSON). Client
+  `PRResource.Update` fetch-then-merge (GET current -> overlay -> PUT), mirroring
+  `AddReviewer`. Commits 7f59334, 12f515c. Plan: [plans/2026-07-02-pr-update.md](plans/2026-07-02-pr-update.md).
+- **Review "fix all" hardening wave** (from a /code-review-expert pass over the full
+  v0.10.0 delta: 1 P1 + 8 P2 + ~12 P3). Two reviewed fix waves + cleanup:
+  b8e5681 (pr+git), 7b2a220 (pipeline), c8e4a04 (em-dash comment), then clean-code:go
+  pass 8b2bdf1. Highlights: `pipeline watch --branch` no longer false-404s (`Latest`
+  now paginates newest-first to first branch match + `ErrNoPipelines` sentinel mapped
+  in cmd/errors.go); `Watch` uses one `time.NewTicker` + a `context.WithTimeout` child
+  so `--timeout` bounds in-flight requests, with correct `context.Canceled` (exit 130)
+  vs `DeadlineExceeded` (exit 3) split in both `Watch` and `watchErr`;
+  `ParseBitbucketRemote` rejects >2 path segments and handles `ssh://host:port/`;
+  `UpdatePRInput` now `*string` (nil=keep, non-nil=set incl. "" to clear description);
+  `pr update` trims/rejects whitespace-only title; pr-create inference notes print
+  only after `workspaceAndRepo()` succeeds; `GetByBuildNumber` guards build<=0;
+  pipeline state strings hoisted to consts (`StateInProgress` exported for cmd);
+  `pipelineWebURL` uses `url.PathEscape`; trigger success echoes the resolved ref.
+
+### Current state / where to resume
+- On `main` @ **8b2bdf1**, clean tree, **418 tests pass**, -race/vet/gofmt clean.
+- `main` is **37 commits ahead of `origin/main` (fc285ff = v0.9.0), UNPUSHED.** Everything
+  additive -> clean **v0.10.0** minor bump. NEXT (needs user sign-off): release v0.10.0
+  (push main + tag `v0.10.0` -> GoReleaser/GitHub Release/Homebrew), OR continue backlog.
+
+### Deferred / open (decided NOT to fix - non-regressions on just-reviewed code)
+- `watchCtxResult` (pkg/bitbucket/pipeline.go): an extremely narrow simultaneity window
+  where a real API error arriving exactly at the child-ctx deadline is classified as
+  timeout (exit 3) instead of surfaced. Reviewer called it defensible/not a regression.
+  Optional hardening: only treat the request-error branch as timeout when the returned
+  error `errors.Is(context.DeadlineExceeded)`.
+- `runningStep` cmd literal now uses `bitbucket.StateInProgress` (fixed). Two nice-to-haves
+  left: `prCreateCmd` mutates `cfg.Workspace`/`cfg.Repo` to feed `workspaceAndRepo()`
+  (G36, pre-existing pattern across all commands); `classifyPipelineState` 3-return
+  signature could be a named struct (idiomatic as-is).
+- Still open from earlier sessions: live smoke tests needing sign-off (`pipeline trigger`,
+  `watch` manual-gate on a real paused pipeline); `gcf-go` dependency sign-off.
+
+### Remaining backlog (source: [reference/2026-07-01-pipeline-deploy-enhancement-audit.md](reference/2026-07-01-pipeline-deploy-enhancement-audit.md))
+- #9 `deployment get`, `deployment list --env-uuid`, `pipeline-var update` (M).
+- #8 env CRUD + env-var mgmt (M; also fixes CLAUDE.md `env get` doc-drift).
+- #10 investigate `bb pr list` intermittent null returns (reproduce with RTK disabled first).
+- #11 misc ops (L): pipeline schedules / enable-disable / test-reports / commit statuses / `pr open`.
+
+### Gotchas / conventions
+- Never push/tag without explicit user sign-off (global rule). origin is GitHub
+  (github.com/payfacto/bb); releases fire on `v*` tags. Local `main` now leads origin/main.
+- Feature branches this session were merged `--ff-only` (linear history) and deleted.
+- Start each backlog item on a fresh branch off `main`.
+- Manifest golden is schema-stripped: pointer/type changes to a stdin struct may produce
+  NO golden diff (correct, not a papered-over failure). Regen with `go test ./cmd/ -update`
+  only when a leaf/flag/example actually changes.
+- SDD ledger + scratch under `.superpowers/sdd/` (git-ignored); review findings for this
+  session are in the session scratchpad.
+
+### Suggested skills next session
+- Release: `go-release` runbook ([GO-RELEASE-PATTERNS.md](GO-RELEASE-PATTERNS.md)) if cutting v0.10.0.
+- Backlog items: `superpowers:writing-plans` -> `subagent-driven-development` -> `code-review-expert` -> `clean-code:go`.
