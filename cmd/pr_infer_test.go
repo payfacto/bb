@@ -9,6 +9,12 @@ func okOrigin(url string) func() (string, error) {
 	return func() (string, error) { return url, nil }
 }
 
+// okBranch mirrors okOrigin for branch mocks so TestInferFromBranch reads
+// clearly (a branch name flows through a branch-named helper, not okOrigin).
+func okBranch(b string) func() (string, error) {
+	return func() (string, error) { return b, nil }
+}
+
 func errOrigin() (string, error) { return "", errNotARepo }
 
 // errNotARepo is a sentinel used only by tests to simulate git failing.
@@ -66,11 +72,11 @@ func TestInferFromBranch(t *testing.T) {
 		wantNote         bool
 		wantNoteContains string
 	}{
-		{"branch set - no lookup", "feature/x", okOrigin("main"), "feature/x", false, ""},
-		{"empty - filled", "", okOrigin("feature/x"), "feature/x", true, "--from-branch=feature/x"},
-		{"empty - detached HEAD", "", okOrigin("HEAD"), "", false, ""},
+		{"branch set - no lookup", "feature/x", okBranch("main"), "feature/x", false, ""},
+		{"empty - filled", "", okBranch("feature/x"), "feature/x", true, "--from-branch=feature/x"},
+		{"empty - detached HEAD", "", okBranch("HEAD"), "", false, ""},
 		{"empty - lookup error", "", errOrigin, "", false, ""},
-		{"empty - empty output", "", okOrigin(""), "", false, ""},
+		{"empty - empty output", "", okBranch(""), "", false, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

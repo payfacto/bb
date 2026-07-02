@@ -10,8 +10,9 @@ import (
 // remote when it is a bitbucket.org URL. Non-empty inputs are never overridden
 // (config/flags win). It returns the resolved values plus one note per inferred
 // value for the caller to print on stderr. getOrigin is injected so this logic
-// is testable without a real git checkout; an error or empty return from
-// getOrigin simply means "nothing inferred".
+// is testable without a real git checkout. Nothing is inferred if getOrigin
+// errors, returns an empty string, or returns a remote that is not a
+// bitbucket.org URL.
 func inferWorkspaceRepo(ws, repo string, getOrigin func() (string, error)) (string, string, []string) {
 	if ws != "" && repo != "" {
 		return ws, repo, nil

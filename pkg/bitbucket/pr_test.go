@@ -10,6 +10,8 @@ import (
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
+func strptr(s string) *string { return &s }
+
 func TestPRs_List(t *testing.T) {
 	want := []bitbucket.PR{
 		{ID: 1, Title: "feat: add login", State: "OPEN"},
@@ -198,7 +200,7 @@ func TestPRs_Update_TitleOnlyPreservesDescription(t *testing.T) {
 			t.Fatalf("unexpected method %s", r.Method)
 		}
 	}))
-	got, err := c.PRs("ws", "repo").Update(context.Background(), 7, bitbucket.UpdatePRInput{Title: "new title"})
+	got, err := c.PRs("ws", "repo").Update(context.Background(), 7, bitbucket.UpdatePRInput{Title: strptr("new title")})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -228,7 +230,8 @@ func TestPRs_Update_DescriptionOnlyPreservesTitle(t *testing.T) {
 			t.Fatalf("unexpected method %s", r.Method)
 		}
 	}))
-	if _, err := c.PRs("ws", "repo").Update(context.Background(), 7, bitbucket.UpdatePRInput{Description: "new desc"}); err != nil {
+	got, err := c.PRs("ws", "repo").Update(context.Background(), 7, bitbucket.UpdatePRInput{Description: strptr("new desc")})
+	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if putBody["title"] != "keep title" {
@@ -237,14 +240,18 @@ func TestPRs_Update_DescriptionOnlyPreservesTitle(t *testing.T) {
 	if putBody["description"] != "new desc" {
 		t.Errorf("description: got %v, want %q", putBody["description"], "new desc")
 	}
+	if got.Description != "new desc" {
+		t.Errorf("returned PR description: got %q, want %q", got.Description, "new desc")
+	}
 }
 
 func TestPRs_Update_BothFieldsAndPath(t *testing.T) {
 	var putBody map[string]any
-	var putPath string
+	var getPath, putPath string
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
+			getPath = r.URL.Path
 			mustEncodeJSON(t, w, bitbucket.PR{ID: 7, Title: "old", Description: "old"})
 		case http.MethodPut:
 			putPath = r.URL.Path
@@ -256,14 +263,49 @@ func TestPRs_Update_BothFieldsAndPath(t *testing.T) {
 			t.Fatalf("unexpected method %s", r.Method)
 		}
 	}))
-	if _, err := c.PRs("ws", "repo").Update(context.Background(), 7, bitbucket.UpdatePRInput{Title: "T", Description: "D"}); err != nil {
+	if _, err := c.PRs("ws", "repo").Update(context.Background(), 7, bitbucket.UpdatePRInput{Title: strptr("T"), Description: strptr("D")}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if putBody["title"] != "T" || putBody["description"] != "D" {
 		t.Errorf("body: got %v, want title=T description=D", putBody)
 	}
+	if getPath != "/repositories/ws/repo/pullrequests/7" {
+		t.Errorf("GET path: got %q", getPath)
+	}
 	if putPath != "/repositories/ws/repo/pullrequests/7" {
 		t.Errorf("PUT path: got %q", putPath)
+	}
+}
+
+func TestPRs_Update_ClearDescription(t *testing.T) {
+	var putBody map[string]any
+	sawDescription := false
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			mustEncodeJSON(t, w, bitbucket.PR{ID: 7, Title: "keep title", Description: "old desc"})
+		case http.MethodPut:
+			if err := json.NewDecoder(r.Body).Decode(&putBody); err != nil {
+				t.Fatalf("decode body: %v", err)
+			}
+			_, sawDescription = putBody["description"]
+			mustEncodeJSON(t, w, bitbucket.PR{ID: 7, Title: "keep title", Description: ""})
+		default:
+			t.Fatalf("unexpected method %s", r.Method)
+		}
+	}))
+	// A non-nil pointer to "" must CLEAR the description, not preserve it.
+	if _, err := c.PRs("ws", "repo").Update(context.Background(), 7, bitbucket.UpdatePRInput{Description: strptr("")}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if putBody["title"] != "keep title" {
+		t.Errorf("title must be preserved from current PR: got %v", putBody["title"])
+	}
+	if !sawDescription {
+		t.Fatal("PUT body must include the description field when clearing")
+	}
+	if putBody["description"] != "" {
+		t.Errorf("description must be cleared: got %v, want empty string", putBody["description"])
 	}
 }
 

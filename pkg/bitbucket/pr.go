@@ -83,20 +83,25 @@ func (r *PRResource) Create(ctx context.Context, input CreatePRInput) (PR, error
 
 // Update edits a pull request's title and/or description. Bitbucket's PUT
 // requires the title and treats the body as a partial update, so Update first
-// fetches the current PR, overlays any non-empty fields from input onto the
-// current values, then PUTs the merged result. This keeps the required title
-// present and never clears the description for a title-only edit.
+// fetches the current PR, seeds the PUT body from its current title and
+// description, then overlays any provided (non-nil) fields from input. A nil
+// input field keeps the current value; a non-nil pointer sets the field,
+// including an empty description string to clear it. Both fields are always
+// sent as strings so the required title is present on every PUT.
 func (r *PRResource) Update(ctx context.Context, prID int, input UpdatePRInput) (PR, error) {
 	current, err := r.Get(ctx, prID)
 	if err != nil {
 		return PR{}, fmt.Errorf("get PR: %w", err)
 	}
-	body := UpdatePRInput{Title: current.Title, Description: current.Description}
-	if input.Title != "" {
-		body.Title = input.Title
+	body := struct {
+		Title       string `json:"title"`
+		Description string `json:"description"`
+	}{Title: current.Title, Description: current.Description}
+	if input.Title != nil {
+		body.Title = *input.Title
 	}
-	if input.Description != "" {
-		body.Description = input.Description
+	if input.Description != nil {
+		body.Description = *input.Description
 	}
 	data, err := r.client.do(ctx, "PUT", r.prPath(prID), body, nil)
 	if err != nil {
