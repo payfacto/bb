@@ -114,11 +114,15 @@ type CreatePRInput struct {
 	Draft             bool     `json:"draft,omitempty"`
 }
 
-// UpdatePRInput holds the editable fields for updating a PR. An empty field is
-// treated as "not provided" and falls back to the PR's current value in Update.
+// UpdatePRInput holds the editable fields for updating a PR. Each field is a
+// pointer so callers can distinguish "not provided" from an explicit value: a
+// nil pointer keeps the PR's current value in Update, while a non-nil pointer
+// sets the field - including an empty string, which CLEARS the description.
+// Title cannot be cleared (Bitbucket requires a non-empty title); the cmd layer
+// rejects an empty title.
 type UpdatePRInput struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
+	Title       *string `json:"title,omitempty"`
+	Description *string `json:"description,omitempty"`
 }
 
 // AddCommentInput holds the request body for adding a comment.

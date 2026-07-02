@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -81,14 +82,16 @@ var prCreateCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Auto-detect workspace/repo from the git origin remote when unset.
 		// Config/flags always win; notes go to stderr so stdout stays clean.
+		// Notes are held until after workspaceAndRepo() validates, so a user
+		// never sees "inferred --workspace=X" for a value that was rejected.
 		newWs, newRepo, notes := inferWorkspaceRepo(cfg.Workspace, cfg.Repo, git.OriginURL)
 		cfg.Workspace, cfg.Repo = newWs, newRepo
-		for _, n := range notes {
-			fmt.Fprintln(os.Stderr, n)
-		}
 		ws, r, err := workspaceAndRepo()
 		if err != nil {
 			return err
+		}
+		for _, n := range notes {
+			fmt.Fprintln(os.Stderr, n)
 		}
 		description, err := resolveTextBody(prCreateDescription, prCreateDescriptionFile, "description", "description-file")
 		if err != nil {
@@ -131,7 +134,7 @@ var prCreateCmd = &cobra.Command{
 			return err
 		}
 		return printOutput(pr, func() {
-			fmt.Printf("PR created: #%d — %s\n", pr.ID, pr.Links.HTML.Href)
+			fmt.Printf("PR created: #%d - %s\n", pr.ID, pr.Links.HTML.Href)
 		})
 	},
 }
@@ -155,16 +158,32 @@ var prUpdateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		// Only set a pointer for a field the caller actually provided. A nil
+		// pointer means "leave unchanged"; a non-nil pointer sets the value
+		// (an empty description clears it). On the stdin path, JSON unmarshals
+		// straight into the pointer struct: an absent field stays nil, "" clears.
 		var input bitbucket.UpdatePRInput
 		if _, err := stdinInputOr(&input, func() bitbucket.UpdatePRInput {
-			return bitbucket.UpdatePRInput{
-				Title:       prUpdateTitle,
-				Description: description,
+			var flagInput bitbucket.UpdatePRInput
+			if cmd.Flags().Changed("title") {
+				flagInput.Title = &prUpdateTitle
 			}
+			if cmd.Flags().Changed("description") || cmd.Flags().Changed("description-file") {
+				flagInput.Description = &description
+			}
+			return flagInput
 		}); err != nil {
 			return err
 		}
-		if input.Title == "" && input.Description == "" {
+		// Title cannot be blank: trim a provided title and reject if empty.
+		if input.Title != nil {
+			trimmed := strings.TrimSpace(*input.Title)
+			if trimmed == "" {
+				return newCLIError(ErrCodeValidationFailed, "title cannot be empty", nil)
+			}
+			input.Title = &trimmed
+		}
+		if input.Title == nil && input.Description == nil {
 			return newCLIError(ErrCodeValidationFailed,
 				"nothing to update: provide --title and/or --description (or pipe JSON on stdin)", nil)
 		}
