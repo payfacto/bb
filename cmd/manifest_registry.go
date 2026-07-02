@@ -30,6 +30,7 @@ var commandRegistry = map[string]commandSpec{
 	"pr approve":      {Action: actionWrite, OutputType: "ResultMap", Example: "bb pr approve --pr-id 42"},
 	"pr merge":        {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pr merge --pr-id 42 --strategy squash"},
 	"pr decline":      {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pr decline --pr-id 42"},
+	"pr open":         {Action: actionRead, OutputType: "ResultMap", Example: "bb pr open -p 42"},
 	"pr add-reviewer": {Action: actionWrite, OutputType: "ResultMap", Example: "bb pr add-reviewer --id 42 --account-id {uuid}"},
 	"pr activity":     {Action: actionRead, OutputType: "[]Activity", Example: "bb pr activity --pr-id 42"},
 	"pr statuses":     {Action: actionRead, OutputType: "[]PRStatus", Example: "bb pr statuses --pr-id 42"},

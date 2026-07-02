@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 
 	"github.com/payfacto/bb/cmd/render"
@@ -276,6 +277,33 @@ var prDeclineCmd = &cobra.Command{
 	},
 }
 
+var prOpenID int
+
+var prOpenCmd = &cobra.Command{
+	Use:   "open",
+	Short: "Open a pull request in your web browser",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		pr, err := client.PRs(ws, repo).Get(context.Background(), prOpenID)
+		if err != nil {
+			return err
+		}
+		url := pr.Links.HTML.Href
+		if url == "" {
+			return newCLIError(ErrCodeNotFound, fmt.Sprintf("pull request %d has no web link", prOpenID), nil)
+		}
+		if err := browser.OpenURL(url); err != nil {
+			fmt.Fprintf(os.Stderr, "could not open browser: %v\n", err)
+		}
+		return printOutput(map[string]any{"id": prOpenID, "url": url}, func() {
+			fmt.Println(url)
+		})
+	},
+}
+
 var (
 	prAddReviewerID        int
 	prAddReviewerAccountID string
@@ -336,7 +364,7 @@ var prStatusesCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(prCmd)
-	prCmd.AddCommand(prListCmd, prGetCmd, prCreateCmd, prUpdateCmd, prDiffCmd, prApproveCmd, prMergeCmd, prDeclineCmd, prActivityCmd, prStatusesCmd, prAddReviewerCmd)
+	prCmd.AddCommand(prListCmd, prGetCmd, prCreateCmd, prUpdateCmd, prDiffCmd, prApproveCmd, prMergeCmd, prDeclineCmd, prOpenCmd, prActivityCmd, prStatusesCmd, prAddReviewerCmd)
 
 	prListCmd.Flags().StringVarP(&prListState, "state", "s", "OPEN",
 		"filter by state: OPEN, MERGED, DECLINED, SUPERSEDED")
@@ -386,6 +414,9 @@ func init() {
 
 	prDeclineCmd.Flags().IntVarP(&prDeclineID, "pr-id", "p", 0, "pull request ID")
 	prDeclineCmd.MarkFlagRequired("pr-id")
+
+	prOpenCmd.Flags().IntVarP(&prOpenID, "pr-id", "p", 0, "pull request ID (required)")
+	prOpenCmd.MarkFlagRequired("pr-id")
 
 	prActivityCmd.Flags().IntVarP(&prActivityID, "pr-id", "p", 0, "pull request ID")
 	prActivityCmd.MarkFlagRequired("pr-id")

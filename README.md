@@ -170,6 +170,7 @@ bb pr diff -p ID
 bb pr approve -p ID
 bb pr merge -p ID [--strategy merge_commit|squash|fast_forward]
 bb pr decline -p ID
+bb pr open -p ID
 bb pr activity -p ID
 bb pr statuses -p ID
 bb pr add-reviewer -p ID --account-id ACCOUNT_ID
