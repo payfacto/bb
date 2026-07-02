@@ -56,6 +56,7 @@ var commandRegistry = map[string]commandSpec{
 	"pipeline-var list":   {Action: actionRead, OutputType: "[]PipelineVariable", Ordering: "unspecified", Example: "bb pipeline-var list"},
 	"pipeline-var get":    {Action: actionRead, OutputType: "PipelineVariable", Example: "bb pipeline-var get --uuid '{uuid}'"},
 	"pipeline-var create": {Action: actionWrite, OutputType: "PipelineVariable", StdinType: "CreatePipelineVariableInput", Example: "bb pipeline-var create --key API_KEY --value secret --secured"},
+	"pipeline-var update": {Action: actionWrite, OutputType: "PipelineVariable", StdinType: "CreatePipelineVariableInput", Example: "bb pipeline-var update --uuid '{uuid}' --value newval"},
 	"pipeline-var delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline-var delete --uuid '{uuid}'"},
 
 	// branch -----------------------------------------------------------

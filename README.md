@@ -153,8 +153,8 @@ bb pr list --workspace myws --repo myrepo
 | `-n` | `--name` | `branch create/delete`, `tag create/delete` |
 | `-i` | `--id` | `issue get/close/reopen`, `deploy-key delete`, `restriction delete` |
 | `-k` | `--kind` | `issue create` |
-| `-k` | `--key` | `pipeline-var create` |
-| `-v` | `--value` | `pipeline-var create` |
+| `-k` | `--key` | `pipeline-var create`, `pipeline-var update` |
+| `-v` | `--value` | `pipeline-var create`, `pipeline-var update` |
 | `-x` | `--hash` | `commit get` |
 
 ## Commands
@@ -273,8 +273,14 @@ bb issue reopen -i ID
 bb pipeline-var list
 bb pipeline-var get --uuid UUID
 bb pipeline-var create -k KEY -v VALUE [--secured]
+bb pipeline-var update --uuid UUID -v VALUE [-k KEY] [--secured]
 bb pipeline-var delete --uuid UUID
 ```
+
+`bb pipeline-var update` requires `--value` on the flag path (a secured
+variable's value is unreadable via GET, so a fetch-then-reuse would blank it).
+`--key` and `--secured` default to the current variable's values when omitted.
+Pipe a full JSON body to skip the flag path entirely.
 
 ### Deployments & Environments
 
