@@ -35,6 +35,16 @@ func (r *EnvironmentVariableResource) Delete(ctx context.Context, uuid string) e
 	return err
 }
 
+// Update replaces an environment variable by UUID with the given
+// representation. The Bitbucket PUT requires the full {key,value,secured} body.
+func (r *EnvironmentVariableResource) Update(ctx context.Context, uuid string, input CreatePipelineVariableInput) (PipelineVariable, error) {
+	data, err := r.client.do(ctx, "PUT", r.basePath()+url.PathEscape(uuid), input, nil)
+	if err != nil {
+		return PipelineVariable{}, err
+	}
+	return decode[PipelineVariable](data)
+}
+
 // List returns all variables for the environment. Secured variables are
 // returned with an empty value (the API hides it).
 func (r *EnvironmentVariableResource) List(ctx context.Context) ([]PipelineVariable, error) {
