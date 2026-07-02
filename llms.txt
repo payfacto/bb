@@ -130,6 +130,8 @@ bb pr statuses -p ID
 bb pr add-reviewer -p ID --account-id ACCOUNT_ID
 ```
 
+# pr create infers --workspace/--repo from the git origin (bitbucket.org only) and --from-branch from the current branch when omitted; notes go to stderr.
+
 ### PR Comments
 
 ```

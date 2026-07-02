@@ -76,6 +76,12 @@ bb                    (no args → launches TUI)
 └── setup   (interactive config wizard)
 ```
 
+`bb pr create` infers `--workspace`/`--repo` from the git `origin` remote
+(bitbucket.org only) and `--from-branch` from the current branch when omitted
+(config/flags win; inference notes print to stderr). Git access lives in
+`internal/git`; the pure resolvers are `inferWorkspaceRepo`/`inferFromBranch` in
+`cmd/pr_infer.go`.
+
 ### Client pattern
 
 Resources are scoped structs returned by the client:

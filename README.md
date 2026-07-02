@@ -174,6 +174,11 @@ bb pr statuses -p ID
 bb pr add-reviewer -p ID --account-id ACCOUNT_ID
 ```
 
+`bb pr create` auto-detects `--workspace`/`--repo` from the git `origin` remote
+(bitbucket.org remotes only) and `--from-branch` from the current branch when
+those are omitted. Explicit config, env vars, and flags always take precedence;
+each inferred value is noted on stderr so JSON/GCF output on stdout stays clean.
+
 ### PR Comments
 
 ```
