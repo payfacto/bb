@@ -155,7 +155,7 @@ bb pr list --workspace myws --repo myrepo
 | `-k` | `--kind` | `issue create` |
 | `-k` | `--key` | `pipeline-var create`, `pipeline-var update` |
 | `-v` | `--value` | `pipeline-var create`, `pipeline-var update` |
-| `-x` | `--hash` | `commit get` |
+| `-x` | `--hash` | `commit get`, `commit statuses` |
 
 ## Commands
 
@@ -244,6 +244,7 @@ bb tag delete -n TAG
 ```
 bb commit list -b BRANCH [--sort FIELD]
 bb commit get -x HASH
+bb commit statuses -x HASH
 bb file get --ref REF --path PATH
 ```
 

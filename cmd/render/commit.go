@@ -87,3 +87,38 @@ func CommitDetailString(c bitbucket.Commit) string {
 
 // CommitDetail prints the formatted commit detail to stdout.
 func CommitDetail(c bitbucket.Commit) { fmt.Print(CommitDetailString(c)) }
+
+// CommitStatusListString returns the formatted text for a list of commit statuses.
+func CommitStatusListString(statuses []bitbucket.CommitStatus) string {
+	if len(statuses) == 0 {
+		return "No commit statuses found.\n"
+	}
+
+	header := fmt.Sprintf("  %s  %s  %s  %s\n",
+		LabelStyle.Render(fmt.Sprintf("%-20s", "KEY")),
+		LabelStyle.Render(fmt.Sprintf("%-12s", "STATE")),
+		LabelStyle.Render(fmt.Sprintf("%-30s", "NAME")),
+		LabelStyle.Render("URL"))
+	divider := fmt.Sprintf("  %s  %s  %s  %s\n",
+		SepStyle.Render(strings.Repeat("─", 20)),
+		SepStyle.Render(strings.Repeat("─", 12)),
+		SepStyle.Render(strings.Repeat("─", 30)),
+		SepStyle.Render(strings.Repeat("─", 40)))
+
+	var sb strings.Builder
+	sb.WriteString(header)
+	sb.WriteString(divider)
+
+	for _, s := range statuses {
+		sb.WriteString(fmt.Sprintf("  %-20s  %-12s  %-30s  %s\n",
+			truncate(s.Key, 20),
+			StateBadge(s.State),
+			truncate(s.Name, 30),
+			truncate(s.URL, 60)))
+	}
+
+	return sb.String()
+}
+
+// CommitStatusList prints the formatted commit status list to stdout.
+func CommitStatusList(statuses []bitbucket.CommitStatus) { fmt.Print(CommitStatusListString(statuses)) }

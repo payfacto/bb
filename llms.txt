@@ -194,6 +194,7 @@ bb tag delete -n TAG
 ```
 bb commit list -b BRANCH [--sort FIELD]
 bb commit get -x HASH
+bb commit statuses -x HASH
 bb file get --ref REF --path PATH
 ```
 
