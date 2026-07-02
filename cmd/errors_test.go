@@ -79,6 +79,21 @@ func TestMapError_APIError_RedactionDebugOptIn(t *testing.T) {
 	}
 }
 
+func TestMapError_NoPipelines(t *testing.T) {
+	// A bare sentinel and a wrapped-with-context sentinel must both map to
+	// not_found, so it renders identically to a real 404.
+	cases := []error{
+		bitbucket.ErrNoPipelines,
+		fmt.Errorf("%w for branch %q", bitbucket.ErrNoPipelines, "feature"),
+	}
+	for _, err := range cases {
+		got := mapError(err)
+		if got.Code != ErrCodeNotFound {
+			t.Errorf("Code = %q, want %q (err=%v)", got.Code, ErrCodeNotFound, err)
+		}
+	}
+}
+
 func TestMapError_RequiredFlag(t *testing.T) {
 	cases := []struct {
 		name string

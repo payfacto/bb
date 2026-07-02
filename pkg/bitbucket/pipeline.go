@@ -2,11 +2,28 @@ package bitbucket
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"time"
 )
+
+// Pipeline and step state/stage names as reported by the Bitbucket Pipelines
+// API. Hoisted to consts so the state vocabulary is defined once and shared by
+// classifyPipelineState, firstIncompleteStep, and the cmd-layer step helpers,
+// preventing typos and drift across call sites.
+const (
+	stateInProgress  = "IN_PROGRESS"
+	stateCompleted   = "COMPLETED"
+	resultSuccessful = "SUCCESSFUL"
+	stagePaused      = "PAUSED"
+	stageHalted      = "HALTED"
+)
+
+// ErrNoPipelines is returned by Latest when no pipeline matches the request.
+// It is a domain condition (not an HTTP failure); cmd/errors.go maps it to the
+// not_found CLI error code so it renders identically to a real 404.
+var ErrNoPipelines = errors.New("no pipelines found")
 
 // PipelineResource provides operations on repository pipelines.
 type PipelineResource struct {
@@ -57,6 +74,9 @@ func (r *PipelineResource) Get(ctx context.Context, pipelineUUID string) (Pipeli
 // The build number is a plain integer path segment; unlike the UUID form it
 // carries no surrounding braces.
 func (r *PipelineResource) GetByBuildNumber(ctx context.Context, buildNumber int) (Pipeline, error) {
+	if buildNumber <= 0 {
+		return Pipeline{}, fmt.Errorf("build number must be positive, got %d", buildNumber)
+	}
 	path := fmt.Sprintf("%s%d", r.basePath(), buildNumber)
 	data, err := r.client.do(ctx, "GET", path, nil, nil)
 	if err != nil {
@@ -76,15 +96,15 @@ func (r *PipelineResource) GetByBuildNumber(ctx context.Context, buildNumber int
 // Every other state (PENDING, IN_PROGRESS/RUNNING) is not yet terminal.
 func classifyPipelineState(p Pipeline, steps []PipelineStep) (status PipelineWatchStatus, gateStep string, terminal bool) {
 	switch p.State.Name {
-	case "COMPLETED":
-		if p.State.Result != nil && p.State.Result.Name == "SUCCESSFUL" {
+	case stateCompleted:
+		if p.State.Result != nil && p.State.Result.Name == resultSuccessful {
 			return WatchSuccess, "", true
 		}
 		return WatchFailed, "", true
-	case "IN_PROGRESS":
+	case stateInProgress:
 		if p.State.Stage != nil {
 			switch p.State.Stage.Name {
-			case "PAUSED", "HALTED":
+			case stagePaused, stageHalted:
 				return WatchBlocked, firstIncompleteStep(steps), true
 			}
 		}
@@ -96,7 +116,7 @@ func classifyPipelineState(p Pipeline, steps []PipelineStep) (status PipelineWat
 // "" when every step is complete or there are none.
 func firstIncompleteStep(steps []PipelineStep) string {
 	for _, s := range steps {
-		if s.State.Name != "COMPLETED" {
+		if s.State.Name != stateCompleted {
 			return s.Name
 		}
 	}
@@ -104,23 +124,45 @@ func firstIncompleteStep(steps []PipelineStep) string {
 }
 
 // Latest returns the most recent pipeline in the repository, or the most recent
-// on branch when branch != "". It filters the -created_on list client-side and
-// returns a 404 *APIError when no pipeline matches.
+// on branch when branch != "". It scans the -created_on (newest-first) list one
+// page at a time, following the "next" pagination link, and returns the first
+// pipeline whose target ref matches branch - so an infrequently-built branch is
+// found even when its newest run is older than the first page of repo-wide runs.
+// The scan stops early at the first match. When branch == "" the newest overall
+// pipeline (first item of the first page) is returned without a full scan.
+// It returns ErrNoPipelines (wrapped with branch context) when nothing matches.
 func (r *PipelineResource) Latest(ctx context.Context, branch string) (Pipeline, error) {
-	pipelines, err := r.List(ctx, "-created_on")
-	if err != nil {
-		return Pipeline{}, err
-	}
-	for _, p := range pipelines {
-		if branch == "" || p.Target.RefName == branch {
-			return p, nil
+	q := url.Values{"sort": {"-created_on"}, "pagelen": {pagelenSmall}}
+	nextURL := ""
+	for {
+		var data []byte
+		var err error
+		if nextURL != "" {
+			data, err = r.client.fetchPage(ctx, nextURL)
+		} else {
+			data, err = r.client.do(ctx, "GET", r.basePath(), nil, q)
 		}
+		if err != nil {
+			return Pipeline{}, err
+		}
+		page, err := decode[paged[Pipeline]](data)
+		if err != nil {
+			return Pipeline{}, err
+		}
+		for _, p := range page.Values {
+			if branch == "" || p.Target.RefName == branch {
+				return p, nil
+			}
+		}
+		if page.Next == "" {
+			break
+		}
+		nextURL = page.Next
 	}
-	msg := "no pipelines found"
 	if branch != "" {
-		msg = fmt.Sprintf("no pipelines found for branch %q", branch)
+		return Pipeline{}, fmt.Errorf("%w for branch %q", ErrNoPipelines, branch)
 	}
-	return Pipeline{}, &APIError{Status: http.StatusNotFound, Message: msg}
+	return Pipeline{}, ErrNoPipelines
 }
 
 // WatchOptions configures Watch. Interval defaults to 5s when <= 0. Timeout <= 0
@@ -135,24 +177,41 @@ type WatchOptions struct {
 // Watch polls a pipeline until it reaches a terminal state (completed or blocked
 // on a manual gate) or the timeout elapses, then returns the classified result.
 // A blocked result carries the ManualGate with the web URL to resume it.
+//
+// When opts.Timeout > 0 a context.WithTimeout child bounds both the poll loop
+// and each in-flight request, so the wall-clock return is tightly bounded rather
+// than overrunning by up to interval + two round-trips. A fired deadline
+// (context.DeadlineExceeded) returns the WatchTimeout status with a nil error;
+// an external cancellation (context.Canceled, e.g. Ctrl-C) returns that error so
+// the caller can map it to the interrupt path.
 func (r *PipelineResource) Watch(ctx context.Context, pipelineUUID string, opts WatchOptions) (PipelineWatchResult, error) {
 	interval := opts.Interval
 	if interval <= 0 {
 		interval = 5 * time.Second
 	}
-	start := time.Now()
+	if opts.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
+		defer cancel()
+	}
+	// A single ticker drives the poll cadence for the whole watch, rather than a
+	// fresh time.After per iteration (which leaks a timer until it fires).
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	var last PipelineWatchResult
 	for {
 		p, err := r.Get(ctx, pipelineUUID)
 		if err != nil {
-			return PipelineWatchResult{}, err
+			return r.watchCtxResult(ctx, last, err)
 		}
 		steps, err := r.Steps(ctx, pipelineUUID)
 		if err != nil {
-			return PipelineWatchResult{}, err
+			return r.watchCtxResult(ctx, last, err)
 		}
 		if opts.OnPoll != nil {
 			opts.OnPoll(p, steps)
 		}
+		last = PipelineWatchResult{Pipeline: p, Steps: steps}
 		if status, gateStep, terminal := classifyPipelineState(p, steps); terminal {
 			result := PipelineWatchResult{Pipeline: p, Steps: steps, Status: status}
 			if status == WatchBlocked {
@@ -160,20 +219,31 @@ func (r *PipelineResource) Watch(ctx context.Context, pipelineUUID string, opts 
 			}
 			return result, nil
 		}
-		if opts.Timeout > 0 && time.Since(start) >= opts.Timeout {
-			return PipelineWatchResult{Pipeline: p, Steps: steps, Status: WatchTimeout}, nil
-		}
 		select {
 		case <-ctx.Done():
-			return PipelineWatchResult{}, ctx.Err()
-		case <-time.After(interval):
+			return r.watchCtxResult(ctx, last, ctx.Err())
+		case <-ticker.C:
 		}
 	}
 }
 
+// watchCtxResult classifies a context termination during Watch: a fired deadline
+// is the timeout outcome (WatchTimeout status, nil error) while any other
+// cancellation is surfaced as the error so the caller maps it to the interrupt
+// path. Non-context errors (and the no-error case) are returned unchanged.
+func (r *PipelineResource) watchCtxResult(ctx context.Context, last PipelineWatchResult, err error) (PipelineWatchResult, error) {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		last.Status = WatchTimeout
+		return last, nil
+	}
+	return PipelineWatchResult{}, err
+}
+
 // pipelineWebURL builds the Bitbucket web URL for a pipeline's result page.
+// Workspace/repo are path-escaped for consistency with the API path builders.
 func (r *PipelineResource) pipelineWebURL(buildNumber int) string {
-	return fmt.Sprintf("https://bitbucket.org/%s/%s/pipelines/results/%d", r.workspace, r.repo, buildNumber)
+	return fmt.Sprintf("https://bitbucket.org/%s/%s/pipelines/results/%d",
+		url.PathEscape(r.workspace), url.PathEscape(r.repo), buildNumber)
 }
 
 // Trigger starts a new pipeline. opts.Ref selects the target (exactly one of
