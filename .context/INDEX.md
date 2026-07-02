@@ -26,6 +26,7 @@ are also auto-imported by `CLAUDE.md`.
 
 ### `plans/`
 
+- [plans/2026-07-01-pr-create-autodetect.md](plans/2026-07-01-pr-create-autodetect.md) - TDD plan (3 tasks) for backlog #7: `bb pr create` auto-detect of `--workspace`/`--repo` (git origin, bitbucket.org only) and `--from-branch` (current branch); notes to stderr.
 - [plans/2026-07-01-rich-pipeline-trigger.md](plans/2026-07-01-rich-pipeline-trigger.md) - TDD plan (3 tasks) for backlog #5: rich `pipeline trigger` (--tag/--commit, --custom NAME, --var K=V). `--env-uuid` dropped (verified not a real trigger-body field).
 - [plans/2026-07-01-pipeline-ux-slices-2-3.md](plans/2026-07-01-pipeline-ux-slices-2-3.md) - TDD plan (5 tasks) for slices #2 (repo uuid in `repo get`) and #3 (`bb pipeline watch`: poll-to-terminal, exit codes, manual-gate detection) of the pipeline UX spec.
 - [plans/2026-07-01-pipeline-build-number-addressing.md](plans/2026-07-01-pipeline-build-number-addressing.md) - TDD plan (3 tasks) for slice #1 of the pipeline UX spec: `-n/--build-number` addressing on `pipeline get/stop/steps/log`.

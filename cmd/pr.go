@@ -3,10 +3,12 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/payfacto/bb/cmd/render"
+	"github.com/payfacto/bb/internal/git"
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
@@ -77,6 +79,13 @@ var prCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a pull request",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Auto-detect workspace/repo from the git origin remote when unset.
+		// Config/flags always win; notes go to stderr so stdout stays clean.
+		newWs, newRepo, notes := inferWorkspaceRepo(cfg.Workspace, cfg.Repo, git.OriginURL)
+		cfg.Workspace, cfg.Repo = newWs, newRepo
+		for _, n := range notes {
+			fmt.Fprintln(os.Stderr, n)
+		}
 		ws, r, err := workspaceAndRepo()
 		if err != nil {
 			return err
@@ -100,6 +109,13 @@ var prCreateCmd = &cobra.Command{
 			return err
 		}
 		if !consumed {
+			// Auto-detect the source branch from the current git branch when
+			// omitted, then patch the already-built input.
+			if b, note := inferFromBranch(prCreateFromBranch, git.CurrentBranch); note != "" {
+				prCreateFromBranch = b
+				input.Source = bitbucket.NewEndpoint(b)
+				fmt.Fprintln(os.Stderr, note)
+			}
 			if err := requireFlag("title", prCreateTitle); err != nil {
 				return err
 			}
