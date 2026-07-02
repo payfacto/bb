@@ -47,6 +47,29 @@ func DeploymentListString(deployments []bitbucket.Deployment) string {
 // DeploymentList prints the formatted deployment list to stdout.
 func DeploymentList(deployments []bitbucket.Deployment) { fmt.Print(DeploymentListString(deployments)) }
 
+// DeploymentDetailString returns formatted text for a single deployment.
+func DeploymentDetailString(d bitbucket.Deployment) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "UUID:        %s\n", d.UUID)
+	state := d.State.Name
+	if d.State.Status != nil {
+		state = fmt.Sprintf("%s (%s)", d.State.Name, d.State.Status.Name)
+	}
+	fmt.Fprintf(&b, "State:       %s\n", state)
+	fmt.Fprintf(&b, "Environment: %s\n", d.Environment.UUID)
+	if d.Deployable.Commit != nil {
+		fmt.Fprintf(&b, "Commit:      %s\n", d.Deployable.Commit.Hash)
+	}
+	if d.Deployable.Pipeline != nil {
+		fmt.Fprintf(&b, "Pipeline:    %s\n", d.Deployable.Pipeline.UUID)
+	}
+	fmt.Fprintf(&b, "Updated:     %s\n", d.LastUpdateTime)
+	return b.String()
+}
+
+// DeploymentDetail prints the formatted deployment detail to stdout.
+func DeploymentDetail(d bitbucket.Deployment) { fmt.Print(DeploymentDetailString(d)) }
+
 // EnvListString returns formatted text for a list of environments.
 func EnvListString(envs []bitbucket.Environment) string {
 	if len(envs) == 0 {

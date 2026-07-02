@@ -8,6 +8,35 @@ import (
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
+func TestDeployments_Get(t *testing.T) {
+	dep := bitbucket.Deployment{
+		UUID:        "{dep-1}",
+		State:       bitbucket.DeploymentState{Name: "COMPLETED", Status: &bitbucket.DeploymentStatus{Name: "SUCCESSFUL"}},
+		Environment: bitbucket.DeploymentEnvRef{UUID: "{env-prod}"},
+		Deployable: bitbucket.Deployable{
+			Commit:   &bitbucket.DeployableCommit{Hash: "abc123"},
+			Pipeline: &bitbucket.DeployablePipeline{UUID: "{pipe-1}"},
+		},
+		LastUpdateTime: "2024-01-15T10:00:00+00:00",
+	}
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if r.URL.Path != "/repositories/testws/testrepo/deployments/{dep-1}" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		mustEncodeJSON(t, w, dep)
+	}))
+	got, err := client.Deployments("testws", "testrepo").Get(context.Background(), "{dep-1}")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.UUID != "{dep-1}" || got.State.Status == nil || got.State.Status.Name != "SUCCESSFUL" {
+		t.Errorf("unexpected deployment: %+v", got)
+	}
+}
+
 func TestDeployments_List(t *testing.T) {
 	deployments := []bitbucket.Deployment{
 		{
