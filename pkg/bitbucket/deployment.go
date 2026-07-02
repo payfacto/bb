@@ -36,7 +36,9 @@ type DeploymentListOptions struct {
 // and ordered by Sort.
 //
 // NOTE: The Bitbucket deployments endpoint silently ignores q= BBQL filters,
-// so EnvUUID filtering is applied client-side after fetching.
+// so EnvUUID filtering is applied client-side after fetching the first page
+// (pagelen=25). Deployments beyond the first page are not matched when
+// EnvUUID is set.
 func (r *DeploymentResource) List(ctx context.Context, opts DeploymentListOptions) ([]Deployment, error) {
 	q := url.Values{"pagelen": {pagelenSmall}}
 	if opts.Sort != "" {

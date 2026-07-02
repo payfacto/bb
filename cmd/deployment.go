@@ -57,7 +57,7 @@ var deploymentGetCmd = &cobra.Command{
 
 func init() {
 	deploymentListCmd.Flags().StringVar(&deploymentListEnvUUID, "env-uuid", "", "filter to a single environment UUID")
-	deploymentListCmd.Flags().StringVar(&deploymentListSort, "sort", "", "sort field (e.g. -last_update_time)")
+	deploymentListCmd.Flags().StringVar(&deploymentListSort, "sort", "", "sort field (e.g. state.name or -state.name; the deployments endpoint only accepts limited attributes)")
 	deploymentGetCmd.Flags().StringVar(&deploymentGetUUID, "uuid", "", "deployment UUID (required)")
 	deploymentGetCmd.MarkFlagRequired("uuid")
 	deploymentCmd.AddCommand(deploymentListCmd, deploymentGetCmd)
