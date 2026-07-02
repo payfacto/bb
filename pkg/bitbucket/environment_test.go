@@ -114,4 +114,7 @@ func TestEnvironments_Create(t *testing.T) {
 	if got.Name != "QA" {
 		t.Errorf("expected name QA, got %s", got.Name)
 	}
+	if got.UUID != "{env-9}" {
+		t.Errorf("expected UUID {env-9}, got %s", got.UUID)
+	}
 }

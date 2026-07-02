@@ -108,6 +108,47 @@ func TestEnvListString_row(t *testing.T) {
 	}
 }
 
+func TestEnvDetailString_full(t *testing.T) {
+	e := bitbucket.Environment{
+		UUID:            "{env-42}",
+		Name:            "Staging",
+		EnvironmentType: bitbucket.EnvironmentType{Name: "Test"},
+		Lock:            bitbucket.EnvironmentLock{Name: "LOCKED"},
+	}
+	out := render.EnvDetailString(e)
+	if !strings.Contains(out, "{env-42}") {
+		t.Errorf("expected UUID, got: %q", out)
+	}
+	if !strings.Contains(out, "Staging") {
+		t.Errorf("expected name, got: %q", out)
+	}
+	if !strings.Contains(out, "Test") {
+		t.Errorf("expected type name, got: %q", out)
+	}
+	if !strings.Contains(out, "LOCKED") {
+		t.Errorf("expected lock name, got: %q", out)
+	}
+}
+
+func TestEnvDetailString_emptyLock(t *testing.T) {
+	e := bitbucket.Environment{
+		UUID:            "{env-43}",
+		Name:            "Dev",
+		EnvironmentType: bitbucket.EnvironmentType{Name: "Development"},
+	}
+	// Must not panic with zero-value Lock.
+	out := render.EnvDetailString(e)
+	if !strings.Contains(out, "{env-43}") {
+		t.Errorf("expected UUID, got: %q", out)
+	}
+	if !strings.Contains(out, "Dev") {
+		t.Errorf("expected name, got: %q", out)
+	}
+	if !strings.Contains(out, "Development") {
+		t.Errorf("expected type name, got: %q", out)
+	}
+}
+
 func TestWebhookListString_empty(t *testing.T) {
 	if out := render.WebhookListString(nil); !strings.Contains(out, "No webhooks found.") {
 		t.Errorf("got: %q", out)

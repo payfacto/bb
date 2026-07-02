@@ -134,7 +134,7 @@ var envVarUpdateCmd = &cobra.Command{
 					}
 				}
 				if current == nil {
-					return fmt.Errorf("variable %s not found in environment %s", envVarUpdateUUID, envVarUpdateEnvUUID)
+					return newCLIError(ErrCodeNotFound, fmt.Sprintf("variable %s not found in environment %s", envVarUpdateUUID, envVarUpdateEnvUUID), nil)
 				}
 				if !cmd.Flags().Changed("key") {
 					input.Key = current.Key
