@@ -279,6 +279,7 @@ bb pipeline-var delete --uuid UUID
 
 ```
 bb deployment list [--env-uuid UUID]
+bb deployment get --uuid UUID
 bb env list
 bb env get --env-uuid UUID
 ```

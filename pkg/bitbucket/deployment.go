@@ -17,6 +17,15 @@ func (r *DeploymentResource) basePath() string {
 	return fmt.Sprintf("%s/deployments/", repoPath(r.workspace, r.repo))
 }
 
+// Get returns a single deployment by UUID.
+func (r *DeploymentResource) Get(ctx context.Context, uuid string) (Deployment, error) {
+	data, err := r.client.do(ctx, "GET", r.basePath()+uuid, nil, nil)
+	if err != nil {
+		return Deployment{}, err
+	}
+	return decode[Deployment](data)
+}
+
 // List returns the most recent deployments.
 func (r *DeploymentResource) List(ctx context.Context) ([]Deployment, error) {
 	q := url.Values{"pagelen": {pagelenSmall}}

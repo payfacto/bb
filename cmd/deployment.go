@@ -29,7 +29,27 @@ var deploymentListCmd = &cobra.Command{
 	},
 }
 
+var deploymentGetUUID string
+
+var deploymentGetCmd = &cobra.Command{
+	Use:   "get",
+	Short: "Get a deployment by UUID",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		dep, err := client.Deployments(ws, repo).Get(context.Background(), deploymentGetUUID)
+		if err != nil {
+			return err
+		}
+		return printOutput(dep, func() { render.DeploymentDetail(dep) })
+	},
+}
+
 func init() {
-	deploymentCmd.AddCommand(deploymentListCmd)
+	deploymentGetCmd.Flags().StringVar(&deploymentGetUUID, "uuid", "", "deployment UUID (required)")
+	deploymentGetCmd.MarkFlagRequired("uuid")
+	deploymentCmd.AddCommand(deploymentListCmd, deploymentGetCmd)
 	rootCmd.AddCommand(deploymentCmd)
 }
