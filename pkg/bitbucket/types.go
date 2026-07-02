@@ -114,6 +114,13 @@ type CreatePRInput struct {
 	Draft             bool     `json:"draft,omitempty"`
 }
 
+// UpdatePRInput holds the editable fields for updating a PR. An empty field is
+// treated as "not provided" and falls back to the PR's current value in Update.
+type UpdatePRInput struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
 // AddCommentInput holds the request body for adding a comment.
 type AddCommentInput struct {
 	Content Content `json:"content"`

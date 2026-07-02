@@ -183,6 +183,90 @@ func TestPRs_Create(t *testing.T) {
 	}
 }
 
+func TestPRs_Update_TitleOnlyPreservesDescription(t *testing.T) {
+	var putBody map[string]any
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			mustEncodeJSON(t, w, bitbucket.PR{ID: 7, Title: "old title", Description: "keep me"})
+		case http.MethodPut:
+			if err := json.NewDecoder(r.Body).Decode(&putBody); err != nil {
+				t.Fatalf("decode body: %v", err)
+			}
+			mustEncodeJSON(t, w, bitbucket.PR{ID: 7, Title: "new title", Description: "keep me"})
+		default:
+			t.Fatalf("unexpected method %s", r.Method)
+		}
+	}))
+	got, err := c.PRs("ws", "repo").Update(context.Background(), 7, bitbucket.UpdatePRInput{Title: "new title"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if putBody["title"] != "new title" {
+		t.Errorf("title: got %v, want %q", putBody["title"], "new title")
+	}
+	if putBody["description"] != "keep me" {
+		t.Errorf("description must be preserved from current PR: got %v", putBody["description"])
+	}
+	if got.Title != "new title" {
+		t.Errorf("returned PR title: got %q, want %q", got.Title, "new title")
+	}
+}
+
+func TestPRs_Update_DescriptionOnlyPreservesTitle(t *testing.T) {
+	var putBody map[string]any
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			mustEncodeJSON(t, w, bitbucket.PR{ID: 7, Title: "keep title", Description: "old desc"})
+		case http.MethodPut:
+			if err := json.NewDecoder(r.Body).Decode(&putBody); err != nil {
+				t.Fatalf("decode body: %v", err)
+			}
+			mustEncodeJSON(t, w, bitbucket.PR{ID: 7, Title: "keep title", Description: "new desc"})
+		default:
+			t.Fatalf("unexpected method %s", r.Method)
+		}
+	}))
+	if _, err := c.PRs("ws", "repo").Update(context.Background(), 7, bitbucket.UpdatePRInput{Description: "new desc"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if putBody["title"] != "keep title" {
+		t.Errorf("title must be preserved from current PR: got %v", putBody["title"])
+	}
+	if putBody["description"] != "new desc" {
+		t.Errorf("description: got %v, want %q", putBody["description"], "new desc")
+	}
+}
+
+func TestPRs_Update_BothFieldsAndPath(t *testing.T) {
+	var putBody map[string]any
+	var putPath string
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			mustEncodeJSON(t, w, bitbucket.PR{ID: 7, Title: "old", Description: "old"})
+		case http.MethodPut:
+			putPath = r.URL.Path
+			if err := json.NewDecoder(r.Body).Decode(&putBody); err != nil {
+				t.Fatalf("decode body: %v", err)
+			}
+			mustEncodeJSON(t, w, bitbucket.PR{ID: 7, Title: "T", Description: "D"})
+		default:
+			t.Fatalf("unexpected method %s", r.Method)
+		}
+	}))
+	if _, err := c.PRs("ws", "repo").Update(context.Background(), 7, bitbucket.UpdatePRInput{Title: "T", Description: "D"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if putBody["title"] != "T" || putBody["description"] != "D" {
+		t.Errorf("body: got %v, want title=T description=D", putBody)
+	}
+	if putPath != "/repositories/ws/repo/pullrequests/7" {
+		t.Errorf("PUT path: got %q", putPath)
+	}
+}
+
 func TestPRs_Diff(t *testing.T) {
 	wantDiff := "diff --git a/foo.go b/foo.go\n+added line\n"
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
