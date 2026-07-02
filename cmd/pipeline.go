@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -132,14 +133,25 @@ func watchExitCode(status bitbucket.PipelineWatchStatus) int {
 // (128 + 2). It is distinct from watch's own 0-3 outcome codes.
 const exitInterrupted = 130
 
-// watchErr resolves an error from the watch flow. A user interrupt (Ctrl-C
-// cancels ctx) is not a failure: it reports on stderr and requests exit 130
-// with no error envelope. Any other error is returned unchanged for normal
-// mapping. It sets the package-level exitCode on interrupt.
-func watchErr(ctx context.Context, err error) error {
-	if ctx.Err() != nil {
+// watchErr resolves an error from the watch flow. A user interrupt
+// (context.Canceled, e.g. Ctrl-C) is not a failure: it reports on stderr and
+// requests exit 130 with no error envelope, setting the package-level exitCode.
+// A fired deadline (context.DeadlineExceeded) is the timeout outcome and takes
+// exit 3. Any other error is returned unchanged for normal mapping.
+//
+// The classification keys off the error itself (errors.Is), not ctx.Err(), so a
+// deadline-derived cancellation is never mislabeled "watch canceled": Watch's
+// own timeout path returns WatchTimeout, but a deadline that surfaces here (e.g.
+// during pipeline resolution) still maps to the timeout exit code.
+func watchErr(err error) error {
+	switch {
+	case errors.Is(err, context.Canceled):
 		fmt.Fprintln(os.Stderr, "watch canceled")
 		exitCode = exitInterrupted
+		return nil
+	case errors.Is(err, context.DeadlineExceeded):
+		fmt.Fprintln(os.Stderr, "watch timed out")
+		exitCode = watchExitCode(bitbucket.WatchTimeout)
 		return nil
 	}
 	return err
@@ -171,6 +183,8 @@ var (
 var pipelineGetCmd = &cobra.Command{
 	Use:   "get",
 	Short: "Get pipeline details",
+	Long: "Get pipeline details.\n\n" +
+		"Exactly one of --pipeline-uuid/-u or --build-number/-n is required.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, repo, err := workspaceAndRepo()
 		if err != nil {
@@ -218,9 +232,29 @@ var pipelineTriggerCmd = &cobra.Command{
 			return err
 		}
 		return printOutput(p, func() {
-			fmt.Printf("Pipeline #%d triggered.\nUUID: %s\n", p.BuildNumber, p.UUID)
+			fmt.Printf("Pipeline #%d triggered on %s.\nUUID: %s\n",
+				p.BuildNumber, triggerRefLabel(ref, pipelineTriggerCustom), p.UUID)
 		})
 	},
+}
+
+// triggerRefLabel renders a human-readable description of what a trigger ran, so
+// the success message echoes the resolved ref (branch/tag/commit) the user asked
+// for, plus any custom pipeline. ASCII only.
+func triggerRefLabel(ref bitbucket.TriggerRef, custom string) string {
+	var label string
+	switch {
+	case ref.Commit != "":
+		label = "commit " + ref.Commit
+	case ref.Tag != "":
+		label = "tag " + ref.Tag
+	default:
+		label = "branch " + ref.Branch
+	}
+	if custom != "" {
+		label += " (custom pipeline " + custom + ")"
+	}
+	return label
 }
 
 // resolveTriggerRef validates that exactly one ref selector is set and returns it.
@@ -268,6 +302,8 @@ var (
 var pipelineStopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Stop a running pipeline",
+	Long: "Stop a running pipeline.\n\n" +
+		"Exactly one of --pipeline-uuid/-u or --build-number/-n is required.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, repo, err := workspaceAndRepo()
 		if err != nil {
@@ -297,6 +333,8 @@ var (
 var pipelineStepsCmd = &cobra.Command{
 	Use:   "steps",
 	Short: "List steps of a pipeline",
+	Long: "List steps of a pipeline.\n\n" +
+		"Exactly one of --pipeline-uuid/-u or --build-number/-n is required.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, repo, err := workspaceAndRepo()
 		if err != nil {
@@ -326,6 +364,9 @@ var (
 var pipelineLogCmd = &cobra.Command{
 	Use:   "log",
 	Short: "Get log output for a pipeline step (always plain text)",
+	Long: "Get log output for a pipeline step (always plain text).\n\n" +
+		"Exactly one of --pipeline-uuid/-u or --build-number/-n is required, " +
+		"plus --step-uuid.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, repo, err := workspaceAndRepo()
 		if err != nil {
@@ -359,6 +400,11 @@ var (
 var pipelineWatchCmd = &cobra.Command{
 	Use:   "watch",
 	Short: "Watch a pipeline until it reaches a terminal state",
+	Long: "Watch a pipeline until it reaches a terminal state.\n\n" +
+		"At most one of --pipeline-uuid/-u, --build-number/-n, or --branch/-b may " +
+		"be set; with none, watch targets the latest pipeline in the repository.\n\n" +
+		"Exit codes: 0 success, 1 failed, 2 blocked on a manual gate, 3 timeout, " +
+		"130 interrupted.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, repo, err := workspaceAndRepo()
 		if err != nil {
@@ -373,7 +419,7 @@ var pipelineWatchCmd = &cobra.Command{
 		sel := pipelineSelector{uuid: pipelineWatchUUID, build: pipelineWatchBuild, branch: pipelineWatchBranch}
 		target, err := sel.resolveWatchPipeline(ctx, res)
 		if err != nil {
-			return watchErr(ctx, err)
+			return watchErr(err)
 		}
 		result, err := res.Watch(ctx, target.UUID, bitbucket.WatchOptions{
 			Interval: time.Duration(pipelineWatchInterval) * time.Second,
@@ -381,7 +427,7 @@ var pipelineWatchCmd = &cobra.Command{
 			OnPoll:   watchProgress(ctx, res, pipelineWatchTailLog),
 		})
 		if err != nil {
-			return watchErr(ctx, err)
+			return watchErr(err)
 		}
 		exitCode = watchExitCode(result.Status)
 		return printOutput(result, func() { render.PipelineWatch(result) })
@@ -471,7 +517,8 @@ func init() {
 	pipelineWatchCmd.Flags().StringVarP(&pipelineWatchUUID, "pipeline-uuid", "u", "", "watch the pipeline with this UUID")
 	pipelineWatchCmd.Flags().IntVarP(&pipelineWatchBuild, "build-number", "n", 0, "watch the pipeline with this build number")
 	pipelineWatchCmd.Flags().StringVarP(&pipelineWatchBranch, "branch", "b", "", "watch the latest pipeline on this branch")
-	pipelineWatchCmd.Flags().BoolVar(&pipelineWatchTailLog, "tail-log", false, "stream the running step's log to stderr while polling")
+	pipelineWatchCmd.Flags().BoolVar(&pipelineWatchTailLog, "tail-log", false,
+		"stream the running step's log to stderr while polling; re-fetches the active step's log each poll (best-effort, can be expensive on long, chatty steps)")
 	pipelineWatchCmd.Flags().IntVar(&pipelineWatchInterval, "interval", 5, "seconds between polls")
 	pipelineWatchCmd.Flags().IntVar(&pipelineWatchTimeout, "timeout", 0, "seconds before giving up (0 = no timeout)")
 

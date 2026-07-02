@@ -89,6 +89,20 @@ func TestPipelines_GetByBuildNumber(t *testing.T) {
 	}
 }
 
+// TestPipelines_GetByBuildNumber_NonPositive guards the exported method against
+// a non-positive build number reaching the URL (e.g. .../pipelines/0). The cmd
+// layer validates build > 0, but the method is exported and must be defensive.
+func TestPipelines_GetByBuildNumber_NonPositive(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("no HTTP request expected for a non-positive build number, got %s", r.URL.Path)
+	}))
+	for _, n := range []int{0, -1} {
+		if _, err := client.Pipelines("testws", "testrepo").GetByBuildNumber(context.Background(), n); err == nil {
+			t.Errorf("expected error for build number %d, got nil", n)
+		}
+	}
+}
+
 func TestPipelines_Latest_NoBranch(t *testing.T) {
 	pipelines := []bitbucket.Pipeline{
 		{UUID: "{p2}", BuildNumber: 2, Target: bitbucket.PipelineTarget{RefName: "main"}},
@@ -127,6 +141,64 @@ func TestPipelines_Latest_Branch(t *testing.T) {
 	}
 }
 
+// TestPipelines_Latest_Branch_Paginates proves Latest follows the "next" link:
+// the target branch's most recent pipeline sits on page 2, past the first page
+// of repo-wide runs, so a single-page scan would spuriously report not-found.
+func TestPipelines_Latest_Branch_Paginates(t *testing.T) {
+	page1 := []bitbucket.Pipeline{
+		{UUID: "{p4}", BuildNumber: 4, Target: bitbucket.PipelineTarget{RefName: "main"}},
+		{UUID: "{p3}", BuildNumber: 3, Target: bitbucket.PipelineTarget{RefName: "main"}},
+	}
+	page2 := []bitbucket.Pipeline{
+		{UUID: "{p2}", BuildNumber: 2, Target: bitbucket.PipelineTarget{RefName: "feature"}},
+		{UUID: "{p1}", BuildNumber: 1, Target: bitbucket.PipelineTarget{RefName: "feature"}},
+	}
+	var page1URL string
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("page") == "2" {
+			mustEncodeJSON(t, w, map[string]any{"values": page2})
+			return
+		}
+		// First page advertises a "next" link to page 2 (absolute URL).
+		next := "http://" + r.Host + r.URL.Path + "?page=2"
+		page1URL = next
+		mustEncodeJSON(t, w, map[string]any{"values": page1, "next": next})
+	}))
+	got, err := client.Pipelines("testws", "testrepo").Latest(context.Background(), "feature")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.BuildNumber != 2 {
+		t.Errorf("expected latest feature build 2 (from page 2), got %d", got.BuildNumber)
+	}
+	if page1URL == "" {
+		t.Error("expected the first page to have been fetched")
+	}
+}
+
+// TestPipelines_Latest_Branch_StopsAtFirstMatch proves Latest returns as soon as
+// it finds the first (newest) branch match and does not fetch further pages.
+func TestPipelines_Latest_Branch_StopsAtFirstMatch(t *testing.T) {
+	page1 := []bitbucket.Pipeline{
+		{UUID: "{p3}", BuildNumber: 3, Target: bitbucket.PipelineTarget{RefName: "main"}},
+		{UUID: "{p2}", BuildNumber: 2, Target: bitbucket.PipelineTarget{RefName: "feature"}},
+	}
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("page") == "2" {
+			t.Error("did not expect page 2 to be fetched after a first-page match")
+		}
+		next := "http://" + r.Host + r.URL.Path + "?page=2"
+		mustEncodeJSON(t, w, map[string]any{"values": page1, "next": next})
+	}))
+	got, err := client.Pipelines("testws", "testrepo").Latest(context.Background(), "feature")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.BuildNumber != 2 {
+		t.Errorf("expected feature build 2, got %d", got.BuildNumber)
+	}
+}
+
 func TestPipelines_Latest_NotFound(t *testing.T) {
 	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mustEncodeJSON(t, w, map[string]any{"values": []any{}})
@@ -135,9 +207,24 @@ func TestPipelines_Latest_NotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	var apiErr *bitbucket.APIError
-	if !errors.As(err, &apiErr) || apiErr.Status != http.StatusNotFound {
-		t.Errorf("expected 404 APIError, got %v", err)
+	if !errors.Is(err, bitbucket.ErrNoPipelines) {
+		t.Errorf("expected ErrNoPipelines, got %v", err)
+	}
+}
+
+// TestPipelines_Latest_Branch_NotFound proves that when a branch never matches
+// across all pages, Latest returns ErrNoPipelines (wrapped with branch context)
+// rather than a hand-built APIError.
+func TestPipelines_Latest_Branch_NotFound(t *testing.T) {
+	pipelines := []bitbucket.Pipeline{
+		{UUID: "{p1}", BuildNumber: 1, Target: bitbucket.PipelineTarget{RefName: "main"}},
+	}
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mustEncodeJSON(t, w, map[string]any{"values": pipelines})
+	}))
+	_, err := client.Pipelines("testws", "testrepo").Latest(context.Background(), "feature")
+	if !errors.Is(err, bitbucket.ErrNoPipelines) {
+		t.Errorf("expected ErrNoPipelines, got %v", err)
 	}
 }
 
@@ -224,8 +311,30 @@ func TestPipelines_Watch_Timeout(t *testing.T) {
 	client := newTestClient(t, handler)
 	res, err := client.Pipelines("testws", "testrepo").Watch(context.Background(), "{p1}",
 		bitbucket.WatchOptions{Interval: time.Millisecond, Timeout: 15 * time.Millisecond})
+	// A deadline-derived timeout is a normal outcome, not an error: Watch must
+	// return the WatchTimeout status with a nil error, distinct from the
+	// context.Canceled interrupt path.
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("timeout should return nil error, got %v", err)
+	}
+	if res.Status != bitbucket.WatchTimeout {
+		t.Errorf("expected timeout, got %s", res.Status)
+	}
+}
+
+// TestPipelines_Watch_TimeoutBoundsInFlight proves the timeout wakes the loop
+// even when the pipeline never reaches a terminal state and the poll interval is
+// far larger than the timeout: the WithTimeout-derived ctx fires DeadlineExceeded
+// and Watch returns WatchTimeout (not an error, not the cancel path).
+func TestPipelines_Watch_TimeoutBoundsInFlight(t *testing.T) {
+	handler := watchPipelineHandler(t, 6, nil, func(poll int32) bitbucket.PipelineState {
+		return bitbucket.PipelineState{Name: "IN_PROGRESS", Stage: &bitbucket.PipelineStage{Name: "RUNNING"}}
+	})
+	client := newTestClient(t, handler)
+	res, err := client.Pipelines("testws", "testrepo").Watch(context.Background(), "{p1}",
+		bitbucket.WatchOptions{Interval: time.Hour, Timeout: 10 * time.Millisecond})
+	if err != nil {
+		t.Fatalf("timeout should return nil error, got %v", err)
 	}
 	if res.Status != bitbucket.WatchTimeout {
 		t.Errorf("expected timeout, got %s", res.Status)

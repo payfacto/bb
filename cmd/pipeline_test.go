@@ -88,6 +88,28 @@ func TestResolveTriggerRef(t *testing.T) {
 	}
 }
 
+func TestTriggerRefLabel(t *testing.T) {
+	tests := []struct {
+		name   string
+		ref    bitbucket.TriggerRef
+		custom string
+		want   string
+	}{
+		{name: "branch", ref: bitbucket.TriggerRef{Branch: "main"}, want: "branch main"},
+		{name: "tag", ref: bitbucket.TriggerRef{Tag: "v1.0"}, want: "tag v1.0"},
+		{name: "commit", ref: bitbucket.TriggerRef{Commit: "abc123"}, want: "commit abc123"},
+		{name: "branch with custom", ref: bitbucket.TriggerRef{Branch: "main"}, custom: "deploy",
+			want: "branch main (custom pipeline deploy)"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := triggerRefLabel(tt.ref, tt.custom); got != tt.want {
+				t.Errorf("triggerRefLabel = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParseTriggerVars(t *testing.T) {
 	t.Run("valid pairs, value may contain equals", func(t *testing.T) {
 		got, err := parseTriggerVars([]string{"A=1", "B=x=y"})

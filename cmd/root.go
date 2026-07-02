@@ -103,6 +103,15 @@ var rootCmd = &cobra.Command{
 // `pipeline watch` reporting a failed/blocked/timed-out pipeline while still
 // printing its normal result to stdout). A RunE sets this and returns nil;
 // Execute honors it after a successful run. Zero means a clean exit.
+//
+// INVARIANT: this package-level mutable state is safe ONLY because Cobra runs
+// RunE synchronously on the single calling goroutine, and Execute reads exitCode
+// strictly after rootCmd.Execute() returns - a happens-before edge with no
+// concurrent access. It is effectively set-once (today only `pipeline watch`
+// writes it). Do NOT run commands concurrently and do NOT introduce a second
+// concurrent writer: either would turn this into a data race with no
+// compiler/test signal. If concurrent execution is ever needed, thread the exit
+// code back through the return path (e.g. a typed *ExitCodeError) instead.
 var exitCode int
 
 // Execute runs the root command. Errors are emitted to stderr as a single
