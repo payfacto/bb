@@ -421,3 +421,67 @@ TDD -> per-task review -> final whole-branch review -> merge --ff-only to main).
 ### Suggested skills next session
 - Release: `go-release` runbook ([GO-RELEASE-PATTERNS.md](GO-RELEASE-PATTERNS.md)) if cutting v0.10.0.
 - Backlog items: `superpowers:writing-plans` -> `subagent-driven-development` -> `code-review-expert` -> `clean-code:go`.
+
+## Session - 2026-07-02 18:57 (Backlog #9/#8/#10/#11 shipped; v0.10.0 RELEASED)
+
+### Headline
+Cleared the remaining audit backlog (#9, #8, #10, #11) and **released v0.10.0**. Pushed
+`main` + tag `v0.10.0` to origin (GitHub); release run `28626505058` succeeded. VERIFIED:
+GitHub Release https://github.com/payfacto/bb/releases/tag/v0.10.0 published with 6 platform
+archives + checksums.txt; Homebrew tap `Formula/bb.rb` bumped to `version "0.10.0"`.
+`origin/main` == local `main` == release commit `d441871`; clean tree; nothing pending push.
+
+### Shipped this session (all merged --ff-only to main, then released)
+Each item ran the loop: writing-plans -> subagent-driven TDD -> per-task review -> whole-branch
+code-review-expert (fix-all) -> clean-code:go -> merge. Plans in `.context/plans/`.
+- **#9 round-out-coverage** (plan `2026-07-02-backlog-9-coverage.md`): `deployment get`,
+  `deployment list --env-uuid/--sort`, `pipeline-var get`, `pipeline-var update` (stdin).
+  Commits c628764..9a5311b.
+- **#8 env CRUD + env-var** (plan `2026-07-02-backlog-8-env.md`): `env get/create/delete`,
+  new `env-var list/create/update/delete` group (new `cmd/env_var.go` +
+  `pkg/bitbucket/environment_variable.go`, reuses `PipelineVariable`). Commits 0074e9a..58f9f24.
+- **#10 pr list null fix** (bugfix): `fetchAllPages`/`fetchPagesLimit` started with a nil
+  accumulator -> empty result marshaled to JSON `null`. Now `all := []T{}` -> `[]`. Fixes ALL
+  paginated list cmds. Commit a52d70d.
+- **#11 (scoped)** (plan `2026-07-02-backlog-11-misc.md`): `pr open` (reuses PRs.Get +
+  Links.HTML.Href + pkg/browser) + `commit statuses` (new CommitStatus type +
+  CommitResource.Statuses). Commits ffdd877..d441871.
+
+### Key decisions / API facts learned (durable)
+- **Deployments endpoint silently IGNORES `q=` filters** (live-verified) -> `deployment list
+  --env-uuid` filters client-side over the first page (pagelen=25). `sort` only accepts limited
+  attributes (`state.name`/`-state.name` work; `created_on`/`last_update_time`/`name` -> HTTP 400).
+- **`env update` DEFERRED** (user decision): uses undocumented `POST .../environments/{uuid}/changes/`
+  with no authoritative body schema. Not built. API research: `.superpowers/sdd/env-api-research.md`.
+- **#11 scoped to pr open + commit statuses** (user decision): test-reports, pipeline enable/disable,
+  and schedules DEFERRED (effort L, finicky/undocumented write bodies).
+- **JSON is the built-in default** output format (per CLAUDE.md + user); the old GCF-default handoff
+  note was stale. No breaking-change release note needed.
+- **`gcf-go` v1.2.0 re-audited clean** and shipped: no net/os-exec/syscall/unsafe/init; `os` only in
+  its unused `cmd/gcf` CLI; only transitive dep is yaml.v3 (already in tree); checksummed.
+- Braced UUIDs auto-escape in Go's HTTP path, but #8 uses explicit `url.PathEscape` (matches
+  pipeline.go idiom); client tests assert `r.URL.EscapedPath()` against `%7B...%7D`.
+- `context.Background()` is the codebase-wide RunE convention (86 uses, 0 cmd.Context) - a reviewer
+  false-positive to that effect was rejected.
+
+### Live smoke tests (all pass; throwaway resources cleaned up)
+Reads: pr list (OPEN -> [] not null; MERGED populated), deployment list/get, pipeline-var list/get,
+env list/get, env-var list, commit statuses, pr open, + text renderers. Writes: full CRUD cycles for
+pipeline-var, env, and env-var. Two confirmed **Bitbucket behaviors (not bb bugs)**: env-var list has
+brief create->list eventual-consistency lag; env delete is async (renames env `<name>_<ts>` then
+removes within ~30s, returns 204 immediately).
+
+### Deferred / open (backlog now effectively exhausted)
+- `env update` (undocumented `/changes/` endpoint).
+- #11 leftovers: pipeline test-reports, enable/disable, schedules CRUD.
+- **Cosmetic follow-up:** `.goreleaser.yaml` brew `description` has a non-ASCII dash (renders as
+  `Bitbucket Cloud CLI <char> manage...` in the generated Formula) - change to a hyphen per the
+  ASCII-only rule next time that file is touched.
+- From earlier sessions (still optional): live confirmation of the `pipeline watch` manual-gate
+  classifier against a real paused pipeline; live `pipeline trigger` smoke.
+
+### State / conventions
+- On `main` @ `d441871` = `origin/main`; v0.10.0 tagged and released; clean tree; no background procs.
+- origin is GitHub (`github.com/payfacto/bb`), single remote; releases fire on `v*` tag push. The
+  GO-RELEASE-PATTERNS.md Bitbucket-mirror section is a generic template, NOT how bb is wired.
+- SDD ledger + per-task reports under `.superpowers/sdd/` (git-ignored). 436 tests, -race/vet/gofmt clean.
