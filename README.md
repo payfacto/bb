@@ -293,6 +293,7 @@ bb env create --name NAME --type TYPE   # TYPE: Test, Staging, or Production (ca
 bb env delete --uuid UUID
 bb env-var list --env-uuid UUID
 bb env-var create --env-uuid UUID --key KEY --value VALUE [--secured]
+bb env-var update --env-uuid UUID --uuid VAR_UUID --value VALUE [--key KEY] [--secured]  # --value always required (secured values are write-only)
 bb env-var delete --env-uuid UUID --uuid VAR_UUID
 ```
 

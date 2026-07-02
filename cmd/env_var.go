@@ -79,6 +79,81 @@ var envVarCreateCmd = &cobra.Command{
 }
 
 var (
+	envVarUpdateEnvUUID string
+	envVarUpdateUUID    string
+	envVarUpdateKey     string
+	envVarUpdateValue   string
+	envVarUpdateSecured bool
+)
+
+var envVarUpdateCmd = &cobra.Command{
+	Use:   "update",
+	Short: "Update a deployment environment variable by UUID",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		if err := requireFlag("env-uuid", envVarUpdateEnvUUID); err != nil {
+			return err
+		}
+		if err := requireFlag("uuid", envVarUpdateUUID); err != nil {
+			return err
+		}
+		res := client.EnvironmentVariables(ws, repo, envVarUpdateEnvUUID)
+
+		var input bitbucket.CreatePipelineVariableInput
+		consumed, err := stdinInputOr(&input, func() bitbucket.CreatePipelineVariableInput {
+			return bitbucket.CreatePipelineVariableInput{
+				Key:     envVarUpdateKey,
+				Value:   envVarUpdateValue,
+				Secured: envVarUpdateSecured,
+			}
+		})
+		if err != nil {
+			return err
+		}
+
+		if !consumed {
+			// Flag path: --value is required; default key/secured from the
+			// current variable (found via List, since there is no env-var get)
+			// unless overridden. A secured value is unreadable, so it is never reused.
+			if err := requireFlag("value", envVarUpdateValue); err != nil {
+				return err
+			}
+			if !cmd.Flags().Changed("key") || !cmd.Flags().Changed("secured") {
+				vars, err := res.List(context.Background())
+				if err != nil {
+					return err
+				}
+				var current *bitbucket.PipelineVariable
+				for i := range vars {
+					if vars[i].UUID == envVarUpdateUUID {
+						current = &vars[i]
+						break
+					}
+				}
+				if current == nil {
+					return fmt.Errorf("variable %s not found in environment %s", envVarUpdateUUID, envVarUpdateEnvUUID)
+				}
+				if !cmd.Flags().Changed("key") {
+					input.Key = current.Key
+				}
+				if !cmd.Flags().Changed("secured") {
+					input.Secured = current.Secured
+				}
+			}
+		}
+
+		v, err := res.Update(context.Background(), envVarUpdateUUID, input)
+		if err != nil {
+			return err
+		}
+		return printOutput(v, func() { render.PipelineVariableDetail(v) })
+	},
+}
+
+var (
 	envVarDeleteEnvUUID string
 	envVarDeleteUUID    string
 )
@@ -109,11 +184,17 @@ func init() {
 	envVarCreateCmd.Flags().BoolVar(&envVarCreateSecured, "secured", false, "mark variable as secured")
 	// env-uuid and key validated in RunE so stdin JSON works.
 
+	envVarUpdateCmd.Flags().StringVar(&envVarUpdateEnvUUID, "env-uuid", "", "environment UUID (required)")
+	envVarUpdateCmd.Flags().StringVar(&envVarUpdateUUID, "uuid", "", "variable UUID (required)")
+	envVarUpdateCmd.Flags().StringVarP(&envVarUpdateKey, "key", "k", "", "new key (defaults to current)")
+	envVarUpdateCmd.Flags().StringVarP(&envVarUpdateValue, "value", "v", "", "new value (required unless piping JSON)")
+	envVarUpdateCmd.Flags().BoolVar(&envVarUpdateSecured, "secured", false, "mark variable as secured (defaults to current)")
+
 	envVarDeleteCmd.Flags().StringVar(&envVarDeleteEnvUUID, "env-uuid", "", "environment UUID (required)")
 	envVarDeleteCmd.Flags().StringVar(&envVarDeleteUUID, "uuid", "", "variable UUID (required)")
 	envVarDeleteCmd.MarkFlagRequired("env-uuid")
 	envVarDeleteCmd.MarkFlagRequired("uuid")
 
-	envVarCmd.AddCommand(envVarListCmd, envVarCreateCmd, envVarDeleteCmd)
+	envVarCmd.AddCommand(envVarListCmd, envVarCreateCmd, envVarUpdateCmd, envVarDeleteCmd)
 	rootCmd.AddCommand(envVarCmd)
 }

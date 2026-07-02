@@ -62,6 +62,35 @@ func TestEnvironmentVariables_Create(t *testing.T) {
 	}
 }
 
+func TestEnvironmentVariables_Update(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			t.Errorf("expected PUT, got %s", r.Method)
+		}
+		if r.URL.EscapedPath() != "/repositories/testws/testrepo/deployments_config/environments/%7Benv-1%7D/variables/%7Bv-1%7D" {
+			t.Errorf("unexpected path: %s", r.URL.EscapedPath())
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		if body["key"] != "API_URL" || body["value"] != "https://y" || body["secured"] != false {
+			t.Errorf("unexpected body: %+v", body)
+		}
+		mustEncodeJSON(t, w, bitbucket.PipelineVariable{UUID: "{v-1}", Key: "API_URL", Value: "https://y"})
+	}))
+	got, err := client.EnvironmentVariables("testws", "testrepo", "{env-1}").Update(context.Background(), "{v-1}", bitbucket.CreatePipelineVariableInput{
+		Key:   "API_URL",
+		Value: "https://y",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Value != "https://y" {
+		t.Errorf("expected value https://y, got %s", got.Value)
+	}
+}
+
 func TestEnvironmentVariables_Delete(t *testing.T) {
 	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
