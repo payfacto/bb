@@ -279,6 +279,12 @@ func (c *Client) PipelineVariables(workspace, repo string) *PipelineVariableReso
 	return &PipelineVariableResource{client: c, workspace: workspace, repo: repo}
 }
 
+// EnvironmentVariables returns a resource for deployment-environment variable
+// operations scoped to the given environment UUID.
+func (c *Client) EnvironmentVariables(workspace, repo, envUUID string) *EnvironmentVariableResource {
+	return &EnvironmentVariableResource{client: c, workspace: workspace, repo: repo, envUUID: envUUID}
+}
+
 // Webhooks returns a resource for webhook operations on the given repo.
 func (c *Client) Webhooks(workspace, repo string) *WebhookResource {
 	return &WebhookResource{client: c, workspace: workspace, repo: repo}

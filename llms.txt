@@ -236,6 +236,7 @@ bb env list
 bb env get --uuid UUID
 bb env create --name NAME --type TYPE   # TYPE: Test, Staging, or Production (case-sensitive)
 bb env delete --uuid UUID
+bb env-var list --env-uuid UUID
 ```
 
 ### Workspaces
