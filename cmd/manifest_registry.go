@@ -30,7 +30,7 @@ var commandRegistry = map[string]commandSpec{
 	"pr approve":      {Action: actionWrite, OutputType: "ResultMap", Example: "bb pr approve --pr-id 42"},
 	"pr merge":        {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pr merge --pr-id 42 --strategy squash"},
 	"pr decline":      {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pr decline --pr-id 42"},
-	"pr open":         {Action: actionRead, OutputType: "ResultMap", Example: "bb pr open -p 42"},
+	"pr open":         {Action: actionRead, OutputType: "ResultMap", Example: "bb pr open --pr-id 42"},
 	"pr add-reviewer": {Action: actionWrite, OutputType: "ResultMap", Example: "bb pr add-reviewer --id 42 --account-id {uuid}"},
 	"pr activity":     {Action: actionRead, OutputType: "[]Activity", Example: "bb pr activity --pr-id 42"},
 	"pr statuses":     {Action: actionRead, OutputType: "[]PRStatus", Example: "bb pr statuses --pr-id 42"},
@@ -73,7 +73,7 @@ var commandRegistry = map[string]commandSpec{
 	// commit -----------------------------------------------------------
 	"commit list":     {Action: actionRead, OutputType: "[]Commit", Example: "bb commit list --branch main"},
 	"commit get":      {Action: actionRead, OutputType: "Commit", Example: "bb commit get --hash {sha}"},
-	"commit statuses": {Action: actionRead, OutputType: "[]CommitStatus", Ordering: "unspecified", Example: "bb commit statuses --hash '{hash}'"},
+	"commit statuses": {Action: actionRead, OutputType: "[]CommitStatus", Ordering: "unspecified", Example: "bb commit statuses --hash {hash}"},
 
 	// file (top-level, sibling of commit) ------------------------------
 	"file get": {Action: actionRead, OutputType: "string", Example: "bb file get --ref main --path README.md"},
