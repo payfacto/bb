@@ -24,45 +24,6 @@ type errTest string
 
 func (e errTest) Error() string { return string(e) }
 
-func TestInferWorkspaceRepo(t *testing.T) {
-	const bbURL = "git@bitbucket.org:payfacto/bb.git"
-
-	tests := []struct {
-		name             string
-		ws, repo         string
-		getOrigin        func() (string, error)
-		wantWs           string
-		wantRepo         string
-		wantNotes        int
-		wantNoteContains []string
-	}{
-		{"both set - no lookup", "acme", "widgets", okOrigin(bbURL), "acme", "widgets", 0, nil},
-		{"repo empty - fill repo", "acme", "", okOrigin(bbURL), "acme", "bb", 1, []string{"--repo=bb"}},
-		{"ws empty - fill ws", "", "widgets", okOrigin(bbURL), "payfacto", "widgets", 1, []string{"--workspace=payfacto"}},
-		{"both empty - fill both", "", "", okOrigin(bbURL), "payfacto", "bb", 2, []string{"--workspace=payfacto", "--repo=bb"}},
-		{"both empty - github origin skips", "", "", okOrigin("git@github.com:payfacto/bb.git"), "", "", 0, nil},
-		{"both empty - origin error", "", "", errOrigin, "", "", 0, nil},
-		{"both empty - empty origin", "", "", okOrigin(""), "", "", 0, nil},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ws, repo, notes := inferWorkspaceRepo(tt.ws, tt.repo, tt.getOrigin)
-			if ws != tt.wantWs || repo != tt.wantRepo {
-				t.Errorf("got ws=%q repo=%q, want ws=%q repo=%q", ws, repo, tt.wantWs, tt.wantRepo)
-			}
-			if len(notes) != tt.wantNotes {
-				t.Errorf("got %d notes %v, want %d", len(notes), notes, tt.wantNotes)
-			}
-			joined := strings.Join(notes, "\n")
-			for _, sub := range tt.wantNoteContains {
-				if !strings.Contains(joined, sub) {
-					t.Errorf("notes %v missing expected substring %q", notes, sub)
-				}
-			}
-		})
-	}
-}
-
 func TestInferFromBranch(t *testing.T) {
 	tests := []struct {
 		name             string

@@ -81,18 +81,9 @@ var prCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a pull request",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Auto-detect workspace/repo from the git origin remote when unset.
-		// Config/flags always win; notes go to stderr so stdout stays clean.
-		// Notes are held until after workspaceAndRepo() validates, so a user
-		// never sees "inferred --workspace=X" for a value that was rejected.
-		newWs, newRepo, notes := inferWorkspaceRepo(cfg.Workspace, cfg.Repo, git.OriginURL)
-		cfg.Workspace, cfg.Repo = newWs, newRepo
 		ws, r, err := workspaceAndRepo()
 		if err != nil {
 			return err
-		}
-		for _, n := range notes {
-			fmt.Fprintln(os.Stderr, n)
 		}
 		description, err := resolveTextBody(prCreateDescription, prCreateDescriptionFile, "description", "description-file")
 		if err != nil {

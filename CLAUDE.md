@@ -77,11 +77,24 @@ bb                    (no args → launches TUI)
 └── setup   (interactive config wizard)
 ```
 
-`bb pr create` infers `--workspace`/`--repo` from the git `origin` remote
-(bitbucket.org only) and `--from-branch` from the current branch when omitted
-(config/flags win; inference notes print to stderr). Git access lives in
-`internal/git`; the pure resolvers are `inferWorkspaceRepo`/`inferFromBranch` in
-`cmd/pr_infer.go`.
+### Workspace/repo resolution
+
+`bb` resolves `--workspace`/`--repo` for **every** command via
+`applyFlagsWithGitOrigin` (`cmd/root.go`), wired into `PersistentPreRunE`, the
+bare `bb` TUI-launch `RunE`, and `bb user me`'s own copy (Cobra does not chain
+`PersistentPreRunE` to the parent, so any command overriding it needs the same
+call - see `loadConfig`'s doc comment). Per field, independently: an explicit
+flag always wins; otherwise, if the current working directory's git origin
+resolves to a bitbucket.org remote, that value wins and **overrides** a
+differing `~/.bbcloud.yaml` default (this is deliberate - a persisted global
+default cannot know which of a user's many repos they are standing in right
+now); the config-file default is used only as a final fallback when there is
+no git repo, no origin remote, or a non-bitbucket.org origin. A stderr note
+always explains an inferred or overridden value, never silent. The pure
+resolver is `resolveWorkspaceRepoFromGit` (injectable `getOrigin`), tested in
+`cmd/root_test.go`. `bb pr create` additionally infers `--from-branch` from the
+current branch via `inferFromBranch` in `cmd/pr_infer.go` (independent of
+workspace/repo resolution, unchanged).
 
 ### Client pattern
 
@@ -118,7 +131,10 @@ callers (`cmd/errors.go`) can map them to stable CLI error codes.
 
 1. `~/.bbcloud.yaml` (or `--config` path)
 2. `BITBUCKET_USER` / `BITBUCKET_TOKEN` env vars
-3. `--username` / `--token` / `--workspace` / `--repo` flags
+3. Git origin of the current working directory (`--workspace`/`--repo` only,
+   and only when it resolves to a bitbucket.org remote) - see
+   "Workspace/repo resolution" above; not applicable to username/token
+4. `--username` / `--token` / `--workspace` / `--repo` flags
 
 ### Output
 
@@ -179,7 +195,11 @@ interleaving with formatted output.
   intentional manifest changes.
 - Create and update commands accept JSON on stdin via `stdinInputOr` in
   `cmd/stdin.go`. Stdin-capable commands drop `MarkFlagRequired` calls and
-  validate required fields manually inside RunE via `requireFlag`.
+  validate required fields manually inside RunE via `requireFlag`. Piped-stdin
+  detection (`term.IsTerminal`) can false-negative on pty-emulated terminals
+  (observed on Git Bash/MinTTY on Windows), so the read is bounded by
+  `stdinReadTimeout` (750ms, `readStdinJSONWithTimeout`): if nothing arrives in
+  time, `bb` falls back to flags with a stderr note instead of hanging.
 
 ### Testing
 

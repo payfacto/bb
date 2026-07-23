@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"golang.org/x/term"
 )
@@ -15,17 +16,61 @@ import (
 // fast on a misconfigured pipe (e.g. `yes | bb pr create`).
 const maxStdinBytes = 1 << 20
 
+// stdinReadTimeout bounds how long we wait for piped stdin data to start
+// arriving before giving up and falling back to flags. term.IsTerminal can
+// return a false negative for pty-emulated terminals (observed on Git
+// Bash/MinTTY on Windows), making bb think stdin is piped when it is actually
+// an interactive shell with nothing coming - this previously caused an
+// indefinite hang in io.ReadAll waiting for an EOF that never arrives.
+const stdinReadTimeout = 750 * time.Millisecond
+
 // readStdinJSON reads piped stdin (or returns consumed=false when stdin is a
-// TTY) and unmarshals it into v. Empty stdin is treated as no-input. Bodies
-// exceeding maxStdinBytes return a validation_failed-shaped error.
+// TTY) and unmarshals it into v. Bounded by stdinReadTimeout: if stdin
+// appears to be piped (non-TTY) but no data arrives within the timeout,
+// timedOut is true and consumed is false, as if nothing were piped - callers
+// fall back to flags and may note the timeout on stderr. err is nil in the
+// timeout case (same outward shape as "stdin was empty").
 //
-// Production callers should use this; tests should call readStdinJSONFrom
-// directly with a synthetic reader.
-func readStdinJSON(v any) (bool, error) {
+// Production callers should use this; tests should call readStdinJSONFrom or
+// readStdinJSONWithTimeout directly with a synthetic reader.
+func readStdinJSON[T any](v *T) (consumed, timedOut bool, err error) {
 	if term.IsTerminal(int(os.Stdin.Fd())) {
-		return false, nil
+		return false, false, nil
 	}
-	return readStdinJSONFrom(os.Stdin, v)
+	return readStdinJSONWithTimeout(os.Stdin, v, stdinReadTimeout)
+}
+
+// readStdinJSONWithTimeout races readStdinJSONFrom against timeout. The
+// underlying read is not cancellable (os.Stdin has no portable deadline
+// support), so on timeout the read goroutine is abandoned rather than waited
+// on - it decodes into a local T of its own, and *v is copied from that local
+// only on the winning (non-timed-out, error-free) path. A straggling read
+// that eventually completes after the deadline therefore can never write
+// into, or race with, the caller's v: the caller has already moved on (e.g.
+// built a request from flag-supplied input) by the time this function
+// returns on timeout, and the abandoned goroutine's result is simply dropped
+// when it eventually lands in the buffered channel that nobody reads again.
+func readStdinJSONWithTimeout[T any](r io.Reader, v *T, timeout time.Duration) (consumed, timedOut bool, err error) {
+	type result struct {
+		val      T
+		consumed bool
+		err      error
+	}
+	done := make(chan result, 1)
+	go func() {
+		var local T
+		c, e := readStdinJSONFrom(r, &local)
+		done <- result{local, c, e}
+	}()
+	select {
+	case res := <-done:
+		if res.consumed && res.err == nil {
+			*v = res.val
+		}
+		return res.consumed, false, res.err
+	case <-time.After(timeout):
+		return false, true, nil
+	}
 }
 
 // readStdinJSONFrom is the testable core of readStdinJSON. It does not check
@@ -57,9 +102,12 @@ func readStdinJSONFrom(r io.Reader, v any) (bool, error) {
 // on stdin-capable commands, because that runs before RunE and would reject
 // piped JSON-only invocations).
 func stdinInputOr[T any](target *T, buildFromFlags func() T) (consumed bool, err error) {
-	consumed, err = readStdinJSON(target)
+	consumed, timedOut, err := readStdinJSON(target)
 	if err != nil {
 		return consumed, newCLIError(ErrCodeValidationFailed, "invalid stdin JSON: "+err.Error(), err)
+	}
+	if timedOut {
+		fmt.Fprintf(os.Stderr, "note: stdin appeared open but sent no data within %s; using flags instead\n", stdinReadTimeout)
 	}
 	if !consumed {
 		*target = buildFromFlags()

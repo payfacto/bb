@@ -176,10 +176,14 @@ bb pr statuses -p ID
 bb pr add-reviewer -p ID --account-id ACCOUNT_ID
 ```
 
-`bb pr create` auto-detects `--workspace`/`--repo` from the git `origin` remote
-(bitbucket.org remotes only) and `--from-branch` from the current branch when
-those are omitted. Explicit config, env vars, and flags always take precedence;
-each inferred value is noted on stderr so JSON/GCF output on stdout stays clean.
+Every `bb` command auto-detects `--workspace`/`--repo` from the current
+directory's git `origin` remote (bitbucket.org remotes only) when not passed
+explicitly - and this now **overrides** a persisted `~/.bbcloud.yaml` default
+that points elsewhere, since a single global config default can't know which
+of your repos you're standing in. Explicit `--workspace`/`--repo` flags always
+win over both. `bb pr create` additionally infers `--from-branch` from the
+current branch when omitted. Every inferred or overridden value is noted on
+stderr so JSON/GCF output on stdout stays clean.
 
 ### PR Comments
 
@@ -384,10 +388,10 @@ Key notes:
 
 - `bb --describe` emits a JSON capability manifest covering every command, its flags, action class (`read | write | destructive`), output Go type, and an auto-generated JSON Schema for both output and stdin input where applicable. Use this for discovery instead of parsing `--help`.
 - Default output is **JSON** (pipe-friendly, works with `jq`). For token-efficient output, pass `-f gcf` or set `BB_FORMAT=gcf` globally. List commands return arrays; single-resource commands return an object.
-- Create and update commands accept a JSON body on stdin (`echo '{...}' | bb pr create`) as an alternative to flags. When stdin is piped and non-empty, it replaces all flag values.
+- Create and update commands accept a JSON body on stdin (`echo '{...}' | bb pr create`) as an alternative to flags. When stdin is piped and non-empty, it replaces all flag values. Stdin is given 750ms to start producing data; if nothing arrives in that window (e.g. a shell that leaves stdin open with nothing coming), `bb` falls back to flags and notes it on stderr instead of hanging.
 - For multi-paragraph text bodies, prefer the `--*-file` variants over shell quoting / heredocs / stdin: `pr create --description-file PATH`, `issue create --description-file PATH`, `pr comment add --text-file PATH`, `pr comment reply --text-file PATH`. Each is mutually exclusive with its inline counterpart (`--description` / `--text`). Agents should write the body to a temp file and pass the path - no shell-escaping concerns.
 - IDs are integers for PRs, tasks, and issues. UUIDs (with `{}` braces) for pipelines, steps, and environments.
-- `workspace` and `repo` can be omitted from flags if set in `~/.bbcloud.yaml`.
+- `workspace` and `repo` can be omitted from flags if set in `~/.bbcloud.yaml`, or auto-detected from the current directory's git origin (which takes priority over a `~/.bbcloud.yaml` default - see "Pull Requests" above).
 - On failure the CLI exits non-zero and writes to stderr. With `--format json` the error shape is `{"error": {"code": "...", "message": "...", "details": {...}}}`. Codes are a fixed enum: `config_missing`, `auth_failed`, `not_found`, `validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`. stdout is never mixed with errors. API-error details include `http_status`; the raw `response_body` is redacted by default - set `BB_DEBUG=1` to include it. Required-flag failures include `details.missing_flags`.
 - The manifest exposes `manifest_schema_version` (currently `"1"`) at the top level; bump-detection on this field is cheaper than diffing the whole document. Stdin entries carry `behavior: "replaces_flags"` (the only value today) describing how piped JSON interacts with flags. Stdin is capped at 1 MiB.
 - `--sort` is supported on `pr list`, `pipeline list`, `branch list`, `tag list`, `commit list`, `repo list`, `issue list`, and `deployment list`. Note: the deployments endpoint only accepts a limited set of sort attributes (verified valid: `state.name`, `-state.name`; most others return HTTP 400). List commands without `--sort` use the Bitbucket API's default ordering - sort client-side from the JSON if you need a guaranteed order.
