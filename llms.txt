@@ -91,7 +91,7 @@ For API errors, `details.response_body` is **redacted by default** (only `detail
 
 ## Stdin input
 
-Create and update commands accept a JSON body on stdin as an alternative to flags. When stdin is piped and non-empty, it replaces all flag values (no merging — `stdin.behavior` enum is `"replaces_flags"`). Stdin input is capped at 1 MiB; oversized input is rejected as `validation_failed`. The manifest's `stdin.schema` field shows the expected shape. Examples:
+Create and update commands accept a JSON body on stdin as an alternative to flags. When stdin is piped and non-empty, it replaces all flag values (no merging — `stdin.behavior` enum is `"replaces_flags"`). Stdin input is capped at 1 MiB; oversized input is rejected as `validation_failed`. Stdin is given 750ms to start producing data; if nothing arrives (stdin left open with nothing piped), `bb` falls back to flags instead of hanging, with a note on stderr. The manifest's `stdin.schema` field shows the expected shape. Examples:
 
 ```bash
 echo '{"title":"fix","source":{"branch":{"name":"feat/x"}},"destination":{"branch":{"name":"main"}}}' | bb pr create
@@ -132,7 +132,7 @@ bb pr statuses -p ID
 bb pr add-reviewer -p ID --account-id ACCOUNT_ID
 ```
 
-# pr create infers --workspace/--repo from the git origin (bitbucket.org only) and --from-branch from the current branch when omitted; notes go to stderr.
+# every command infers --workspace/--repo from the git origin of cwd (bitbucket.org only) when not passed explicitly, OVERRIDING a differing ~/.bbcloud.yaml default (an explicit flag still wins over both); pr create additionally infers --from-branch from the current branch when omitted; notes go to stderr.
 
 ### PR Comments
 
@@ -317,6 +317,6 @@ Errors are emitted on **stderr** in the active format - see "Error format" above
 - Use `bb --describe` to enumerate every command, flag, action class, and JSON Schema in a single call.
 - `--sort` is available on `pr list`, `pipeline list`, `branch list`, `tag list`, `commit list`, `repo list`, `issue list`, and `deployment list`. Note: the deployments endpoint only accepts a limited set of sort attributes (verified valid: `state.name`, `-state.name`; most others return HTTP 400). Other list commands do not accept `--sort` because the underlying Bitbucket endpoint does not - sort their JSON output client-side if you need deterministic ordering.
 - List commands follow Bitbucket pagination and return the **full** result set, not just the first page. For `pr list`, bound large result sets with `--since`/`--until` (ISO-8601 timestamps filtering PR `created_on`). PRs include `created_on`, `updated_on`, `comment_count`, `task_count`; comments include `created_on`, `updated_on`.
-- Workspace and repo can be omitted from flags if set in `~/.bbcloud.yaml`.
+- Workspace and repo can be omitted from flags if set in `~/.bbcloud.yaml`, or auto-detected from the current directory's git origin — which takes priority over a `~/.bbcloud.yaml` default (see the workspace/repo inference note above).
 - All long flags have short equivalents: `-p` (pr-id), `-s` (state), `-b` (branch), `-u` (pipeline-uuid), `-c` (comment-id), `-t` (text), `-T` (title), `-d` (description), `-n` (name), `-i` (id), `-k` (kind or key), `-v` (value), `-x` (hash).
 - Pipeline variable UUIDs are returned as strings with `{}` braces (e.g. `{abc-123}`); pass the full UUID including braces to `--uuid`.

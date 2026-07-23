@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -24,7 +25,9 @@ var userMeCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		cfg.Apply(workspace, repo, username, token)
+		for _, n := range applyFlagsWithGitOrigin(cfg, flagValues{workspace, repo, username, token}) {
+			fmt.Fprintln(os.Stderr, n)
+		}
 		if cfg.Username == "" || cfg.Token == "" {
 			return fmt.Errorf("no credentials configured — run 'bb setup' to configure")
 		}
