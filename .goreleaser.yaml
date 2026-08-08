@@ -29,13 +29,23 @@ archives:
 checksum:
   name_template: checksums.txt
 
+# ONE-TIME NOTE for the first post-mirror release (v0.11.0):
+# GoReleaser resolves the previous tag only from tags reachable from the tagged
+# commit. Tags v0.3.5-v0.10.1 were deleted from the GitHub mirror during cutover,
+# so the previous tag resolves back to v0.3.4 and the changelog would span 105
+# commits. For v0.11.0 ONLY, release with hand-written notes:
+#     goreleaser release --clean --release-notes notes.md
+# Do NOT set `disable: true` here as a workaround - it would silently kill every
+# future changelog. From v0.11.1 onward this resolves normally with no action.
 changelog:
   sort: asc
   filters:
     exclude:
-      - "^docs:"
-      - "^test:"
-      - "^chore:"
+      # Matches `docs:` and `docs(scope):`. The old `^docs:` pattern required a
+      # literal colon straight after `docs`, so `docs(plan):` leaked through.
+      - '^docs(\(.*\))?:'
+      - '^test(\(.*\))?:'
+      - '^chore(\(.*\))?:'
       - Merge pull request
       - Merge branch
 
@@ -43,6 +53,10 @@ brews:
   - repository:
       owner: payfacto
       name: homebrew-tap
+    # `auto` skips the tap push for prereleases. Without this the default is
+    # false, so tagging v0.11.0-rc.1 to smoke-test the mirror would publish a
+    # prerelease formula over the stable one.
+    skip_upload: auto
     directory: Formula
     homepage: https://github.com/payfacto/bb
     description: Bitbucket Cloud CLI — manage PRs, pipelines, branches, and more

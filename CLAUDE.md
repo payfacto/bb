@@ -34,6 +34,34 @@ Version is injected via `-ldflags -X 'github.com/payfacto/bb/cmd.Version=...'`.
 When renaming/moving the `Version` variable, update both `Makefile` and
 `.goreleaser.yaml` ldflags targets.
 
+## Repository topology
+
+Two remotes with different roles:
+
+- **Bitbucket `payfactopay/bb`** is the source of truth. All branches, all work,
+  and the `.context/` knowledge base live here. This is where you commit, tag,
+  and open PRs.
+- **GitHub `payfacto/bb`** is a CI/release mirror only. `bitbucket-pipelines.yml`
+  rewrites history with `git filter-repo --invert-paths --path .context` and
+  force-pushes `main` plus the tag being built. Never commit directly to GitHub;
+  the pipeline force-pushes and will overwrite divergent state.
+
+Consequences worth knowing:
+
+- Mirror commit SHAs differ from Bitbucket's, and `main` has fewer commits there
+  (commits touching only `.context/` are pruned as empty). Do not try to diff the
+  two `main` branches by SHA.
+- The module path stays `github.com/payfacto/bb` permanently. It is in `go.mod`
+  and hard-coded in the ldflags string, and Bitbucket being source of truth does
+  not change where the module resolves from.
+- `.context/` must never be added to `.gitignore`. That would strip it from
+  Bitbucket too and defeat the whole arrangement.
+- `CLAUDE.md`'s `@.context/INDEX.md` import dangles on the mirror. Harmless and
+  deliberate; the architecture notes here are worth keeping on the public side.
+
+Cutover status and the full runbook live in `.context/HANDOFF.md`; the pattern
+itself, including the filter-repo variant, is in `.context/GO-RELEASE-PATTERNS.md`.
+
 ## Architecture
 
 `bb` is a Cobra-based CLI that wraps the Bitbucket Cloud REST API v2.0. Four packages with distinct responsibilities:

@@ -1,0 +1,66 @@
+# Bitbucket (payfactopay/bb) is the source of truth and keeps .context/.
+# GitHub (payfacto/bb) is a CI/release mirror with .context/ stripped from history.
+#
+# Why filter-repo is version-pinned: the rewrite is deterministic only for a
+# fixed version + fixed args. A version bump can change output SHAs and cause a
+# whole-history force-push churn on the mirror. Do not float this.
+#
+# Never push historical tags from here. Tags v0.1.0-v0.3.4 predate .context and
+# already live on GitHub with their original SHAs; v0.3.1 and v0.3.5-v0.10.1 were
+# deleted from GitHub during cutover and must not be resurrected.
+
+image: python:3.13-alpine3.21
+
+clone:
+  depth: full            # filter-repo refuses to operate on a shallow clone
+
+definitions:
+  steps:
+    - step: &mirror
+        name: Strip .context and mirror to GitHub
+        script:
+          - apk add --no-cache git openssh-client
+          - wget -qO /usr/local/bin/git-filter-repo https://raw.githubusercontent.com/newren/git-filter-repo/v2.47.0/git-filter-repo
+          - chmod +x /usr/local/bin/git-filter-repo
+          - git filter-repo --version
+
+          # Materialise branches and tags locally BEFORE the rewrite. On tag
+          # builds Bitbucket checks out a detached tag, so refs/heads/main may
+          # not otherwise exist for filter-repo to rewrite or for us to push.
+          - git fetch --tags --force origin "+refs/heads/*:refs/remotes/origin/*"
+
+          # The rewrite. filter-repo internally runs `git remote rm origin` and
+          # converts refs/remotes/origin/* into refs/heads/*. Nothing below this
+          # line may reference `origin` or refs/remotes/*.
+          # --force is required because the fetch above leaves the repo in a
+          # state filter-repo no longer considers a "fresh clone".
+          - git filter-repo --force --invert-paths --path .context
+
+          # Fail closed. Never push a tree that still carries .context.
+          - test -z "$(git log --all --oneline -- .context)" || { echo "FATAL - .context survived the rewrite"; exit 1; }
+          - if git rev-list --all --objects | grep -q "\.context/"; then echo "FATAL - .context blob still referenced"; exit 1; fi
+
+          # Primary host-key trust is the Known hosts entry configured under
+          # Repository settings -> Pipelines -> SSH keys. This is a fallback.
+          - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          - ssh-keyscan -t rsa,ecdsa,ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+
+          # Only now may a remote exist.
+          - git remote add github git@github.com:payfacto/bb.git
+
+          # Explicit refspecs only.
+          #   Never --mirror: it would push refs/replace/* that filter-repo wrote.
+          #   Never --tags:   it would resurrect the deleted historical tags.
+          - git push github refs/heads/main:refs/heads/main --force
+          - if [ -n "$BITBUCKET_TAG" ]; then git push github "refs/tags/$BITBUCKET_TAG:refs/tags/$BITBUCKET_TAG"; fi
+
+pipelines:
+  custom:
+    mirror-manual:       # trigger the first run by hand from the Bitbucket UI
+      - step: *mirror
+  branches:
+    main:
+      - step: *mirror
+  tags:
+    "v*":
+      - step: *mirror
