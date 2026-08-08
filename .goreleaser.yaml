@@ -29,14 +29,20 @@ archives:
 checksum:
   name_template: checksums.txt
 
-# ONE-TIME NOTE for the first post-mirror release (v0.11.0):
-# GoReleaser resolves the previous tag only from tags reachable from the tagged
-# commit. Tags v0.3.5-v0.10.1 were deleted from the GitHub mirror during cutover,
-# so the previous tag resolves back to v0.3.4 and the changelog would span 105
-# commits. For v0.11.0 ONLY, release with hand-written notes:
-#     goreleaser release --clean --release-notes notes.md
-# Do NOT set `disable: true` here as a workaround - it would silently kill every
-# future changelog. From v0.11.1 onward this resolves normally with no action.
+release:
+  # `auto` marks any semver prerelease (v1.2.3-rc.1) as a GitHub prerelease.
+  # The default is false, which published v0.11.0-rc.1 as a stable "Latest"
+  # release. brews.skip_upload reads the semver directly, so the Homebrew tap
+  # was never at risk, but the Release itself was mislabelled.
+  prerelease: auto
+
+# Changelog note, post-mirror: GoReleaser resolves the previous tag only from
+# tags reachable from the tagged commit. Tags v0.3.5-v0.10.1 were deleted from
+# the GitHub mirror during cutover, so for a while the previous tag resolved
+# back to v0.3.4 and the changelog would have spanned 105 commits. Tagging
+# v0.11.0-rc.1 fixed that: it is reachable from the mirror tip and is now the
+# newest reachable tag, so v0.11.0 and everything after resolve normally.
+# Do NOT set `disable: true` here - it would silently kill every changelog.
 changelog:
   sort: asc
   filters:
