@@ -10,8 +10,15 @@ import (
 
 const markdownWordWrap = 100
 
-// atlassianAttr matches Atlassian-flavoured markdown attribute blocks like
-// {: data-inline-card='' } that appear after links in Bitbucket PR descriptions.
+// atlassianAttr matches Atlassian-flavoured markdown attribute blocks that
+// appear after links in Bitbucket PR descriptions, for example:
+//
+//	{: data-inline-card='' }
+//
+// The example is indented so gofmt treats it as a code block and leaves it
+// verbatim. Written as prose instead, gofmt's doc-comment printer reads a
+// doubled single-quote as a TeX-style closing quote and rewrites it into a
+// non-ASCII curly quote.
 var atlassianAttr = regexp.MustCompile(`\{:[^}]*\}`)
 
 var (
@@ -21,7 +28,7 @@ var (
 
 // WarmMarkdownRenderer initialises the glamour renderer synchronously.
 // Call this before entering alt screen so the terminal background-colour
-// query (WithAutoStyle) does not race with bubbletea's input loop — which
+// query (WithAutoStyle) does not race with bubbletea's input loop, which
 // is what caused PR descriptions to hang for several seconds in the TUI.
 func WarmMarkdownRenderer() {
 	mdOnce.Do(buildRenderer)
