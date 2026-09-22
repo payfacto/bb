@@ -229,6 +229,17 @@ bb pipeline-var update --uuid UUID -v VALUE [-k KEY] [--secured]
 bb pipeline-var delete --uuid UUID
 ```
 
+### Pipeline Config
+
+```
+bb pipeline-config get
+bb pipeline-config enable
+bb pipeline-config disable
+```
+
+Toggles the repo's Pipelines enabled/disabled setting (`pipelines_config`).
+`disable` is `actionDestructive` - it silently breaks CI for the repo.
+
 ### Deployments & Environments
 
 ```

@@ -288,6 +288,18 @@ variable's value is unreadable via GET, so a fetch-then-reuse would blank it).
 `--key` and `--secured` default to the current variable's values when omitted.
 Pipe a full JSON body to skip the flag path entirely.
 
+### Pipeline Config
+
+```
+bb pipeline-config get
+bb pipeline-config enable
+bb pipeline-config disable
+```
+
+Toggles whether Pipelines is enabled for the repository (Bitbucket's
+`pipelines_config` resource). `disable` is a destructive action - it silently
+breaks CI for the repo, so `bb --describe` classifies it accordingly.
+
 ### Deployments & Environments
 
 ```

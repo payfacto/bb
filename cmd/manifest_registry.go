@@ -60,6 +60,11 @@ var commandRegistry = map[string]commandSpec{
 	"pipeline-var update": {Action: actionWrite, OutputType: "PipelineVariable", StdinType: "CreatePipelineVariableInput", Example: "bb pipeline-var update --uuid '{uuid}' --value newval"},
 	"pipeline-var delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline-var delete --uuid '{uuid}'"},
 
+	// pipeline-config ----------------------------------------------------
+	"pipeline-config get":     {Action: actionRead, OutputType: "PipelineConfig", Example: "bb pipeline-config get"},
+	"pipeline-config enable":  {Action: actionWrite, OutputType: "PipelineConfig", Example: "bb pipeline-config enable"},
+	"pipeline-config disable": {Action: actionDestructive, OutputType: "PipelineConfig", Example: "bb pipeline-config disable"},
+
 	// branch -----------------------------------------------------------
 	"branch list":   {Action: actionRead, OutputType: "[]Branch", Example: "bb branch list"},
 	"branch create": {Action: actionWrite, OutputType: "Branch", StdinType: "CreateBranchInput", Example: "bb branch create --name feat/x --target main"},
@@ -195,6 +200,7 @@ var typeRegistry = map[string]any{
 	"PipelineVariable":            bitbucket.PipelineVariable{},
 	"[]PipelineVariable":          []bitbucket.PipelineVariable{},
 	"CreatePipelineVariableInput": bitbucket.CreatePipelineVariableInput{},
+	"PipelineConfig":              bitbucket.PipelineConfig{},
 
 	"Branch":            bitbucket.Branch{},
 	"[]Branch":          []bitbucket.Branch{},
