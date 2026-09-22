@@ -246,13 +246,20 @@ func resolveGitField(notes []string, flagName, configValue, gitValue string) (st
 	return gitValue, notes
 }
 
+// gitOriginURL is the git-origin lookup applyFlagsWithGitOrigin uses. A
+// package-level var (not a direct git.OriginURL call) so tests can stub it —
+// otherwise a test run from inside a real bitbucket.org checkout (this repo)
+// would have its own origin silently resolve workspace/repo, defeating any
+// test that means to simulate a user with nothing configured.
+var gitOriginURL = git.OriginURL
+
 // applyFlagsWithGitOrigin is the shared entry point every PersistentPreRunE
 // (and the bare-TUI-launch RunE) must call instead of raw cfg.Apply: it lets
 // the git origin of the cwd resolve workspace/repo first (see
 // resolveWorkspaceRepoFromGit), then applies explicit flags on top (highest
 // priority, unchanged), and returns notes for the caller to print on stderr.
 func applyFlagsWithGitOrigin(cfg *config.Config, flags flagValues) []string {
-	return applyFlagsWithGitOriginUsing(cfg, flags, git.OriginURL)
+	return applyFlagsWithGitOriginUsing(cfg, flags, gitOriginURL)
 }
 
 // applyFlagsWithGitOriginUsing is applyFlagsWithGitOrigin with an injectable

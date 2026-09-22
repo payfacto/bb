@@ -85,6 +85,7 @@ bb                    (no args → launches TUI)
 │   └── task list / complete / reopen
 ├── pipeline list / get / trigger / stop / steps / log / watch
 ├── pipeline-var list / get / create / update / delete
+├── pipeline-config get / enable / disable
 ├── branch list / create / delete
 ├── tag list / create / delete
 ├── commit list / get / statuses

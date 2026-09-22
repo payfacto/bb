@@ -223,6 +223,14 @@ type CreatePipelineVariableInput struct {
 	Secured bool   `json:"secured"`
 }
 
+// PipelineConfig represents the repository's pipelines_config resource. The
+// real API response carries more fields (repository, build_image, etc.); this
+// type only models Enabled, the one bb exposes, since decode[T] ignores JSON
+// fields it doesn't know about.
+type PipelineConfig struct {
+	Enabled bool `json:"enabled"`
+}
+
 type TriggerPipelineInput struct {
 	Target    TriggerTarget     `json:"target"`
 	Variables []TriggerVariable `json:"variables,omitempty"`

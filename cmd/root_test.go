@@ -181,9 +181,11 @@ func resetRootCmdGlobals(t *testing.T) {
 	t.Helper()
 	oldCfgFile, oldWs, oldRepo, oldUser, oldToken, oldFormat, oldDescribe := cfgFile, workspace, repo, username, token, format, describeFlag
 	oldCfg, oldClient := cfg, client
+	oldGitOriginURL := gitOriginURL
 	t.Cleanup(func() {
 		cfgFile, workspace, repo, username, token, format, describeFlag = oldCfgFile, oldWs, oldRepo, oldUser, oldToken, oldFormat, oldDescribe
 		cfg, client = oldCfg, oldClient
+		gitOriginURL = oldGitOriginURL
 	})
 	cfgFile = filepath.Join(t.TempDir(), "absent.yaml")
 	workspace, repo, username, token = "", "", "", ""
@@ -196,6 +198,11 @@ func resetRootCmdGlobals(t *testing.T) {
 	// test meant to simulate a brand-new user with nothing configured.
 	t.Setenv("BITBUCKET_USER", "")
 	t.Setenv("BITBUCKET_TOKEN", "")
+	// Tests run inside this real bitbucket.org checkout, so the real
+	// git.OriginURL would silently resolve workspace/repo from bb's own
+	// origin and defeat "simulate a brand-new user with nothing configured".
+	// Stub it to look like there's no git origin at all.
+	gitOriginURL = func() (string, error) { return "", errors.New("no origin (stubbed for test)") }
 }
 
 // TestRootPersistentPreRunE_BareInvocation_NoConfig_SucceedsWithNilClient is
