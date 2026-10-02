@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"gopkg.in/yaml.v3"
 )
@@ -40,6 +41,12 @@ const (
 // the single source of truth shared by the cmd and tui packages.
 var OutputFormats = []string{FormatGCF, FormatJSON, FormatText}
 
+// Auth type identifiers for the AuthType field.
+const (
+	AuthTypeOAuth    = "oauth"
+	AuthTypeAPIToken = "apitoken"
+)
+
 // AppPasswordDeadline is the date Bitbucket Cloud app passwords stop working.
 const AppPasswordDeadline = "2026-06-09"
 
@@ -65,6 +72,10 @@ type Config struct {
 
 	// Token is never written to disk; loaded from keyring, env var, or CLI flag at runtime.
 	Token string `yaml:"-"`
+
+	// OAuthClientSecret is never written to disk; it comes from the
+	// BB_OAUTH_CLIENT_SECRET env var (or an interactive prompt) at runtime.
+	OAuthClientSecret string `yaml:"-"`
 }
 
 // HasOAuth returns true when the config is set up for OAuth authentication.
@@ -101,24 +112,48 @@ func DefaultPath() string {
 	return filepath.Join(home, ".bbcloud.yaml")
 }
 
-// Load reads the config file at path and overlays BITBUCKET_USER / BITBUCKET_TOKEN env vars.
-// If the file does not exist, Load returns a zero-value Config (not an error).
-func Load(path string) (*Config, error) {
-	cfg := &Config{}
-	data, err := os.ReadFile(path)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("read config %s: %w", path, err)
-	}
-	if err == nil {
-		if err := yaml.Unmarshal(data, cfg); err != nil {
-			return nil, fmt.Errorf("parse config %s: %w", path, err)
+// SystemPath returns the machine-wide config file that IT can use to preseed
+// non-secret defaults (for example oauth_client_id) on managed machines.
+func SystemPath() string {
+	if runtime.GOOS == "windows" {
+		if pd := os.Getenv("ProgramData"); pd != "" {
+			return filepath.Join(pd, "bb", "bbcloud.yaml")
 		}
+		return filepath.Join(`C:\ProgramData`, "bb", "bbcloud.yaml")
+	}
+	return "/etc/bbcloud.yaml"
+}
+
+// Load reads the config file at path, layered over the machine-wide config at
+// SystemPath, and overlays env vars. See LoadWithSystem for precedence.
+func Load(path string) (*Config, error) {
+	return LoadWithSystem(path, SystemPath())
+}
+
+// LoadWithSystem builds a Config from, lowest to highest precedence:
+// the system config file, the user config file at path, then the
+// BITBUCKET_USER / BITBUCKET_TOKEN / BB_OAUTH_CLIENT_ID /
+// BB_OAUTH_CLIENT_SECRET env vars. A missing file is not an error; an
+// unreadable or malformed one is. Credentials never come from files.
+func LoadWithSystem(path, systemPath string) (*Config, error) {
+	cfg := &Config{}
+	if err := mergeFile(cfg, systemPath); err != nil {
+		return nil, err
+	}
+	if err := mergeFile(cfg, path); err != nil {
+		return nil, err
 	}
 	if v := os.Getenv("BITBUCKET_USER"); v != "" {
 		cfg.Username = v
 	}
 	if v := os.Getenv("BITBUCKET_TOKEN"); v != "" {
 		cfg.Token = v
+	}
+	if v := os.Getenv("BB_OAUTH_CLIENT_ID"); v != "" {
+		cfg.OAuthClientID = v
+	}
+	if v := os.Getenv("BB_OAUTH_CLIENT_SECRET"); v != "" {
+		cfg.OAuthClientSecret = v
 	}
 	if cfg.CloneAction == "" {
 		cfg.CloneAction = CloneActionClone
@@ -127,6 +162,22 @@ func Load(path string) (*Config, error) {
 		cfg.Theme = ThemeDefault
 	}
 	return cfg, nil
+}
+
+// mergeFile unmarshals the YAML file at path onto cfg, so only keys present in
+// the file overwrite existing values. A missing file is a no-op.
+func mergeFile(cfg *Config, path string) error {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read config %s: %w", path, err)
+	}
+	if err := yaml.Unmarshal(data, cfg); err != nil {
+		return fmt.Errorf("parse config %s: %w", path, err)
+	}
+	return nil
 }
 
 // Apply overlays non-empty flag values onto cfg (highest precedence).

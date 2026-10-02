@@ -38,6 +38,17 @@ var setupCmd = &cobra.Command{
 
 		ws := promptLine(r, "Workspace", existing.Workspace)
 		defaultRepo := promptLine(r, "Default repo (optional)", existing.Repo)
+
+		method := promptAuthMethod(r, auth.Recommend(auth.DetectEnv()))
+		if method == config.AuthTypeOAuth {
+			existing.Workspace = ws
+			existing.Repo = defaultRepo
+			if err := existing.Save(path); err != nil {
+				return fmt.Errorf("save config: %w", err)
+			}
+			return runOAuthLogin(path)
+		}
+
 		fmt.Println("Create an API token (with scopes): https://support.atlassian.com/bitbucket-cloud/docs/create-an-api-token/")
 		user := promptLine(r, "Atlassian account email", existing.Username)
 		tok := promptPassword("API token", existing.Token)
@@ -141,4 +152,46 @@ func promptPassword(label, current string) string {
 		return current
 	}
 	return input
+}
+
+// parseAuthMethodChoice maps what the user typed at the auth-method prompt to
+// a config auth type. Empty input selects def. ok is false for unrecognised input.
+func parseAuthMethodChoice(input, def string) (method string, ok bool) {
+	switch strings.ToLower(strings.TrimSpace(input)) {
+	case "":
+		return def, true
+	case "1", "oauth", "o":
+		return config.AuthTypeOAuth, true
+	case "2", "apitoken", "api", "token", "t":
+		return config.AuthTypeAPIToken, true
+	}
+	return "", false
+}
+
+// promptAuthMethod asks which auth method to configure, listing OAuth first
+// and preselecting rec.Method. When OAuth was passed over, it says why.
+func promptAuthMethod(r *bufio.Reader, rec auth.Recommendation) string {
+	fmt.Println()
+	fmt.Println("Authentication method:")
+	fmt.Println("  1) OAuth 2.0 (recommended; browser login, tokens refresh automatically)")
+	fmt.Println("  2) API token")
+	if rec.Reason != "" {
+		fmt.Printf("API token preselected: %s.\n", rec.Reason)
+	}
+	defaultChoice := "1"
+	if rec.Method == config.AuthTypeAPIToken {
+		defaultChoice = "2"
+	}
+	for {
+		fmt.Printf("Choose [%s]: ", defaultChoice)
+		input, err := r.ReadString('\n')
+		if err != nil {
+			return rec.Method
+		}
+		if method, ok := parseAuthMethodChoice(input, rec.Method); ok {
+			fmt.Println()
+			return method
+		}
+		fmt.Println("Enter 1 or 2.")
+	}
 }

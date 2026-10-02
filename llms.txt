@@ -34,6 +34,14 @@ callback URL `http://localhost:8765/callback` (override the port via
 token, refresh token, and client secret in the OS keyring; expired access
 tokens are refreshed automatically on a 401.
 
+The Client ID can be preseeded (lowest to highest precedence): machine-wide
+`/etc/bbcloud.yaml` (`%ProgramData%\bb\bbcloud.yaml` on Windows), then
+`~/.bbcloud.yaml` (`oauth_client_id`), then `BB_OAUTH_CLIENT_ID`. Set
+`BB_OAUTH_CLIENT_SECRET` to skip the secret prompt. The secret is never read
+from or written to a config file. The first-run TUI wizard and `bb setup` both
+offer OAuth first and preselect API token only when the machine cannot complete
+a browser login (SSH session, no display, no OS keyring).
+
 ```bash
 bb auth login    # browser-based OAuth flow, credentials stored in OS keyring
 bb auth status   # show current auth state
@@ -47,7 +55,7 @@ API tokens require your **Atlassian account email** as the username (not Bitbuck
 See: https://support.atlassian.com/bitbucket-cloud/docs/create-an-api-token/
 
 ```bash
-bb setup         # interactive wizard: prompts for workspace, email, API token; stores token in OS keyring
+bb setup         # interactive wizard: prompts for workspace, auth method (OAuth first), then email + API token (or hands off to OAuth login); stores token in OS keyring
 ```
 
 ### Option C — Environment variables (CI/CD)
@@ -60,7 +68,7 @@ bb pr list -w myws -r myrepo
 
 ### Configuration file
 
-`~/.bbcloud.yaml` stores workspace, repo, email, auth type (`apitoken` or `oauth`), and optionally `oauth_callback_port` (default 8765). Tokens and OAuth secrets are never written to disk — they live in the OS keyring or environment variables.
+`~/.bbcloud.yaml` stores workspace, repo, email, auth type (`apitoken` or `oauth`), and optionally `oauth_client_id` and `oauth_callback_port` (default 8765). A machine-wide `/etc/bbcloud.yaml` is merged underneath it. Tokens and OAuth secrets are never written to disk - they live in the OS keyring or environment variables.
 
 ## Global flags
 

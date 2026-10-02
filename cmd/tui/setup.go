@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -10,44 +11,70 @@ import (
 
 	"github.com/payfacto/bb/internal/auth"
 	"github.com/payfacto/bb/internal/config"
+	"github.com/payfacto/bb/internal/session"
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
+// Slot ids. The text fields come first because they double as indexes into
+// setupModel.fields; the selectors follow. On-screen order is separate and
+// depends on the auth method (see navOrder).
 const (
 	setupFieldWorkspace = iota
 	setupFieldRepo
 	setupFieldUsername
-	setupFieldPassword
+	setupFieldPassword // API token
+	setupFieldClientID
+	setupFieldClientSecret
+	setupFieldMethod
 	setupFieldTheme
 	setupFieldFormat
-	setupFieldCount // total navigable slots (text fields + theme + format)
+	setupFieldCount // total slots (text fields + method + theme + format)
 )
 
 const (
-	setupTextFieldCount    = setupFieldTheme // number of textinput fields (0..3)
+	setupTextFieldCount    = setupFieldMethod // number of textinput fields (0..5)
 	setupFieldCharLimit    = 100
 	setupPasswordCharLimit = 200
 	setupLabelWidth        = 14 // column width for field labels in the setup wizard
 )
 
+// setupMethods is the ordered list of auth methods offered by the wizard.
+// OAuth is first: it is the recommended method.
+var setupMethods = []string{config.AuthTypeOAuth, config.AuthTypeAPIToken}
+
+var setupMethodNames = map[string]string{
+	config.AuthTypeOAuth:    "OAuth 2.0 (recommended)",
+	config.AuthTypeAPIToken: "API token",
+}
+
 // setupFormatNames is the ordered list of output formats offered by the wizard.
 // It aliases config.OutputFormats so the cmd and tui packages share one source.
 var setupFormatNames = config.OutputFormats
 
+// Seams for tests: environment detection and the browser login.
+var (
+	detectAuthRecommendation = func() auth.Recommendation { return auth.Recommend(auth.DetectEnv()) }
+	oauthLogin               = auth.Login
+	fetchOAuthUsername       = session.FetchUsername
+)
+
 // setupModel is the TUI setup wizard for first-run or reconfiguration.
 type setupModel struct {
-	fields        []textinput.Model
-	focus         int
-	themeIdx      int
-	originalTheme string
-	formatIdx     int
-	cfgPath       string
-	existing      *config.Config
-	err           error
-	done          bool
-	message       string
-	newClient     *bitbucket.Client
-	newCfg        *config.Config
+	fields         []textinput.Model
+	focus          int
+	methodIdx      int
+	recommendation auth.Recommendation
+	themeIdx       int
+	originalTheme  string
+	formatIdx      int
+	cfgPath        string
+	existing       *config.Config
+	err            error
+	busy           bool // an OAuth browser login is in flight
+	done           bool
+	message        string
+	newClient      *bitbucket.Client
+	newCfg         *config.Config
 }
 
 func newSetupView(cfgPath string, existing *config.Config) *setupModel {
@@ -61,7 +88,6 @@ func newSetupView(cfgPath string, existing *config.Config) *setupModel {
 	fields[setupFieldWorkspace].Placeholder = "workspace slug"
 	fields[setupFieldWorkspace].SetValue(existing.Workspace)
 	fields[setupFieldWorkspace].CharLimit = setupFieldCharLimit
-	fields[setupFieldWorkspace].Focus()
 
 	fields[setupFieldRepo] = textinput.New()
 	fields[setupFieldRepo].Placeholder = "repo slug (optional)"
@@ -79,6 +105,18 @@ func newSetupView(cfgPath string, existing *config.Config) *setupModel {
 	fields[setupFieldPassword].EchoCharacter = '*'
 	fields[setupFieldPassword].CharLimit = setupPasswordCharLimit
 
+	fields[setupFieldClientID] = textinput.New()
+	fields[setupFieldClientID].Placeholder = "OAuth consumer key"
+	fields[setupFieldClientID].SetValue(existing.OAuthClientID)
+	fields[setupFieldClientID].CharLimit = setupPasswordCharLimit
+
+	fields[setupFieldClientSecret] = textinput.New()
+	fields[setupFieldClientSecret].Placeholder = "OAuth consumer secret"
+	fields[setupFieldClientSecret].SetValue(existing.OAuthClientSecret)
+	fields[setupFieldClientSecret].EchoMode = textinput.EchoPassword
+	fields[setupFieldClientSecret].EchoCharacter = '*'
+	fields[setupFieldClientSecret].CharLimit = setupPasswordCharLimit
+
 	idx := themeIndex(existing.Theme)
 
 	fIdx := 0 // default gcf
@@ -88,18 +126,45 @@ func newSetupView(cfgPath string, existing *config.Config) *setupModel {
 		}
 	}
 
+	rec := detectAuthRecommendation()
+	method := rec.Method
+	switch existing.AuthType { // reconfiguring: keep what the user already chose
+	case config.AuthTypeOAuth, config.AuthTypeAPIToken:
+		method = existing.AuthType
+	}
+
 	return &setupModel{
-		fields:        fields,
-		cfgPath:       cfgPath,
-		existing:      existing,
-		themeIdx:      idx,
-		originalTheme: existing.Theme,
-		formatIdx:     fIdx,
+		fields:         fields,
+		focus:          setupFieldMethod,
+		methodIdx:      slices.Index(setupMethods, method),
+		recommendation: rec,
+		cfgPath:        cfgPath,
+		existing:       existing,
+		themeIdx:       idx,
+		originalTheme:  existing.Theme,
+		formatIdx:      fIdx,
 	}
 }
 
 func (m *setupModel) Init() tea.Cmd {
 	return textinput.Blink
+}
+
+// method returns the auth method currently selected in the wizard.
+func (m *setupModel) method() string {
+	return setupMethods[m.methodIdx]
+}
+
+// navOrder returns the visible slots in on-screen order. The auth method is
+// always first; the credential fields shown depend on it.
+func (m *setupModel) navOrder() []int {
+	order := []int{setupFieldMethod, setupFieldWorkspace, setupFieldRepo}
+	if m.method() == config.AuthTypeOAuth {
+		order = append(order, setupFieldClientID, setupFieldClientSecret)
+	} else {
+		order = append(order, setupFieldUsername, setupFieldPassword)
+	}
+	return append(order, setupFieldTheme, setupFieldFormat)
 }
 
 func (m *setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -115,31 +180,24 @@ func (m *setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.busy {
+			return m, nil // waiting on the browser login; ignore input
+		}
 		switch msg.Type {
 		case tea.KeyLeft:
-			if m.focus == setupFieldTheme {
-				m.themeIdx = (m.themeIdx - 1 + len(themeNames)) % len(themeNames)
-				applyTheme(themeNames[m.themeIdx])
-			}
-			if m.focus == setupFieldFormat {
-				m.formatIdx = (m.formatIdx - 1 + len(setupFormatNames)) % len(setupFormatNames)
-			}
+			m.cycleSelector(-1)
 			return m, nil
 		case tea.KeyRight:
-			if m.focus == setupFieldTheme {
-				m.themeIdx = (m.themeIdx + 1) % len(themeNames)
-				applyTheme(themeNames[m.themeIdx])
-			}
-			if m.focus == setupFieldFormat {
-				m.formatIdx = (m.formatIdx + 1) % len(setupFormatNames)
-			}
+			m.cycleSelector(1)
 			return m, nil
 		case tea.KeyTab, tea.KeyDown:
 			return m, m.nextField()
 		case tea.KeyShiftTab, tea.KeyUp:
 			return m, m.prevField()
 		case tea.KeyEnter:
-			if m.focus == setupFieldCount-1 {
+			order := m.navOrder()
+			if m.focus == order[len(order)-1] {
+				m.err = nil
 				return m, m.save()
 			}
 			return m, m.nextField()
@@ -152,6 +210,7 @@ func (m *setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case saveResultMsg:
+		m.busy = false
 		if msg.err != nil {
 			m.err = msg.err
 			return m, nil
@@ -172,22 +231,35 @@ func (m *setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *setupModel) nextField() tea.Cmd {
-	if m.focus < setupTextFieldCount {
-		m.fields[m.focus].Blur()
+// cycleSelector moves the focused selector (method, theme, or format) by step.
+func (m *setupModel) cycleSelector(step int) {
+	wrap := func(i, n int) int { return (i + step + n) % n }
+	switch m.focus {
+	case setupFieldMethod:
+		m.methodIdx = wrap(m.methodIdx, len(setupMethods))
+	case setupFieldTheme:
+		m.themeIdx = wrap(m.themeIdx, len(themeNames))
+		applyTheme(themeNames[m.themeIdx])
+	case setupFieldFormat:
+		m.formatIdx = wrap(m.formatIdx, len(setupFormatNames))
 	}
-	m.focus = (m.focus + 1) % setupFieldCount
-	if m.focus < setupTextFieldCount {
-		m.fields[m.focus].Focus()
-	}
-	return textinput.Blink
 }
 
-func (m *setupModel) prevField() tea.Cmd {
+func (m *setupModel) nextField() tea.Cmd { return m.moveFocus(1) }
+
+func (m *setupModel) prevField() tea.Cmd { return m.moveFocus(-1) }
+
+// moveFocus steps through the visible slots, wrapping at both ends.
+func (m *setupModel) moveFocus(step int) tea.Cmd {
 	if m.focus < setupTextFieldCount {
 		m.fields[m.focus].Blur()
 	}
-	m.focus = (m.focus - 1 + setupFieldCount) % setupFieldCount
+	order := m.navOrder()
+	pos := slices.Index(order, m.focus)
+	if pos < 0 { // focus was on a slot hidden by a method switch
+		pos = 0
+	}
+	m.focus = order[(pos+step+len(order))%len(order)]
 	if m.focus < setupTextFieldCount {
 		m.fields[m.focus].Focus()
 	}
@@ -208,6 +280,13 @@ type rebuildMenuMsg struct {
 }
 
 func (m *setupModel) save() tea.Cmd {
+	if m.method() == config.AuthTypeOAuth {
+		return m.saveOAuth()
+	}
+	return m.saveAPIToken()
+}
+
+func (m *setupModel) saveAPIToken() tea.Cmd {
 	ws := m.fields[setupFieldWorkspace].Value()
 	repo := m.fields[setupFieldRepo].Value()
 	user := m.fields[setupFieldUsername].Value()
@@ -227,7 +306,7 @@ func (m *setupModel) save() tea.Cmd {
 	return func() tea.Msg {
 		authType := existing.AuthType
 		if pass != "" {
-			authType = "apitoken"
+			authType = config.AuthTypeAPIToken
 		}
 
 		updated := &config.Config{
@@ -276,6 +355,76 @@ func (m *setupModel) save() tea.Cmd {
 	}
 }
 
+// saveOAuth runs the browser login, stores the resulting credentials in the
+// keyring, and writes the config. The login blocks until the user finishes in
+// their browser, so it runs inside the returned command, never in Update.
+func (m *setupModel) saveOAuth() tea.Cmd {
+	ws := m.fields[setupFieldWorkspace].Value()
+	repo := m.fields[setupFieldRepo].Value()
+	clientID := m.fields[setupFieldClientID].Value()
+	secret := m.fields[setupFieldClientSecret].Value()
+	theme := themeNames[m.themeIdx]
+	chosenFormat := setupFormatNames[m.formatIdx]
+
+	if ws == "" || clientID == "" || secret == "" {
+		return func() tea.Msg {
+			return saveResultMsg{err: fmt.Errorf("workspace, client ID, and client secret are required")}
+		}
+	}
+
+	m.busy = true
+	port := m.existing.OAuthPort()
+	callbackPort := m.existing.OAuthCallbackPort
+	cfgPath := m.cfgPath
+
+	return func() tea.Msg {
+		tok, err := oauthLogin(clientID, secret, port)
+		if err != nil {
+			return saveResultMsg{err: fmt.Errorf("oauth login: %w", err)}
+		}
+		user, err := fetchOAuthUsername(tok.AccessToken)
+		if err != nil {
+			return saveResultMsg{err: fmt.Errorf("could not read your Bitbucket username: %w", err)}
+		}
+		if err := session.StoreOAuthCredentials(user, secret, tok); err != nil {
+			return saveResultMsg{err: fmt.Errorf("store credentials in keyring: %w (choose API token and set BITBUCKET_TOKEN instead)", err)}
+		}
+
+		updated := &config.Config{
+			Workspace:         ws,
+			Repo:              repo,
+			Username:          user,
+			AuthType:          config.AuthTypeOAuth,
+			OAuthClientID:     clientID,
+			OAuthCallbackPort: callbackPort,
+			Theme:             theme,
+			Format:            chosenFormat,
+		}
+		if err := updated.Save(cfgPath); err != nil {
+			return saveResultMsg{err: fmt.Errorf("save config: %w", err)}
+		}
+
+		updated.Token = tok.AccessToken
+		return saveResultMsg{
+			message: fmt.Sprintf("Authenticated as %s. Config saved to %s", user, cfgPath),
+			client:  session.BuildClient(updated),
+			cfg:     updated,
+		}
+	}
+}
+
+var setupFieldLabels = map[int]string{
+	setupFieldWorkspace:    "Workspace",
+	setupFieldRepo:         "Default repo",
+	setupFieldUsername:     "Email",
+	setupFieldPassword:     "API token",
+	setupFieldClientID:     "Client ID",
+	setupFieldClientSecret: "Client secret",
+	setupFieldMethod:       "Auth method",
+	setupFieldTheme:        "Theme",
+	setupFieldFormat:       "Format",
+}
+
 func (m *setupModel) View() string {
 	var sb strings.Builder
 
@@ -286,42 +435,18 @@ func (m *setupModel) View() string {
 	sb.WriteString(separatorStyle.Render(strings.Repeat("─", viewWidth)))
 	sb.WriteString("\n\n")
 
-	labels := []string{"Workspace", "Default repo", "Email", "API token"}
-	for i, label := range labels {
-		if i == m.focus {
-			sb.WriteString(helpKeyStyle.Render(fmt.Sprintf("  %-*s ", setupLabelWidth, label)))
-		} else {
-			sb.WriteString(subtitleStyle.Render(fmt.Sprintf("  %-*s ", setupLabelWidth, label)))
+	for _, slot := range m.navOrder() {
+		m.writeRow(&sb, slot)
+		if slot == setupFieldMethod {
+			m.writeMethodHint(&sb)
 		}
-		sb.WriteString(m.fields[i].View())
+	}
+
+	if m.busy {
+		sb.WriteString("\n")
+		sb.WriteString(subtitleStyle.Render("  Waiting for browser login... finish signing in, then return here."))
 		sb.WriteString("\n")
 	}
-
-	// Theme selector row
-	displayName := themeDisplayNames[themeNames[m.themeIdx]]
-	if m.focus == setupFieldTheme {
-		sb.WriteString(helpKeyStyle.Render(fmt.Sprintf("  %-*s ", setupLabelWidth, "Theme")))
-		sb.WriteString(helpKeyStyle.Render("← "))
-		sb.WriteString(helpKeyStyle.Bold(true).Render(displayName))
-		sb.WriteString(helpKeyStyle.Render(" →"))
-	} else {
-		sb.WriteString(subtitleStyle.Render(fmt.Sprintf("  %-*s ", setupLabelWidth, "Theme")))
-		sb.WriteString(subtitleStyle.Render(displayName))
-	}
-	sb.WriteString("\n")
-
-	// Format selector row
-	formatName := setupFormatNames[m.formatIdx]
-	if m.focus == setupFieldFormat {
-		sb.WriteString(helpKeyStyle.Render(fmt.Sprintf("  %-*s ", setupLabelWidth, "Format")))
-		sb.WriteString(helpKeyStyle.Render("← "))
-		sb.WriteString(helpKeyStyle.Bold(true).Render(formatName))
-		sb.WriteString(helpKeyStyle.Render(" →"))
-	} else {
-		sb.WriteString(subtitleStyle.Render(fmt.Sprintf("  %-*s ", setupLabelWidth, "Format")))
-		sb.WriteString(subtitleStyle.Render(formatName))
-	}
-	sb.WriteString("\n")
 
 	if m.err != nil {
 		sb.WriteString("\n")
@@ -337,39 +462,100 @@ func (m *setupModel) View() string {
 		sb.WriteString("\n")
 	}
 
+	sb.WriteString("\n")
+	sb.WriteString(subtitleStyle.Render("  Prefer the command line? 'bb auth login' (OAuth) or 'bb setup' (API token)."))
+	sb.WriteString("\n")
+
 	return sb.String()
+}
+
+// writeRow renders one slot: a text field or a ←/→ selector.
+func (m *setupModel) writeRow(sb *strings.Builder, slot int) {
+	label := fmt.Sprintf("  %-*s ", setupLabelWidth, setupFieldLabels[slot])
+	focused := m.focus == slot
+	if focused {
+		sb.WriteString(helpKeyStyle.Render(label))
+	} else {
+		sb.WriteString(subtitleStyle.Render(label))
+	}
+
+	if slot < setupTextFieldCount {
+		sb.WriteString(m.fields[slot].View())
+		sb.WriteString("\n")
+		return
+	}
+
+	value := m.selectorValue(slot)
+	if focused {
+		sb.WriteString(helpKeyStyle.Render("← "))
+		sb.WriteString(helpKeyStyle.Bold(true).Render(value))
+		sb.WriteString(helpKeyStyle.Render(" →"))
+	} else {
+		sb.WriteString(subtitleStyle.Render(value))
+	}
+	sb.WriteString("\n")
+}
+
+func (m *setupModel) selectorValue(slot int) string {
+	switch slot {
+	case setupFieldMethod:
+		return setupMethodNames[m.method()]
+	case setupFieldTheme:
+		return themeDisplayNames[themeNames[m.themeIdx]]
+	default:
+		return setupFormatNames[m.formatIdx]
+	}
+}
+
+// writeMethodHint explains the current method choice under the selector: why
+// OAuth was passed over, or what OAuth needs.
+func (m *setupModel) writeMethodHint(sb *strings.Builder) {
+	pad := strings.Repeat(" ", 3+setupLabelWidth)
+	switch {
+	case m.method() == config.AuthTypeAPIToken && m.recommendation.Reason != "":
+		sb.WriteString(subtitleStyle.Render(pad + "API token preselected: " + m.recommendation.Reason + "."))
+		sb.WriteString("\n")
+	case m.method() == config.AuthTypeOAuth:
+		sb.WriteString(subtitleStyle.Render(pad + "Needs an OAuth consumer (ask your workspace admin) and a local browser."))
+		sb.WriteString("\n")
+	}
 }
 
 func (m *setupModel) Title() string { return "Setup" }
 
-// CapturesText reports whether a free-text field (workspace, repo, email, or
-// token) is focused. While one is, the app must not steal key presses such as
-// 'q' as global shortcuts, so they can be typed or pasted into the field.
+// CapturesText reports whether a free-text field (workspace, repo, email,
+// token, client ID, or client secret) is focused. While one is, the app must
+// not steal key presses such as 'q' as global shortcuts, so they can be typed
+// or pasted into the field.
 func (m *setupModel) CapturesText() bool {
 	return m.focus < setupTextFieldCount
 }
 
 func (m *setupModel) ShortHelp() []key.Binding {
-	if m.focus == setupFieldTheme {
+	quit := key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit"))
+	save := key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "save"))
+	next := key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab/↓", "next field"))
+
+	switch m.focus {
+	case setupFieldMethod:
+		return []key.Binding{
+			key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←/→", "change auth method")),
+			next, quit,
+		}
+	case setupFieldTheme:
 		return []key.Binding{
 			key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←/→", "change theme")),
-			key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab/↓", "next field")),
-			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "save")),
-			key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit")),
+			next, save, quit,
 		}
-	}
-	if m.focus == setupFieldFormat {
+	case setupFieldFormat:
 		return []key.Binding{
 			key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←/→", "change format")),
-			key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab/↓", "next field")),
-			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "save")),
-			key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit")),
+			next, save, quit,
 		}
 	}
 	return []key.Binding{
-		key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab/↓", "next field")),
+		next,
 		key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("shift+tab/↑", "prev field")),
-		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "save")),
-		key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit")),
+		save, quit,
 	}
 }
