@@ -11,6 +11,7 @@ import (
 	"github.com/payfacto/bb/internal/auth"
 	"github.com/payfacto/bb/internal/config"
 	"github.com/payfacto/bb/internal/git"
+	"github.com/payfacto/bb/internal/session"
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
@@ -77,7 +78,7 @@ var rootCmd = &cobra.Command{
 		if cmd == cmd.Root() {
 			resolveTokenFromKeyring(cfg, false)
 			if cfg.Token != "" {
-				client = buildClient(cfg)
+				client = session.BuildClient(cfg)
 			}
 			return nil
 		}
@@ -90,7 +91,7 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		client = buildClient(cfg)
+		client = session.BuildClient(cfg)
 		return nil
 	},
 }

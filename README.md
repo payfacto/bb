@@ -74,7 +74,7 @@ Workspace: myworkspace  Repo: myrepo
 - Reconfigure credentials from the "Setup" menu item without leaving the TUI
 - From the repo detail view, press `Enter` on **Clone SSH** or **Clone HTTPS** to run `git clone` directly — the TUI suspends, git runs with full terminal output, then the TUI resumes. Press `t` to toggle between clone mode and copy-to-clipboard mode. Default is clone mode; set `clone_action: copy` in `~/.bbcloud.yaml` to default to copy.
 
-**First run:** If no config exists, the TUI automatically shows a setup wizard — no need to run `bb setup` first.
+**First run:** If no config exists, the TUI automatically shows a setup wizard - no need to run `bb setup` first. The wizard's first row is the **Auth method** (use `←`/`→`): OAuth 2.0 is listed first and preselected. On a machine that cannot complete a browser login (SSH session, no display, or no OS keyring) it preselects **API token** instead and says why.
 
 The TUI requires a terminal — piped or scripted usage falls back to the standard CLI.
 
@@ -99,6 +99,21 @@ The TUI requires a terminal — piped or scripted usage falls back to the standa
 
 > The login flow listens on `http://localhost:8765/callback`. If port 8765 is taken, set `oauth_callback_port` in `~/.bbcloud.yaml` and register a matching callback URL on the OAuth client.
 
+#### Preseeding the OAuth consumer
+
+Users should not have to hunt for the Client ID. It is read, lowest to highest precedence, from:
+
+1. A machine-wide config file that IT can distribute: `/etc/bbcloud.yaml` (Linux/macOS) or `%ProgramData%\bb\bbcloud.yaml` (Windows). Any non-secret key from `~/.bbcloud.yaml` works there, for example:
+
+   ```yaml
+   oauth_client_id: <your OAuth consumer key>
+   workspace: <your workspace>
+   ```
+2. The user's `~/.bbcloud.yaml` (overrides the machine-wide file key by key).
+3. The `BB_OAUTH_CLIENT_ID` environment variable.
+
+The consumer **secret** is never read from a file. Set `BB_OAUTH_CLIENT_SECRET` (for example via a secrets manager) to skip the prompt, or enter it when asked. Neither value is ever embedded in the `bb` binary.
+
 Additional auth commands:
 
 ```bash
@@ -116,7 +131,7 @@ bb auth token     # print raw token (useful for scripts)
 ```bash
 bb setup
 ```
-Prompts for workspace, your **Atlassian account email**, and a Bitbucket **API token** (created with scopes). The token is stored in the OS keyring (not in `~/.bbcloud.yaml`).
+Prompts for workspace, then asks for the **auth method** (OAuth is option 1 and the default unless this machine cannot complete a browser login). Choosing API token prompts for your **Atlassian account email** and a Bitbucket **API token** (created with scopes). The token is stored in the OS keyring (not in `~/.bbcloud.yaml`). Choosing OAuth continues into `bb auth login`.
 
 ### CI/CD environments
 

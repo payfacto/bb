@@ -5,11 +5,18 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/payfacto/bb/internal/auth"
 	"github.com/payfacto/bb/internal/config"
 	"github.com/payfacto/bb/internal/history"
 )
 
 func newSetupApp() (*appModel, *setupModel) {
+	// Pin the API-token method: this helper focuses the API token field.
+	prev := detectAuthRecommendation
+	detectAuthRecommendation = func() auth.Recommendation {
+		return auth.Recommendation{Method: config.AuthTypeAPIToken}
+	}
+	defer func() { detectAuthRecommendation = prev }()
 	setup := newSetupView("/tmp/x.yaml", &config.Config{})
 	for setup.focus != setupFieldPassword {
 		setup.nextField()

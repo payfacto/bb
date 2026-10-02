@@ -69,7 +69,9 @@ itself, including the filter-repo variant, is in `.context/GO-RELEASE-PATTERNS.m
 - **`cmd/`** — Cobra command definitions. Thin layer: flag parsing, calling `pkg/bitbucket`, printing output. No business logic.
 - **`cmd/tui/`** — Bubble Tea TUI application. Launched when `bb` is run with no subcommand. Elm-style architecture: `app.go` (model/update/view), `menu.go` (home), `list.go` (list views), `detail.go` (PR/resource detail), `sections.go` (drill-down panels), `nav.go` (breadcrumb navigation), `styles.go` + `themes.go` (lipgloss styling), `keys.go` (key bindings), `cache.go` (in-process data cache).
 - **`pkg/bitbucket/`** — Typed HTTP client. All API interaction lives here. Tests are here (using `httptest`).
-- **`internal/config/`** — Loads `~/.bbcloud.yaml`, merges env vars and CLI flags. Consumed by `cmd/root.go`.
+- **`internal/config/`** - Loads the system + user config files, merges env vars and CLI flags. Consumed by `cmd/root.go`.
+- **`internal/auth/`** - Keyring access, the OAuth browser flow, and `Recommend`/`DetectEnv` (which auth method to preselect: OAuth unless SSH, no display, or no keyring). Used by both `bb setup` and the TUI wizard.
+- **`internal/session/`** - Credential steps shared by `cmd/` and `cmd/tui/` (`BuildClient`, OAuth token refresh, `StoreOAuthCredentials`, `FetchUsername`). `cmd/tui` cannot import `cmd`, so anything both need lives here.
 
 ### Command wiring
 
@@ -158,8 +160,13 @@ callers (`cmd/errors.go`) can map them to stable CLI error codes.
 
 ### Configuration precedence (low → high)
 
+0. Machine-wide `/etc/bbcloud.yaml` (`%ProgramData%\bb\bbcloud.yaml` on
+   Windows), merged key by key underneath the user file. Non-secret keys only
+   (for example a preseeded `oauth_client_id`). Never embed a consumer in the
+   binary: releases are public (GitHub, Homebrew).
 1. `~/.bbcloud.yaml` (or `--config` path)
-2. `BITBUCKET_USER` / `BITBUCKET_TOKEN` env vars
+2. `BITBUCKET_USER` / `BITBUCKET_TOKEN` / `BB_OAUTH_CLIENT_ID` /
+   `BB_OAUTH_CLIENT_SECRET` env vars (the secret never touches a file)
 3. Git origin of the current working directory (`--workspace`/`--repo` only,
    and only when it resolves to a bitbucket.org remote) - see
    "Workspace/repo resolution" above; not applicable to username/token

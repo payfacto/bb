@@ -11,6 +11,7 @@ import (
 	"github.com/payfacto/bb/cmd/render"
 	"github.com/payfacto/bb/internal/auth"
 	"github.com/payfacto/bb/internal/config"
+	"github.com/payfacto/bb/internal/session"
 )
 
 var authCmd = &cobra.Command{
@@ -38,63 +39,77 @@ Set the callback URL to: http://localhost:8765/callback
 The port defaults to 8765; override it with oauth_callback_port in
 ~/.bbcloud.yaml (the callback URL you register must match it).
 
+The client ID can be preseeded so users are not asked for it: set
+oauth_client_id in ~/.bbcloud.yaml, in a machine-wide /etc/bbcloud.yaml
+(%ProgramData%\bb\bbcloud.yaml on Windows), or via BB_OAUTH_CLIENT_ID.
+Set BB_OAUTH_CLIENT_SECRET to skip the secret prompt (for example with a
+secrets manager). The secret is never written to any config file.
+
 Then run: bb auth login`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		path := cfgFile
-		existing, _ := config.Load(path) // treat missing/unreadable config as empty
-		if existing == nil {
-			existing = &config.Config{}
-		}
-
-		r := bufio.NewReader(os.Stdin)
-		fmt.Println("bb auth login — authenticate with Bitbucket Cloud via OAuth 2.0")
-		fmt.Println()
-
-		clientID := promptLine(r, "OAuth Client ID", existing.OAuthClientID)
-		if clientID == "" {
-			return fmt.Errorf("oauth client ID is required")
-		}
-		clientSecret := promptPassword("OAuth Client Secret", "")
-		if clientSecret == "" {
-			return fmt.Errorf("oauth client secret is required")
-		}
-		fmt.Println()
-
-		tok, err := auth.Login(clientID, clientSecret, existing.OAuthPort())
-		if err != nil {
-			return fmt.Errorf("oauth login: %w", err)
-		}
-
-		if existing.Workspace == "" {
-			existing.Workspace = promptLine(r, "Workspace slug", "")
-		}
-
-		username, err := fetchUsername(tok.AccessToken)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "warning: could not fetch username from API (%v) — enter it manually\n", err)
-			existing.Username = promptLine(r, "Username", existing.Username)
-		} else {
-			existing.Username = username
-			fmt.Printf("Authenticated as: %s\n", username)
-		}
-
-		if err := storeOAuthCredentials(existing.Username, clientSecret, tok); err != nil {
-			fmt.Fprintf(os.Stderr, "\nwarning: could not store credentials in OS keyring (%v)\n", err)
-			fmt.Fprintf(os.Stderr, "run 'bb auth token' after setting BITBUCKET_TOKEN manually, or re-run 'bb auth login'\n")
-			fmt.Fprintf(os.Stderr, "note: without keyring storage, automatic token refresh is unavailable\n")
-		}
-
-		existing.OAuthClientID = clientID
-		existing.AuthType = "oauth"
-		existing.Token = "" // never write to YAML
-		if err := existing.Save(path); err != nil {
-			return fmt.Errorf("save config: %w", err)
-		}
-
-		fmt.Printf("\nConfig saved to %s\n", path)
-		fmt.Println("Authentication successful!")
-		return nil
+		return runOAuthLogin(cfgFile)
 	},
+}
+
+// runOAuthLogin runs the interactive OAuth 2.0 login against the config at
+// path. It is shared by 'bb auth login' and 'bb setup'.
+func runOAuthLogin(path string) error {
+	existing, _ := config.Load(path) // treat missing/unreadable config as empty
+	if existing == nil {
+		existing = &config.Config{}
+	}
+
+	r := bufio.NewReader(os.Stdin)
+	fmt.Println("bb auth login — authenticate with Bitbucket Cloud via OAuth 2.0")
+	fmt.Println()
+
+	clientID := promptLine(r, "OAuth Client ID", existing.OAuthClientID)
+	if clientID == "" {
+		return fmt.Errorf("oauth client ID is required")
+	}
+	clientSecret := existing.OAuthClientSecret // from BB_OAUTH_CLIENT_SECRET
+	if clientSecret == "" {
+		clientSecret = promptPassword("OAuth Client Secret", "")
+	}
+	if clientSecret == "" {
+		return fmt.Errorf("oauth client secret is required")
+	}
+	fmt.Println()
+
+	tok, err := auth.Login(clientID, clientSecret, existing.OAuthPort())
+	if err != nil {
+		return fmt.Errorf("oauth login: %w", err)
+	}
+
+	if existing.Workspace == "" {
+		existing.Workspace = promptLine(r, "Workspace slug", "")
+	}
+
+	username, err := session.FetchUsername(tok.AccessToken)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not fetch username from API (%v) — enter it manually\n", err)
+		existing.Username = promptLine(r, "Username", existing.Username)
+	} else {
+		existing.Username = username
+		fmt.Printf("Authenticated as: %s\n", username)
+	}
+
+	if err := session.StoreOAuthCredentials(existing.Username, clientSecret, tok); err != nil {
+		fmt.Fprintf(os.Stderr, "\nwarning: could not store credentials in OS keyring (%v)\n", err)
+		fmt.Fprintf(os.Stderr, "run 'bb auth token' after setting BITBUCKET_TOKEN manually, or re-run 'bb auth login'\n")
+		fmt.Fprintf(os.Stderr, "note: without keyring storage, automatic token refresh is unavailable\n")
+	}
+
+	existing.OAuthClientID = clientID
+	existing.AuthType = "oauth"
+	existing.Token = "" // never write to YAML
+	if err := existing.Save(path); err != nil {
+		return fmt.Errorf("save config: %w", err)
+	}
+
+	fmt.Printf("\nConfig saved to %s\n", path)
+	fmt.Println("Authentication successful!")
+	return nil
 }
 
 var authLogoutCmd = &cobra.Command{
