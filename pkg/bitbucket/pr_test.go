@@ -44,7 +44,7 @@ func TestPRs_List_SourceBranchFilter(t *testing.T) {
 		if got, want := q.Get("state"), "OPEN"; got != want {
 			t.Errorf("state: got %q, want %q", got, want)
 		}
-		if got, want := q.Get("q"), `source.branch.name="feat/x"`; got != want {
+		if got, want := q.Get("q"), `state="OPEN" AND source.branch.name="feat/x"`; got != want {
 			t.Errorf("q: got %q, want %q", got, want)
 		}
 		mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.PR{{ID: 7}}})
@@ -55,6 +55,41 @@ func TestPRs_List_SourceBranchFilter(t *testing.T) {
 	}
 	if len(got) != 1 || got[0].ID != 7 {
 		t.Errorf("unexpected PRs: %+v", got)
+	}
+}
+
+// Bitbucket ignores the "state" query parameter whenever a "q" expression is
+// present, so state must be part of the q clause when any other filter is used.
+func TestPRs_List_StateInQueryWhenCombinedWithFilters(t *testing.T) {
+	for _, state := range []string{"OPEN", "MERGED", "DECLINED", "SUPERSEDED"} {
+		t.Run(state, func(t *testing.T) {
+			c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				q := r.URL.Query().Get("q")
+				for _, want := range []string{`state="` + state + `"`, `source.branch.name="feat/x"`} {
+					if !strings.Contains(q, want) {
+						t.Errorf("q %q missing clause %q", q, want)
+					}
+				}
+				mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.PR{}})
+			}))
+			_, err := c.PRs("ws", "repo").List(context.Background(), bitbucket.PRListOptions{State: state, SourceBranch: "feat/x"})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestPRs_List_StateAllAddsNoStateClause(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if q := r.URL.Query().Get("q"); strings.Contains(q, "state") {
+			t.Errorf("q %q must not filter state for ALL", q)
+		}
+		mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.PR{}})
+	}))
+	_, err := c.PRs("ws", "repo").List(context.Background(), bitbucket.PRListOptions{State: "ALL", SourceBranch: "feat/x"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

@@ -20,7 +20,8 @@ func (r *PRResource) prPath(prID int) string {
 
 // List returns pull requests matching opts, following pagination to return the
 // full result set (not just the first page). State is sent as a query
-// parameter; SourceBranch, Since, and Until are combined into a Bitbucket BBQL
+// parameter and as a BBQL clause (Bitbucket ignores the parameter when "q" is
+// set); SourceBranch, Since, and Until are combined into a Bitbucket BBQL
 // "q" expression (Since/Until bound created_on). Sort optionally orders the
 // results ("-" prefix for descending, e.g. "-updated_on").
 func (r *PRResource) List(ctx context.Context, opts PRListOptions) ([]PR, error) {
@@ -33,6 +34,11 @@ func (r *PRResource) List(ctx context.Context, opts PRListOptions) ([]PR, error)
 	}
 
 	var clauses []string
+	// Bitbucket ignores the "state" query parameter whenever "q" is present,
+	// so the state filter must also live in the q expression.
+	if opts.State != "" && opts.State != "ALL" {
+		clauses = append(clauses, fmt.Sprintf(`state=%s`, bbqlQuote(opts.State)))
+	}
 	if opts.SourceBranch != "" {
 		clauses = append(clauses, fmt.Sprintf(`source.branch.name=%s`, bbqlQuote(opts.SourceBranch)))
 	}
