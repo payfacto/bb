@@ -54,7 +54,7 @@ var setupFormatNames = config.OutputFormats
 // Seams for tests: environment detection and the browser login.
 var (
 	detectAuthRecommendation = func() auth.Recommendation { return auth.Recommend(auth.DetectEnv()) }
-	oauthLogin               = auth.Login
+	oauthLogin               = auth.LoginQuiet
 	fetchOAuthUsername       = session.FetchUsername
 )
 

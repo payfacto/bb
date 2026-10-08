@@ -14,9 +14,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
-	"github.com/pkg/browser"
 
 	"github.com/payfacto/bb/cmd/render"
+	"github.com/payfacto/bb/internal/auth"
 	"github.com/payfacto/bb/internal/config"
 	"github.com/payfacto/bb/internal/history"
 	"github.com/payfacto/bb/pkg/bitbucket"
@@ -970,7 +970,7 @@ func openURLCmd(url string) tea.Cmd {
 		if url == "" {
 			return nil
 		}
-		if err := browser.OpenURL(url); err != nil {
+		if err := auth.OpenBrowser(url); err != nil {
 			return actionResultMsg{success: false, message: fmt.Sprintf("open URL: %v", err)}
 		}
 		return nil

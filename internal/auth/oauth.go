@@ -136,6 +136,65 @@ func Refresh(tokenEndpoint, clientID, clientSecret, refreshToken string) (*Token
 // callbackPort is the fixed loopback port to listen on; the OAuth consumer's
 // registered callback URL must be http://localhost:<callbackPort>/callback.
 func Login(clientID, clientSecret string, callbackPort int) (*Token, error) {
+	return login(clientID, clientSecret, callbackPort, consoleReporter{})
+}
+
+// LoginQuiet is Login without the progress lines on stdout, for callers that
+// own the terminal (the TUI setup wizard). Because the URL is never printed, a
+// browser that cannot be opened fails fast with an error carrying the URL
+// instead of waiting out the timeout.
+func LoginQuiet(clientID, clientSecret string, callbackPort int) (*Token, error) {
+	return login(clientID, clientSecret, callbackPort, quietReporter{})
+}
+
+// loginReporter tells the user where the login flow stands.
+type loginReporter interface {
+	// opening is called just before the browser is launched.
+	opening(authURL string)
+	// openFailed handles a failed launch: nil keeps waiting, an error aborts.
+	openFailed(authURL string, err error) error
+}
+
+type consoleReporter struct{}
+
+func (consoleReporter) opening(authURL string) {
+	fmt.Printf("Opening your browser to:\n  %s\n\n", authURL)
+	fmt.Println("Waiting for authentication... (press Ctrl+C to cancel)")
+}
+
+func (consoleReporter) openFailed(string, error) error {
+	fmt.Println("Could not open browser automatically. Please visit the URL above manually.")
+	return nil
+}
+
+type quietReporter struct{}
+
+func (quietReporter) opening(string) {}
+
+func (quietReporter) openFailed(authURL string, err error) error {
+	return fmt.Errorf("could not open a browser (%v); sign in manually at %s", err, authURL)
+}
+
+// openURL launches the system browser; a var so tests can intercept it.
+var openURL = func(u string) error { return openSilently(browser.OpenURL, u) }
+
+// OpenBrowser opens u in the system browser with the browser's own output
+// discarded, for callers that own the terminal (the TUI).
+func OpenBrowser(u string) error { return openURL(u) }
+
+// openSilently runs open with the browser child's stdout/stderr discarded, so
+// messages from the launched browser (e.g. Chrome's "Opening in existing
+// browser session") cannot bleed into a terminal UI. It swaps package-level
+// writers, so it is not safe to run concurrently with other browser launches.
+func openSilently(open func(string) error, u string) error {
+	prevOut, prevErr := browser.Stdout, browser.Stderr
+	browser.Stdout, browser.Stderr = io.Discard, io.Discard
+	defer func() { browser.Stdout, browser.Stderr = prevOut, prevErr }()
+	return open(u)
+}
+
+// login runs the flow, reporting progress through rep.
+func login(clientID, clientSecret string, callbackPort int, rep loginReporter) (*Token, error) {
 	if clientID == "" || clientSecret == "" {
 		return nil, fmt.Errorf("oauth login: clientID and clientSecret must not be empty")
 	}
@@ -194,11 +253,12 @@ func Login(clientID, clientSecret string, callbackPort int) (*Token, error) {
 	}()
 
 	authURL := BuildAuthURL(clientID, state, redirectURI)
-	fmt.Printf("Opening your browser to:\n  %s\n\n", authURL)
-	fmt.Println("Waiting for authentication... (press Ctrl+C to cancel)")
+	rep.opening(authURL)
 
-	if err := browser.OpenURL(authURL); err != nil {
-		fmt.Println("Could not open browser automatically. Please visit the URL above manually.")
+	if err := openURL(authURL); err != nil {
+		if failErr := rep.openFailed(authURL, err); failErr != nil {
+			return nil, failErr
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
