@@ -158,7 +158,7 @@ bb pr list --workspace myws --repo myrepo
 |-------|------|---------|
 | `-p` | `--pr-id` | All PR, comment, and task commands |
 | `-s` | `--state` | `pr list` |
-| `-b` | `--branch` | `commit list`, `pipeline trigger`, `pipeline watch` |
+| `-b` | `--branch` | `commit list`, `pipeline list`, `pipeline trigger`, `pipeline watch` |
 | `-u` | `--pipeline-uuid` | `pipeline get/stop/steps/log/watch` |
 | `-n` | `--build-number` | `pipeline get/stop/steps/log/watch` |
 | `-c` | `--comment-id` | `comment get`, `comment reply` |
@@ -220,7 +220,7 @@ bb pr task reopen -p ID --task-id ID
 ### Pipelines
 
 ```
-bb pipeline list [--sort FIELD]
+bb pipeline list [--branch BRANCH] [--sort FIELD]
 bb pipeline get (-u UUID | -n BUILD)
 bb pipeline trigger (-b BRANCH | --tag TAG | --commit SHA) [--custom NAME] [--var K=V ...]
 bb pipeline stop (-u UUID | -n BUILD)
@@ -228,6 +228,13 @@ bb pipeline steps (-u UUID | -n BUILD)
 bb pipeline log (-u UUID | -n BUILD) --step-uuid UUID
 bb pipeline watch [-n BUILD | -u UUID | -b BRANCH] [--tail-log] [--interval 5] [--timeout 0]
 ```
+
+Pipeline JSON (`pipeline list` / `pipeline get`) includes a normalized `branch`
+(the source branch for pull-request-triggered runs, `target.ref_name` otherwise)
+and `pr_id` (the triggering pull request id; omitted for non-PR runs). PR runs
+have no `target.ref_name`; their raw target carries `source`, `destination` and
+`pullrequest.id`. `pipeline list --branch` filters on the normalized `branch`
+within the fetched page (newest 25), so an older run may not appear.
 
 `bb pipeline watch` polls a pipeline (build/uuid/branch, or the latest when no
 selector is given) until it reaches a terminal state, then emits a single result

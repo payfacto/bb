@@ -37,6 +37,24 @@ func TestPipelineDetailString_fields(t *testing.T) {
 	}
 }
 
+func TestPipelineDetailString_prRunShowsSourceBranchAndPR(t *testing.T) {
+	p := bitbucket.Pipeline{BuildNumber: 31, Target: bitbucket.PipelineTarget{
+		Source: "docs/x", Destination: "main", PullRequest: &bitbucket.PipelineTargetPullRequest{ID: 14}}}
+	out := render.PipelineDetailString(p)
+	for _, want := range []string{"docs/x", "PR", "#14"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q, got:\n%s", want, out)
+		}
+	}
+}
+
+func TestPipelineDetailString_branchRunOmitsPRLine(t *testing.T) {
+	p := bitbucket.Pipeline{BuildNumber: 30, Target: bitbucket.PipelineTarget{RefName: "main"}}
+	if out := render.PipelineDetailString(p); strings.Contains(out, "PR ") {
+		t.Errorf("non-PR run must not show a PR line, got:\n%s", out)
+	}
+}
+
 func TestPipelineWatchString_blockedShowsGate(t *testing.T) {
 	res := bitbucket.PipelineWatchResult{
 		Pipeline: bitbucket.Pipeline{BuildNumber: 9, UUID: "{p9}", State: bitbucket.PipelineState{Name: "IN_PROGRESS", Stage: &bitbucket.PipelineStage{Name: "PAUSED"}}, Target: bitbucket.PipelineTarget{RefName: "main"}},

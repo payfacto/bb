@@ -157,7 +157,10 @@ func watchErr(err error) error {
 	return err
 }
 
-var pipelineListSort string
+var (
+	pipelineListSort   string
+	pipelineListBranch string
+)
 
 var pipelineListCmd = &cobra.Command{
 	Use:   "list",
@@ -171,6 +174,7 @@ var pipelineListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		pipelines = bitbucket.FilterPipelinesByBranch(pipelines, pipelineListBranch)
 		return printOutput(pipelines, func() { render.PipelineList(pipelines) })
 	},
 }
@@ -491,6 +495,8 @@ func runningStep(steps []bitbucket.PipelineStep) *bitbucket.PipelineStep {
 }
 
 func init() {
+	pipelineListCmd.Flags().StringVarP(&pipelineListBranch, "branch", "b", "",
+		"only pipelines for this branch (PR runs match their source branch); filters the fetched page")
 	pipelineListCmd.Flags().StringVar(&pipelineListSort, "sort", "",
 		"sort by Bitbucket field, prefix with - for descending (default -created_on)")
 

@@ -162,7 +162,7 @@ bb pr task reopen -p ID --task-id ID
 ### Pipelines
 
 ```
-bb pipeline list [--sort FIELD]
+bb pipeline list [--branch BRANCH] [--sort FIELD]
 bb pipeline get (-u UUID | -n BUILD)
 bb pipeline trigger (-b BRANCH | --tag TAG | --commit SHA) [--custom NAME] [--var K=V ...]
 bb pipeline stop (-u UUID | -n BUILD)
@@ -170,6 +170,13 @@ bb pipeline steps (-u UUID | -n BUILD)
 bb pipeline log (-u UUID | -n BUILD) --step-uuid UUID
 bb pipeline watch [-n BUILD | -u UUID | -b BRANCH] [--tail-log] [--interval 5] [--timeout 0]
 ```
+
+Pipeline JSON (`pipeline list` / `pipeline get`) includes a normalized `branch`
+(the source branch for pull-request-triggered runs, `target.ref_name` otherwise)
+and `pr_id` (the triggering pull request id; omitted for non-PR runs). PR runs
+have no `target.ref_name`; their raw target carries `source`, `destination` and
+`pullrequest.id`. `pipeline list --branch` filters on the normalized `branch`
+within the fetched page (newest 25), so an older run may not appear.
 
 `pipeline watch` polls to a terminal state and emits one result object. Exit
 codes: 0 success, 1 failed, 2 blocked on a manual gate (result has `manual_gate`

@@ -54,7 +54,7 @@ func PipelineListString(pipelines []bitbucket.Pipeline) string {
 			date = p.CreatedOn[:datePrefixLen]
 		}
 		sb.WriteString(fmt.Sprintf("  %s  %-30s  %-20s  %s\n",
-			id, StateBadge(state), BranchStyle.Render(truncate(p.Target.RefName, 20)), DimStyle.Render(date)))
+			id, StateBadge(state), BranchStyle.Render(truncate(p.Target.BranchName(), 20)), DimStyle.Render(date)))
 	}
 	return sb.String()
 }
@@ -85,7 +85,10 @@ func PipelineDetailString(p bitbucket.Pipeline) string {
 	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Build"), IDStyle.Render(fmt.Sprintf("#%d", p.BuildNumber))))
 	sb.WriteString(fmt.Sprintf("%s  %s\n", label("UUID"), p.UUID))
 	sb.WriteString(fmt.Sprintf("%s  %s\n", label("State"), state))
-	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Branch"), BranchStyle.Render(p.Target.RefName)))
+	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Branch"), BranchStyle.Render(p.Target.BranchName())))
+	if id := p.Target.PullRequestID(); id != 0 {
+		sb.WriteString(fmt.Sprintf("%s  %s\n", label("PR"), IDStyle.Render(fmt.Sprintf("#%d", id))))
+	}
 	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Commit"), commit))
 	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Created"), DimStyle.Render(p.CreatedOn)))
 	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Completed"), DimStyle.Render(p.CompletedOn)))

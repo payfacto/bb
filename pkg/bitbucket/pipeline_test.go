@@ -525,3 +525,90 @@ func TestPipelines_Log(t *testing.T) {
 		t.Errorf("expected %q, got %q", logText, got)
 	}
 }
+
+const prRunJSON = `{"uuid":"{p31}","build_number":31,"target":{"type":"pipeline_pullrequest_target","source":"docs/x","destination":"main","pullrequest":{"id":14},"commit":{"hash":"abc"}}}`
+const branchRunJSON = `{"uuid":"{p30}","build_number":30,"target":{"type":"pipeline_ref_target","ref_type":"branch","ref_name":"main","commit":{"hash":"def"}}}`
+
+func TestPipeline_PRRun_NormalizesBranchAndPRID(t *testing.T) {
+	var p bitbucket.Pipeline
+	if err := json.Unmarshal([]byte(prRunJSON), &p); err != nil {
+		t.Fatal(err)
+	}
+	if p.Branch != "docs/x" || p.PRID != 14 {
+		t.Errorf("want branch docs/x pr_id 14, got %q %d", p.Branch, p.PRID)
+	}
+	out, err := json.Marshal(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out), `"branch":"docs/x"`) || !strings.Contains(string(out), `"pr_id":14`) {
+		t.Errorf("marshalled output missing branch/pr_id: %s", out)
+	}
+}
+
+func TestPipeline_RefRun_BranchIsRefNameAndNoPRID(t *testing.T) {
+	var p bitbucket.Pipeline
+	if err := json.Unmarshal([]byte(branchRunJSON), &p); err != nil {
+		t.Fatal(err)
+	}
+	if p.Branch != "main" || p.PRID != 0 {
+		t.Errorf("want branch main pr_id 0, got %q %d", p.Branch, p.PRID)
+	}
+	out, err := json.Marshal(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(out), `"pr_id"`) {
+		t.Errorf("pr_id should be omitted for non-PR runs: %s", out)
+	}
+}
+
+func TestPipelines_ListByBranch_MatchesPRSourceAndRef(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"values":[` + prRunJSON + `,` + branchRunJSON + `]}`))
+	}))
+	res := client.Pipelines("testws", "testrepo")
+	got, err := res.List(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("want 2 unfiltered, got %d", len(got))
+	}
+	for branch, want := range map[string]int{"docs/x": 31, "main": 30} {
+		f := bitbucket.FilterPipelinesByBranch(got, branch)
+		if len(f) != 1 || f[0].BuildNumber != want {
+			t.Errorf("branch %q: got %+v, want build %d", branch, f, want)
+		}
+	}
+	if len(bitbucket.FilterPipelinesByBranch(got, "")) != 2 {
+		t.Error("empty branch must not filter")
+	}
+}
+
+func TestFilterPipelinesByBranch_NoMatchIsEmptyNotNil(t *testing.T) {
+	got := bitbucket.FilterPipelinesByBranch([]bitbucket.Pipeline{{BuildNumber: 1}}, "nope")
+	if got == nil || len(got) != 0 {
+		t.Fatalf("want empty non-nil slice, got %#v", got)
+	}
+	out, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(out) != "[]" {
+		t.Errorf("want [], got %s", out)
+	}
+}
+
+func TestPipelines_Latest_Branch_MatchesPRSourceBranch(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"values":[` + branchRunJSON + `,` + prRunJSON + `]}`))
+	}))
+	got, err := client.Pipelines("testws", "testrepo").Latest(context.Background(), "docs/x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.BuildNumber != 31 || got.PRID != 14 {
+		t.Errorf("want PR run build 31 (pr 14), got build %d pr %d", got.BuildNumber, got.PRID)
+	}
+}
