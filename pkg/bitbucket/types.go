@@ -1,5 +1,7 @@
 package bitbucket
 
+import "encoding/json"
+
 // PR represents a Bitbucket pull request.
 type PR struct {
 	ID           int      `json:"id"`
@@ -145,8 +147,26 @@ type Pipeline struct {
 	BuildNumber int            `json:"build_number"`
 	State       PipelineState  `json:"state"`
 	Target      PipelineTarget `json:"target"`
-	CreatedOn   string         `json:"created_on"`
-	CompletedOn string         `json:"completed_on"`
+	// Branch and PRID are normalized from Target on decode: Branch is the PR
+	// source branch for pull-request runs and Target.RefName otherwise; PRID is
+	// the pull request id (0, omitted, for non-PR runs).
+	Branch      string `json:"branch"`
+	PRID        int    `json:"pr_id,omitempty"`
+	CreatedOn   string `json:"created_on"`
+	CompletedOn string `json:"completed_on"`
+}
+
+// UnmarshalJSON decodes a pipeline and fills the normalized Branch and PRID.
+func (p *Pipeline) UnmarshalJSON(data []byte) error {
+	type plain Pipeline
+	var raw plain
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*p = Pipeline(raw)
+	p.Branch = p.Target.BranchName()
+	p.PRID = p.Target.PullRequestID()
+	return nil
 }
 
 type PipelineState struct {
@@ -167,6 +187,32 @@ type PipelineTarget struct {
 	RefType string          `json:"ref_type"`
 	RefName string          `json:"ref_name"`
 	Commit  *PipelineCommit `json:"commit,omitempty"`
+	// Pull-request runs (type pipeline_pullrequest_target) carry these instead
+	// of ref_type/ref_name; Source and Destination are plain branch names.
+	Source      string                     `json:"source,omitempty"`
+	Destination string                     `json:"destination,omitempty"`
+	PullRequest *PipelineTargetPullRequest `json:"pullrequest,omitempty"`
+}
+
+// PipelineTargetPullRequest identifies the pull request that triggered a run.
+type PipelineTargetPullRequest struct {
+	ID int `json:"id"`
+}
+
+// BranchName returns the PR source branch for pull-request runs, else RefName.
+func (t PipelineTarget) BranchName() string {
+	if t.Source != "" {
+		return t.Source
+	}
+	return t.RefName
+}
+
+// PullRequestID returns the triggering pull request id, or 0 for non-PR runs.
+func (t PipelineTarget) PullRequestID() int {
+	if t.PullRequest == nil {
+		return 0
+	}
+	return t.PullRequest.ID
 }
 
 type PipelineCommit struct {

@@ -1925,7 +1925,7 @@ func newPipelineListView(client *bitbucket.Client, ws, repo string, pageSize int
 				// Show result badge when available (FAILED/SUCCESSFUL/STOPPED),
 				// otherwise show the state badge (IN_PROGRESS/PENDING).
 				badge := prStateBadge(pipelineBadgeName(p.State))
-				items[i] = listItem{id: fmt.Sprintf("#%d", p.BuildNumber), title: badge, subtitle: p.Target.RefName, data: p}
+				items[i] = listItem{id: fmt.Sprintf("#%d", p.BuildNumber), title: badge, subtitle: p.Target.BranchName(), data: p}
 			}
 			return items, nil
 		},
@@ -2016,7 +2016,7 @@ func newPipelineDetailView(client *bitbucket.Client, ws, repo string, p bitbucke
 		{"Build", fmt.Sprintf("#%d", p.BuildNumber)},
 		{"UUID", p.UUID},
 		{"State", state},
-		{"Branch", p.Target.RefName},
+		{"Branch", p.Target.BranchName()},
 		{"Commit", commit},
 		{"Created", p.CreatedOn},
 		{"Completed", p.CompletedOn},

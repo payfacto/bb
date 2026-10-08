@@ -1712,6 +1712,12 @@
       "action": "read",
       "flags": [
         {
+          "name": "branch",
+          "short": "b",
+          "type": "string",
+          "required": false
+        },
+        {
           "name": "config",
           "type": "string",
           "required": false

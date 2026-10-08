@@ -55,6 +55,22 @@ func (r *PipelineResource) List(ctx context.Context, sort string) ([]Pipeline, e
 	return page.Values, nil
 }
 
+// FilterPipelinesByBranch keeps pipelines whose normalized branch (PR source
+// branch for pull-request runs, ref name otherwise) equals branch. An empty
+// branch returns pipelines unchanged.
+func FilterPipelinesByBranch(pipelines []Pipeline, branch string) []Pipeline {
+	if branch == "" {
+		return pipelines
+	}
+	out := []Pipeline{}
+	for _, p := range pipelines {
+		if p.Target.BranchName() == branch {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 // Get returns a single pipeline by UUID.
 func (r *PipelineResource) Get(ctx context.Context, pipelineUUID string) (Pipeline, error) {
 	path := fmt.Sprintf("%s%s", r.basePath(), url.PathEscape(pipelineUUID))
@@ -126,7 +142,8 @@ func firstIncompleteStep(steps []PipelineStep) string {
 // Latest returns the most recent pipeline in the repository, or the most recent
 // on branch when branch != "". It scans the -created_on (newest-first) list one
 // page at a time, following the "next" pagination link, and returns the first
-// pipeline whose target ref matches branch - so an infrequently-built branch is
+// pipeline whose branch matches (PR source branch for pull-request runs, ref
+// name otherwise) - so an infrequently-built branch is
 // found even when its newest run is older than the first page of repo-wide runs.
 // The scan stops early at the first match. When branch == "" the newest overall
 // pipeline (first item of the first page) is returned without a full scan.
@@ -150,7 +167,7 @@ func (r *PipelineResource) Latest(ctx context.Context, branch string) (Pipeline,
 			return Pipeline{}, err
 		}
 		for _, p := range page.Values {
-			if branch == "" || p.Target.RefName == branch {
+			if branch == "" || p.Target.BranchName() == branch {
 				return p, nil
 			}
 		}
