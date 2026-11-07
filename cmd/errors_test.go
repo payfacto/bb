@@ -121,6 +121,23 @@ func TestMapError_RequiredFlag(t *testing.T) {
 	}
 }
 
+// Cobra's MarkFlagsMutuallyExclusive error (e.g. pr update --draft --ready) is
+// a caller mistake, not an internal error.
+func TestMapError_MutuallyExclusiveFlags(t *testing.T) {
+	msg := "if any flags in the group [draft ready] are set none of the others can be; [draft ready] were all set"
+	got := mapError(errors.New(msg))
+	if got.Code != ErrCodeValidationFailed {
+		t.Errorf("Code = %q, want %q", got.Code, ErrCodeValidationFailed)
+	}
+	conflicting, ok := got.Details["conflicting_flags"].([]string)
+	if !ok {
+		t.Fatalf("conflicting_flags = %T, want []string", got.Details["conflicting_flags"])
+	}
+	if want := []string{"draft", "ready"}; !reflect.DeepEqual(conflicting, want) {
+		t.Errorf("conflicting_flags = %v, want %v", conflicting, want)
+	}
+}
+
 func TestMapError_PassthroughCLIError(t *testing.T) {
 	original := &CLIError{Code: ErrCodeRateLimited, Message: "slow down"}
 	got := mapError(original)

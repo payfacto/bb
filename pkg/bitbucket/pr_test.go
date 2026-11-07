@@ -563,3 +563,76 @@ func TestPRs_ListByAuthor_EmptyReturnsNonNilSlice(t *testing.T) {
 		t.Fatalf("expected 0 PRs, got %d", len(got))
 	}
 }
+
+func TestPRs_Get_DecodesDraft(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"id": 826, "title": "wip", "draft": true}`))
+	}))
+	got, err := c.PRs("ws", "repo").Get(context.Background(), 826)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !got.Draft {
+		t.Error("draft: got false, want true")
+	}
+}
+
+func TestPR_DraftFalseIsSerialized(t *testing.T) {
+	out, err := json.Marshal(bitbucket.PR{ID: 1})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(out), `"draft":false`) {
+		t.Errorf("JSON output must always include draft, got %s", out)
+	}
+}
+
+// updateDraftPutBody runs Update with input against a stub PR and returns the
+// decoded PUT body.
+func updateDraftPutBody(t *testing.T, input bitbucket.UpdatePRInput) map[string]any {
+	t.Helper()
+	var putBody map[string]any
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			mustEncodeJSON(t, w, bitbucket.PR{ID: 7, Title: "keep title", Description: "keep desc"})
+		case http.MethodPut:
+			if err := json.NewDecoder(r.Body).Decode(&putBody); err != nil {
+				t.Fatalf("decode body: %v", err)
+			}
+			mustEncodeJSON(t, w, bitbucket.PR{ID: 7})
+		default:
+			t.Fatalf("unexpected method %s", r.Method)
+		}
+	}))
+	if _, err := c.PRs("ws", "repo").Update(context.Background(), 7, input); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	return putBody
+}
+
+func TestPRs_Update_DraftOnly(t *testing.T) {
+	draft := true
+	body := updateDraftPutBody(t, bitbucket.UpdatePRInput{Draft: &draft})
+	if body["draft"] != true {
+		t.Errorf("draft: got %v, want true", body["draft"])
+	}
+	if body["title"] != "keep title" || body["description"] != "keep desc" {
+		t.Errorf("title/description must be preserved, got %v / %v", body["title"], body["description"])
+	}
+}
+
+func TestPRs_Update_ReadySendsDraftFalse(t *testing.T) {
+	ready := false
+	body := updateDraftPutBody(t, bitbucket.UpdatePRInput{Draft: &ready})
+	if got, ok := body["draft"]; !ok || got != false {
+		t.Errorf("draft: got %v (present=%v), want false", got, ok)
+	}
+}
+
+func TestPRs_Update_NoDraftLeavesFieldOut(t *testing.T) {
+	body := updateDraftPutBody(t, bitbucket.UpdatePRInput{Title: strptr("new")})
+	if _, ok := body["draft"]; ok {
+		t.Errorf("draft must be omitted when not provided, got %v", body["draft"])
+	}
+}

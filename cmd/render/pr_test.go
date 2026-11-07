@@ -193,3 +193,28 @@ func TestPRStatusesString_row(t *testing.T) {
 		t.Errorf("expected state, got: %q", out)
 	}
 }
+
+func TestPRListString_draftMarker(t *testing.T) {
+	prs := []bitbucket.PR{
+		{ID: 1, Title: "ready one", State: "OPEN", Source: ep("a"), Destination: ep("main")},
+		{ID: 2, Title: "wip one", State: "OPEN", Draft: true, Source: ep("b"), Destination: ep("main")},
+	}
+	out := render.PRListString(prs)
+	if strings.Count(out, "[DRAFT]") != 1 {
+		t.Errorf("expected exactly one [DRAFT] marker, got:\n%s", out)
+	}
+	if !strings.Contains(out, "[DRAFT] wip one") {
+		t.Errorf("expected draft marker before the draft PR title, got:\n%s", out)
+	}
+}
+
+func TestPRDetailString_draftMarker(t *testing.T) {
+	draft := render.PRDetailString(bitbucket.PR{ID: 2, Title: "wip", State: "OPEN", Draft: true})
+	if !strings.Contains(draft, "DRAFT") {
+		t.Errorf("expected DRAFT marker in detail, got:\n%s", draft)
+	}
+	ready := render.PRDetailString(bitbucket.PR{ID: 3, Title: "done", State: "OPEN"})
+	if strings.Contains(ready, "DRAFT") {
+		t.Errorf("non-draft PR must not show DRAFT, got:\n%s", ready)
+	}
+}

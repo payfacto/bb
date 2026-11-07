@@ -87,13 +87,14 @@ func (r *PRResource) Create(ctx context.Context, input CreatePRInput) (PR, error
 	return decode[PR](data)
 }
 
-// Update edits a pull request's title and/or description. Bitbucket's PUT
-// requires the title and treats the body as a partial update, so Update first
-// fetches the current PR, seeds the PUT body from its current title and
-// description, then overlays any provided (non-nil) fields from input. A nil
-// input field keeps the current value; a non-nil pointer sets the field,
-// including an empty description string to clear it. Both fields are always
-// sent as strings so the required title is present on every PUT.
+// Update edits a pull request's title, description, and/or draft state.
+// Bitbucket's PUT requires the title and treats the body as a partial update,
+// so Update first fetches the current PR, seeds the PUT body from its current
+// title and description, then overlays any provided (non-nil) fields from
+// input. A nil input field keeps the current value; a non-nil pointer sets the
+// field, including an empty description string to clear it. Title and
+// description are always sent so the required title is present on every PUT;
+// draft is sent only when provided.
 func (r *PRResource) Update(ctx context.Context, prID int, input UpdatePRInput) (PR, error) {
 	current, err := r.Get(ctx, prID)
 	if err != nil {
@@ -102,7 +103,8 @@ func (r *PRResource) Update(ctx context.Context, prID int, input UpdatePRInput) 
 	body := struct {
 		Title       string `json:"title"`
 		Description string `json:"description"`
-	}{Title: current.Title, Description: current.Description}
+		Draft       *bool  `json:"draft,omitempty"`
+	}{Title: current.Title, Description: current.Description, Draft: input.Draft}
 	if input.Title != nil {
 		body.Title = *input.Title
 	}
