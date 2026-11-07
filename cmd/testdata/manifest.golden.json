@@ -3119,9 +3119,19 @@
           "required": false
         },
         {
+          "name": "draft",
+          "type": "bool",
+          "required": false
+        },
+        {
           "name": "format",
           "short": "f",
           "type": "string",
+          "required": false
+        },
+        {
+          "name": "no-draft",
+          "type": "bool",
           "required": false
         },
         {
@@ -3511,6 +3521,11 @@
           "required": false
         },
         {
+          "name": "draft",
+          "type": "bool",
+          "required": false
+        },
+        {
           "name": "format",
           "short": "f",
           "type": "string",
@@ -3521,6 +3536,11 @@
           "short": "p",
           "type": "int",
           "required": true
+        },
+        {
+          "name": "ready",
+          "type": "bool",
+          "required": false
         },
         {
           "name": "repo",

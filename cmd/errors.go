@@ -52,6 +52,10 @@ func newCLIError(code, message string, cause error) *CLIError {
 // Captured group is the comma-separated quoted list of flag names.
 var requiredFlagPattern = regexp.MustCompile(`required flag\(s\) (.+) not set`)
 
+// mutuallyExclusiveFlagsPattern matches Cobra's MarkFlagsMutuallyExclusive
+// error and captures the flags that were set together ("[draft ready]").
+var mutuallyExclusiveFlagsPattern = regexp.MustCompile(`none of the others can be; \[(.+)\] were all set`)
+
 // mapError converts any error returned from a RunE into a structured CLIError.
 // Already-typed *CLIError values pass through unchanged. *bitbucket.APIError is
 // mapped by HTTP status. config sentinels are detected via errors.Is. Cobra's
@@ -93,6 +97,15 @@ func mapError(err error) *CLIError {
 			Code:    ErrCodeValidationFailed,
 			Message: msg,
 			Details: map[string]any{"missing_flags": parseQuotedNames(m[1])},
+			cause:   err,
+		}
+	}
+
+	if m := mutuallyExclusiveFlagsPattern.FindStringSubmatch(msg); m != nil {
+		return &CLIError{
+			Code:    ErrCodeValidationFailed,
+			Message: msg,
+			Details: map[string]any{"conflicting_flags": strings.Fields(m[1])},
 			cause:   err,
 		}
 	}

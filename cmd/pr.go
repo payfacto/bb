@@ -25,6 +25,8 @@ var (
 	prListSort         string
 	prListSince        string
 	prListUntil        string
+	prListDraft        bool
+	prListNoDraft      bool
 )
 
 var prListCmd = &cobra.Command{
@@ -45,8 +47,22 @@ var prListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		prs = filterPRsByDraft(prs, prListDraftFilter())
 		return printOutput(prs, func() { render.PRList(prs) })
 	},
+}
+
+// prListDraftFilter maps the mutually exclusive --draft / --no-draft flags
+// to a draftFilter.
+func prListDraftFilter() draftFilter {
+	switch {
+	case prListDraft:
+		return draftOnly
+	case prListNoDraft:
+		return draftExclude
+	default:
+		return draftAny
+	}
 }
 
 var prGetID int
@@ -136,11 +152,13 @@ var (
 	prUpdateTitle           string
 	prUpdateDescription     string
 	prUpdateDescriptionFile string
+	prUpdateDraft           bool
+	prUpdateReady           bool
 )
 
 var prUpdateCmd = &cobra.Command{
 	Use:   "update",
-	Short: "Update a pull request's title and/or description",
+	Short: "Update a pull request's title, description, or draft state",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, r, err := workspaceAndRepo()
 		if err != nil {
@@ -163,6 +181,10 @@ var prUpdateCmd = &cobra.Command{
 			if cmd.Flags().Changed("description") || cmd.Flags().Changed("description-file") {
 				flagInput.Description = &description
 			}
+			if prUpdateDraft || prUpdateReady {
+				// The flags are mutually exclusive: --draft sends true, --ready false.
+				flagInput.Draft = &prUpdateDraft
+			}
 			return flagInput
 		}); err != nil {
 			return err
@@ -175,9 +197,9 @@ var prUpdateCmd = &cobra.Command{
 			}
 			input.Title = &trimmed
 		}
-		if input.Title == nil && input.Description == nil {
+		if input.Title == nil && input.Description == nil && input.Draft == nil {
 			return newCLIError(ErrCodeValidationFailed,
-				"nothing to update: provide --title and/or --description (or pipe JSON on stdin)", nil)
+				"nothing to update: provide --title, --description, --draft, or --ready (or pipe JSON on stdin)", nil)
 		}
 		pr, err := client.PRs(ws, r).Update(context.Background(), prUpdateID, input)
 		if err != nil {
@@ -240,7 +262,15 @@ var prMergeCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := client.PRs(ws, r).Merge(context.Background(), prMergeID, prMergeStrategy); err != nil {
+		prAPI := client.PRs(ws, r)
+		pr, err := prAPI.Get(context.Background(), prMergeID)
+		if err != nil {
+			return err
+		}
+		if err := ensureMergeable(pr); err != nil {
+			return err
+		}
+		if err := prAPI.Merge(context.Background(), prMergeID, prMergeStrategy); err != nil {
 			return err
 		}
 		return printOutput(map[string]string{"result": "merged"}, func() {
@@ -367,6 +397,9 @@ func init() {
 		"only PRs created on or after this ISO-8601 timestamp (e.g. 2023-01-01T00:00:00+00:00)")
 	prListCmd.Flags().StringVar(&prListUntil, "until", "",
 		"only PRs created on or before this ISO-8601 timestamp")
+	prListCmd.Flags().BoolVar(&prListDraft, "draft", false, "only draft PRs (filtered client-side)")
+	prListCmd.Flags().BoolVar(&prListNoDraft, "no-draft", false, "exclude draft PRs (filtered client-side)")
+	prListCmd.MarkFlagsMutuallyExclusive("draft", "no-draft")
 
 	prGetCmd.Flags().IntVarP(&prGetID, "pr-id", "p", 0, "pull request ID")
 	prGetCmd.MarkFlagRequired("pr-id")
@@ -389,6 +422,9 @@ func init() {
 	prUpdateCmd.Flags().StringVarP(&prUpdateDescription, "description", "d", "", "new PR description")
 	prUpdateCmd.Flags().StringVar(&prUpdateDescriptionFile, "description-file", "",
 		"path to a file containing the new PR description (mutually exclusive with --description)")
+	prUpdateCmd.Flags().BoolVar(&prUpdateDraft, "draft", false, "mark the PR as draft (blocks merging until ready)")
+	prUpdateCmd.Flags().BoolVar(&prUpdateReady, "ready", false, "mark a draft PR as ready for review")
+	prUpdateCmd.MarkFlagsMutuallyExclusive("draft", "ready")
 	// pr-id addresses the PR in the URL (not the body), so it stays required
 	// even though title/description may arrive via stdin JSON.
 

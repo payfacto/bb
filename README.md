@@ -177,13 +177,13 @@ bb pr list --workspace myws --repo myrepo
 ### Pull Requests
 
 ```
-bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED] [--source-branch BRANCH] [--sort FIELD] [--since TS] [--until TS]
+bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED] [--source-branch BRANCH] [--sort FIELD] [--since TS] [--until TS] [--draft | --no-draft]
 bb pr get -p ID
 bb pr create --title "..." --from-branch BRANCH --to-branch BRANCH [-d "..." | --description-file PATH] [--close-source-branch] [--draft]
-bb pr update -p ID [-T "..."] [-d "..." | --description-file PATH]
+bb pr update -p ID [-T "..."] [-d "..." | --description-file PATH] [--draft | --ready]
 bb pr diff -p ID
 bb pr approve -p ID
-bb pr merge -p ID [--strategy merge_commit|squash|fast_forward]
+bb pr merge -p ID [--strategy merge_commit|squash|fast_forward]   # refuses a draft PR
 bb pr decline -p ID
 bb pr open -p ID
 bb pr activity -p ID
@@ -429,7 +429,7 @@ Key notes:
 - On failure the CLI exits non-zero and writes to stderr. With `--format json` the error shape is `{"error": {"code": "...", "message": "...", "details": {...}}}`. Codes are a fixed enum: `config_missing`, `auth_failed`, `not_found`, `validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`. stdout is never mixed with errors. API-error details include `http_status`; the raw `response_body` is redacted by default - set `BB_DEBUG=1` to include it. Required-flag failures include `details.missing_flags`.
 - The manifest exposes `manifest_schema_version` (currently `"1"`) at the top level; bump-detection on this field is cheaper than diffing the whole document. Stdin entries carry `behavior: "replaces_flags"` (the only value today) describing how piped JSON interacts with flags. Stdin is capped at 1 MiB.
 - `--sort` is supported on `pr list`, `pipeline list`, `branch list`, `tag list`, `commit list`, `repo list`, `issue list`, and `deployment list`. Note: the deployments endpoint only accepts a limited set of sort attributes (verified valid: `state.name`, `-state.name`; most others return HTTP 400). List commands without `--sort` use the Bitbucket API's default ordering - sort client-side from the JSON if you need a guaranteed order.
-- List commands follow pagination and return the **full** result set, not just the first page. Bound a large `pr list` with `--since`/`--until` (ISO-8601 timestamps that filter PR `created_on`). PRs carry `created_on`, `updated_on`, `comment_count`, and `task_count`; comments carry `created_on` and `updated_on`.
+- List commands follow pagination and return the **full** result set, not just the first page. Bound a large `pr list` with `--since`/`--until` (ISO-8601 timestamps that filter PR `created_on`). PRs carry `created_on`, `updated_on`, `comment_count`, `task_count`, and `draft` (boolean; `--draft`/`--no-draft` filter it client-side); comments carry `created_on` and `updated_on`.
 
 ## Development
 

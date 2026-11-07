@@ -55,7 +55,7 @@ func PRListString(prs []bitbucket.PR) string {
 
 	for _, pr := range prs {
 		id := IDStyle.Render(fmt.Sprintf("#%-3d", pr.ID))
-		title := truncate(pr.Title, titleMaxLen)
+		title := truncate(draftTitle(pr), titleMaxLen)
 		state := StateBadge(pr.State)
 		author := truncate(pr.Author.DisplayName, authorMaxLen)
 		branch := fmt.Sprintf("%s → %s",
@@ -67,6 +67,18 @@ func PRListString(prs []bitbucket.PR) string {
 		))
 	}
 	return sb.String()
+}
+
+// draftMarker flags a draft PR in text output.
+const draftMarker = "[DRAFT]"
+
+// draftTitle prefixes a draft PR's title with draftMarker so it survives
+// truncation in the fixed-width list column.
+func draftTitle(pr bitbucket.PR) string {
+	if pr.Draft {
+		return draftMarker + " " + pr.Title
+	}
+	return pr.Title
 }
 
 // PRList prints the formatted PR list to stdout.
@@ -86,7 +98,11 @@ func PRDetailString(pr bitbucket.PR) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("%s  %s\n", label("ID"), IDStyle.Render(fmt.Sprintf("#%d", pr.ID))))
 	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Title"), pr.Title))
-	sb.WriteString(fmt.Sprintf("%s  %s\n", label("State"), StateBadge(pr.State)))
+	state := StateBadge(pr.State)
+	if pr.Draft {
+		state += " " + draftMarker
+	}
+	sb.WriteString(fmt.Sprintf("%s  %s\n", label("State"), state))
 	sb.WriteString(fmt.Sprintf("%s  %s\n", label("Author"), pr.Author.DisplayName))
 	sb.WriteString(fmt.Sprintf("%s  %s → %s\n", label("Branch"),
 		BranchStyle.Render(pr.Source.Branch.Name),

@@ -7,6 +7,7 @@ type PR struct {
 	ID           int      `json:"id"`
 	Title        string   `json:"title"`
 	State        string   `json:"state"`
+	Draft        bool     `json:"draft"`
 	Description  string   `json:"description"`
 	Source       Endpoint `json:"source"`
 	Destination  Endpoint `json:"destination"`
@@ -121,10 +122,12 @@ type CreatePRInput struct {
 // nil pointer keeps the PR's current value in Update, while a non-nil pointer
 // sets the field - including an empty string, which CLEARS the description.
 // Title cannot be cleared (Bitbucket requires a non-empty title); the cmd layer
-// rejects an empty title.
+// rejects an empty title. Draft follows the same rule: nil leaves the draft
+// state unchanged, true marks the PR as draft, false marks it ready.
 type UpdatePRInput struct {
 	Title       *string `json:"title,omitempty"`
 	Description *string `json:"description,omitempty"`
+	Draft       *bool   `json:"draft,omitempty"`
 }
 
 // AddCommentInput holds the request body for adding a comment.
