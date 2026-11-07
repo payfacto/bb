@@ -55,6 +55,9 @@ func (m *inputModel) View() string {
 
 func (m *inputModel) Title() string { return m.title }
 
+// CapturesText is always true: the prompt's only job is free-form text entry.
+func (m *inputModel) CapturesText() bool { return true }
+
 func (m *inputModel) ShortHelp() []key.Binding { return nil }
 
 // newInputViewPrefilled creates an input view with value already entered,

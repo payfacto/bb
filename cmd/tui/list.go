@@ -340,6 +340,11 @@ func (m *listModel) View() string {
 }
 
 func (m *listModel) Title() string { return m.cfg.Title }
+
+// CapturesText reports whether the search box is open, so keys bound to
+// global shortcuts (like 'q') are typed into the query instead.
+func (m *listModel) CapturesText() bool { return m.searching }
+
 func (m *listModel) ShortHelp() []key.Binding {
 	bindings := []key.Binding{globalKeys.Up, globalKeys.Down, globalKeys.Enter}
 	if len(m.cfg.Filters) > 0 {
