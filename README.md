@@ -179,7 +179,7 @@ bb pr list --workspace myws --repo myrepo
 bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED] [--source-branch BRANCH] [--sort FIELD] [--since TS] [--until TS] [--draft | --no-draft]
 bb pr get -p ID
 bb pr create --title "..." --from-branch BRANCH --to-branch BRANCH [-d "..." | --description-file PATH] [--close-source-branch] [--draft]
-bb pr update -p ID [-T "..."] [-d "..." | --description-file PATH] [--draft | --ready]
+bb pr update -p ID [-T "..."] [-d "..." | --description-file PATH] [--draft | --ready] [--to-branch BRANCH]   # --to-branch retargets the PR
 bb pr diff -p ID
 bb pr approve -p ID
 bb pr request-changes -p ID [--withdraw]   # --withdraw removes your change request

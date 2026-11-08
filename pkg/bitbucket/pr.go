@@ -101,10 +101,11 @@ func (r *PRResource) Update(ctx context.Context, prID int, input UpdatePRInput) 
 		return PR{}, fmt.Errorf("get PR: %w", err)
 	}
 	body := struct {
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		Draft       *bool  `json:"draft,omitempty"`
-	}{Title: current.Title, Description: current.Description, Draft: input.Draft}
+		Title       string    `json:"title"`
+		Description string    `json:"description"`
+		Draft       *bool     `json:"draft,omitempty"`
+		Destination *Endpoint `json:"destination,omitempty"`
+	}{Title: current.Title, Description: current.Description, Draft: input.Draft, Destination: input.Destination}
 	if input.Title != nil {
 		body.Title = *input.Title
 	}
