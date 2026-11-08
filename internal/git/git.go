@@ -42,9 +42,10 @@ func runGit(args ...string) (string, error) {
 // ssh:// URLs including an optional non-standard port
 // (ssh://git@bitbucket.org:7999/ws/repo.git), and HTTPS
 // (https://[user@]bitbucket.org/ws/repo[.git]), with or without a trailing
-// ".git". A remote path with more than two segments (e.g.
-// bitbucket.org/ws/repo/extra) is rejected. ok is false for any
-// non-bitbucket.org host or an unparseable URL.
+// ".git". The host may be bitbucket.org or ssh.bitbucket.org (Bitbucket's SSH
+// endpoint from 2026-11-12), matched case-insensitively. A remote path with
+// more than two segments (e.g. bitbucket.org/ws/repo/extra) is rejected. ok is
+// false for any other host or an unparseable URL.
 func ParseBitbucketRemote(remoteURL string) (workspace, repo string, ok bool) {
 	s := strings.TrimSpace(remoteURL)
 	if s == "" {
@@ -83,7 +84,7 @@ func ParseBitbucketRemote(remoteURL string) (workspace, repo string, ok bool) {
 		host, path = s[:i], s[i+1:]
 	}
 
-	if host != "bitbucket.org" {
+	if !isBitbucketGitHost(host) {
 		return "", "", false
 	}
 	path = strings.TrimSuffix(strings.Trim(path, "/"), ".git")
@@ -92,4 +93,16 @@ func ParseBitbucketRemote(remoteURL string) (workspace, repo string, ok bool) {
 		return "", "", false
 	}
 	return parts[0], parts[1], true
+}
+
+// bitbucketGitHosts are the exact hosts Bitbucket Cloud serves git remotes on.
+var bitbucketGitHosts = map[string]bool{
+	"bitbucket.org":     true,
+	"ssh.bitbucket.org": true,
+}
+
+// isBitbucketGitHost reports whether host is a Bitbucket Cloud git host. The
+// match is exact (after lowercasing) so lookalike hosts are never accepted.
+func isBitbucketGitHost(host string) bool {
+	return bitbucketGitHosts[strings.ToLower(host)]
 }

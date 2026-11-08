@@ -121,7 +121,7 @@ bare `bb` TUI-launch `RunE`, and `bb user me`'s own copy (Cobra does not chain
 `PersistentPreRunE` to the parent, so any command overriding it needs the same
 call - see `loadConfig`'s doc comment). Per field, independently: an explicit
 flag always wins; otherwise, if the current working directory's git origin
-resolves to a bitbucket.org remote, that value wins and **overrides** a
+resolves to a Bitbucket remote (host `bitbucket.org` or `ssh.bitbucket.org`), that value wins and **overrides** a
 differing `~/.bbcloud.yaml` default (this is deliberate - a persisted global
 default cannot know which of a user's many repos they are standing in right
 now); the config-file default is used only as a final fallback when there is

@@ -194,7 +194,7 @@ bb pr add-reviewer -p ID --account-id ACCOUNT_ID
 ```
 
 Every `bb` command auto-detects `--workspace`/`--repo` from the current
-directory's git `origin` remote (bitbucket.org remotes only) when not passed
+directory's git `origin` remote (bitbucket.org or ssh.bitbucket.org remotes only) when not passed
 explicitly - and this now **overrides** a persisted `~/.bbcloud.yaml` default
 that points elsewhere, since a single global config default can't know which
 of your repos you're standing in. Explicit `--workspace`/`--repo` flags always
