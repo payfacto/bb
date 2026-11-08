@@ -392,6 +392,111 @@ var pipelineLogCmd = &cobra.Command{
 	},
 }
 
+// selectSteps narrows steps to the one whose UUID is stepUUID, or returns all
+// steps when stepUUID is empty. An unknown UUID is a not_found error, so a typo
+// is not silently reported as a step with "no report".
+func selectSteps(steps []bitbucket.PipelineStep, stepUUID string) ([]bitbucket.PipelineStep, error) {
+	if stepUUID == "" {
+		return steps, nil
+	}
+	for _, s := range steps {
+		if s.UUID == stepUUID {
+			return []bitbucket.PipelineStep{s}, nil
+		}
+	}
+	return nil, newCLIError(ErrCodeNotFound,
+		fmt.Sprintf("step %s not found in this pipeline", stepUUID), nil)
+}
+
+// resolveSteps resolves the pipeline selector to its UUID and the steps chosen
+// by stepUUID (all steps when empty). Shared by test-report and test-cases.
+func resolveSteps(ctx context.Context, res *bitbucket.PipelineResource, sel pipelineSelector, stepUUID string) (string, []bitbucket.PipelineStep, error) {
+	uuid, err := sel.resolveUUID(ctx, res)
+	if err != nil {
+		return "", nil, err
+	}
+	steps, err := res.Steps(ctx, uuid)
+	if err != nil {
+		return "", nil, err
+	}
+	steps, err = selectSteps(steps, stepUUID)
+	return uuid, steps, err
+}
+
+var (
+	pipelineTestReportUUID     string
+	pipelineTestReportBuild    int
+	pipelineTestReportStepUUID string
+)
+
+var pipelineTestReportCmd = &cobra.Command{
+	Use:   "test-report",
+	Short: "Show test report counts per pipeline step",
+	Long: "Show test report counts (total, passed, failed, error, skipped) per pipeline step.\n\n" +
+		"Exactly one of --pipeline-uuid/-u or --build-number/-n is required. " +
+		"Every step is listed unless --step-uuid is set; a step that published no " +
+		"test report (or never ran) has a null report and shows \"no report\".",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		ctx := context.Background()
+		res := client.Pipelines(ws, repo)
+		sel := pipelineSelector{uuid: pipelineTestReportUUID, build: pipelineTestReportBuild}
+		uuid, steps, err := resolveSteps(ctx, res, sel, pipelineTestReportStepUUID)
+		if err != nil {
+			return err
+		}
+		reports, err := res.StepTestReports(ctx, uuid, steps)
+		if err != nil {
+			return err
+		}
+		return printOutput(reports, func() { render.TestReports(reports) })
+	},
+}
+
+var (
+	pipelineTestCasesUUID     string
+	pipelineTestCasesBuild    int
+	pipelineTestCasesStepUUID string
+	pipelineTestCasesFailed   bool
+	pipelineTestCasesReasons  bool
+)
+
+var pipelineTestCasesCmd = &cobra.Command{
+	Use:   "test-cases",
+	Short: "List test cases from a pipeline's test reports",
+	Long: "List test cases from the test reports of a pipeline's steps.\n\n" +
+		"Exactly one of --pipeline-uuid/-u or --build-number/-n is required. " +
+		"--failed keeps only failed/error cases; --reasons also fetches each " +
+		"failed case's failure message and output (one request per failed case).\n\n" +
+		"Note: Bitbucket's test_cases endpoint has been observed to list only " +
+		"non-passing cases, so a fully green step usually returns none; use " +
+		"test-report for counts.",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		ctx := context.Background()
+		res := client.Pipelines(ws, repo)
+		sel := pipelineSelector{uuid: pipelineTestCasesUUID, build: pipelineTestCasesBuild}
+		uuid, steps, err := resolveSteps(ctx, res, sel, pipelineTestCasesStepUUID)
+		if err != nil {
+			return err
+		}
+		cases, err := res.StepTestCases(ctx, uuid, steps, bitbucket.TestCaseOptions{
+			FailedOnly:  pipelineTestCasesFailed,
+			WithReasons: pipelineTestCasesReasons,
+		})
+		if err != nil {
+			return err
+		}
+		return printOutput(cases, func() { render.TestCases(cases) })
+	},
+}
+
 var (
 	pipelineWatchUUID     string
 	pipelineWatchBuild    int
@@ -528,7 +633,18 @@ func init() {
 	pipelineWatchCmd.Flags().IntVar(&pipelineWatchInterval, "interval", 5, "seconds between polls")
 	pipelineWatchCmd.Flags().IntVar(&pipelineWatchTimeout, "timeout", 0, "seconds before giving up (0 = no timeout)")
 
+	pipelineTestReportCmd.Flags().StringVarP(&pipelineTestReportUUID, "pipeline-uuid", "u", "", "pipeline UUID (alternative to --build-number)")
+	pipelineTestReportCmd.Flags().IntVarP(&pipelineTestReportBuild, "build-number", "n", 0, "pipeline build number (alternative to --pipeline-uuid)")
+	pipelineTestReportCmd.Flags().StringVar(&pipelineTestReportStepUUID, "step-uuid", "", "only this step (default: every step)")
+
+	pipelineTestCasesCmd.Flags().StringVarP(&pipelineTestCasesUUID, "pipeline-uuid", "u", "", "pipeline UUID (alternative to --build-number)")
+	pipelineTestCasesCmd.Flags().IntVarP(&pipelineTestCasesBuild, "build-number", "n", 0, "pipeline build number (alternative to --pipeline-uuid)")
+	pipelineTestCasesCmd.Flags().StringVar(&pipelineTestCasesStepUUID, "step-uuid", "", "only this step (default: every step)")
+	pipelineTestCasesCmd.Flags().BoolVar(&pipelineTestCasesFailed, "failed", false, "only failed/error test cases")
+	pipelineTestCasesCmd.Flags().BoolVar(&pipelineTestCasesReasons, "reasons", false, "fetch the failure message/output of each failed case")
+
 	pipelineCmd.AddCommand(pipelineListCmd, pipelineGetCmd, pipelineTriggerCmd,
-		pipelineStopCmd, pipelineStepsCmd, pipelineLogCmd, pipelineWatchCmd)
+		pipelineStopCmd, pipelineStepsCmd, pipelineLogCmd, pipelineWatchCmd,
+		pipelineTestReportCmd, pipelineTestCasesCmd)
 	rootCmd.AddCommand(pipelineCmd)
 }

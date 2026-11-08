@@ -85,7 +85,7 @@ bb                    (no args → launches TUI)
 │   ├── activity / statuses / checks / conflicts / add-reviewer
 │   ├── comment list / get / add / reply / resolve / reopen
 │   └── task list / complete / reopen
-├── pipeline list / get / trigger / stop / steps / log / watch
+├── pipeline list / get / trigger / stop / steps / log / watch / test-report / test-cases
 ├── pipeline-var list / get / create / update / delete
 ├── pipeline-config get / enable / disable
 ├── branch list / create / delete
@@ -139,6 +139,8 @@ client.Branches(workspace, repo).List(ctx, sort)
 client.Tags(workspace, repo).List(ctx, sort)
 client.Commits(workspace, repo).List(ctx, branch, sort)
 client.Pipelines(workspace, repo).List(ctx, sort)
+client.Pipelines(workspace, repo).StepTestReports(ctx, pipelineUUID, steps)  // nil Report = no test report (404)
+client.Pipelines(workspace, repo).StepTestCases(ctx, pipelineUUID, steps, bitbucket.TestCaseOptions{FailedOnly, WithReasons})
 client.Comments(workspace, repo, prID).Add(ctx, input)
 client.Comments(workspace, repo, prID).Resolve(ctx, commentID)   // Reopen(ctx, commentID) undoes it
 client.PRs(workspace, repo).RequestChanges(ctx, prID)             // WithdrawRequestChanges(ctx, prID) undoes it

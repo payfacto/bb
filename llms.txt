@@ -173,6 +173,8 @@ bb pipeline stop (-u UUID | -n BUILD)
 bb pipeline steps (-u UUID | -n BUILD)
 bb pipeline log (-u UUID | -n BUILD) --step-uuid UUID
 bb pipeline watch [-n BUILD | -u UUID | -b BRANCH] [--tail-log] [--interval 5] [--timeout 0]
+bb pipeline test-report (-u UUID | -n BUILD) [--step-uuid UUID]
+bb pipeline test-cases (-u UUID | -n BUILD) [--step-uuid UUID] [--failed] [--reasons]
 ```
 
 Pipeline JSON (`pipeline list` / `pipeline get`) includes a normalized `branch`
@@ -191,6 +193,11 @@ final result.
 runs a named custom pipeline (also how you target a deployment environment).
 --var K=V sets per-run variables (repeatable, unsecured).
 `repo get` output now includes the repository `uuid`.
+`pipeline test-report` emits one entry per step with test counts; `report` is
+null when the step published no test report (404) or never ran.
+`pipeline test-cases` lists test cases (in practice only non-passing ones);
+--failed keeps FAILED/ERROR cases, --reasons adds `reasons[]` (message/output)
+per failed case. An unknown --step-uuid is a not_found error.
 
 ### Branches
 

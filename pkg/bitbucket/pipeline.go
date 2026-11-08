@@ -16,6 +16,7 @@ const (
 	StateInProgress  = "IN_PROGRESS"
 	stateCompleted   = "COMPLETED"
 	resultSuccessful = "SUCCESSFUL"
+	resultNotRun     = "NOT_RUN" // step skipped; it cannot have published a test report
 	stagePaused      = "PAUSED"
 	stageHalted      = "HALTED"
 )
@@ -315,15 +316,7 @@ func (r *PipelineResource) Stop(ctx context.Context, pipelineUUID string) error 
 // Steps returns all steps of a pipeline.
 func (r *PipelineResource) Steps(ctx context.Context, pipelineUUID string) ([]PipelineStep, error) {
 	path := fmt.Sprintf("%s%s/steps/", r.basePath(), url.PathEscape(pipelineUUID))
-	data, err := r.client.do(ctx, "GET", path, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	page, err := decode[paged[PipelineStep]](data)
-	if err != nil {
-		return nil, err
-	}
-	return page.Values, nil
+	return fetchAllPages[PipelineStep](ctx, r.client, path, nil)
 }
 
 // Log returns the raw log output for a pipeline step (plain text, not JSON).
