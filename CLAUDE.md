@@ -149,7 +149,7 @@ client.Pipelines(workspace, repo).StepTestReports(ctx, pipelineUUID, steps)  // 
 client.Pipelines(workspace, repo).StepTestCases(ctx, pipelineUUID, steps, bitbucket.TestCaseOptions{FailedOnly, WithReasons})
 client.PipelineSchedules(workspace, repo).Create(ctx, bitbucket.CreatePipelineScheduleInput{Target, CronPattern, Enabled})
 client.Comments(workspace, repo, prID).Add(ctx, input)
-client.Comments(workspace, repo, prID).Resolve(ctx, commentID)   // Reopen(ctx, commentID) undoes it
+client.Comments(workspace, repo, prID).Resolve(ctx, commentID)   // Reopen(ctx, commentID) undoes it; Comment.Resolution is nil when open
 client.PRs(workspace, repo).RequestChanges(ctx, prID)             // WithdrawRequestChanges(ctx, prID) undoes it
 client.Tasks(workspace, repo, prID).SetState(ctx, taskID, resolved)
 client.Search(workspace).Code(ctx, bitbucket.CodeSearchOptions{Query, Ext, Lang, Repo, Project, Limit})

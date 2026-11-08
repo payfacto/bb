@@ -181,3 +181,33 @@ func TestComments_Reply(t *testing.T) {
 		t.Errorf("unexpected content in request body: %v", receivedBody)
 	}
 }
+
+func TestComments_Get_DecodesResolution(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"id":5,"content":{"raw":"nit"},"user":{"display_name":"Bob"},
+			"resolution":{"type":"comment_resolution","user":{"display_name":"Alice"},"created_on":"2026-11-07T10:00:00+00:00"}}`))
+	}))
+	got, err := c.Comments("ws", "repo", 42).Get(context.Background(), 5)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Resolution == nil {
+		t.Fatal("expected Resolution to be decoded, got nil")
+	}
+	if got.Resolution.User.DisplayName != "Alice" || got.Resolution.CreatedOn != "2026-11-07T10:00:00+00:00" {
+		t.Errorf("unexpected resolution: %+v", *got.Resolution)
+	}
+}
+
+func TestComments_Get_UnresolvedHasNilResolution(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"id":5,"content":{"raw":"nit"},"user":{"display_name":"Bob"}}`))
+	}))
+	got, err := c.Comments("ws", "repo", 42).Get(context.Background(), 5)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Resolution != nil {
+		t.Errorf("expected nil Resolution for an open comment, got %+v", *got.Resolution)
+	}
+}
