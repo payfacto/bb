@@ -482,6 +482,7 @@ func parseHTTPError(statusCode int, data []byte) error {
 	if len(body) > maxBody {
 		body = body[:maxBody]
 	}
+	body = stripControlChars(body)
 	var envelope struct {
 		Error struct {
 			Message string `json:"message"`

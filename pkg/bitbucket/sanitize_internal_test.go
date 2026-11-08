@@ -1,6 +1,9 @@
 package bitbucket
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestStripControlChars(t *testing.T) {
 	cases := map[string]struct{ in, want string }{
@@ -63,5 +66,19 @@ func TestParseHTTPError_StripsControlCharsFromMessage(t *testing.T) {
 	apiErr, ok := err.(*APIError)
 	if !ok || apiErr.Message != "bad[2J" {
 		t.Errorf("unexpected error: %#v", err)
+	}
+}
+
+func TestParseHTTPError_StripsControlCharsFromRawBody(t *testing.T) {
+	err := parseHTTPError(502, []byte("<html>bad gateway\x1b[2J\x07</html>"))
+	apiErr, ok := err.(*APIError)
+	if !ok {
+		t.Fatalf("expected *APIError, got %#v", err)
+	}
+	if apiErr.Body != "<html>bad gateway[2J</html>" {
+		t.Errorf("raw body not cleaned: %q", apiErr.Body)
+	}
+	if strings.ContainsAny(err.Error(), "\x1b\x07") {
+		t.Errorf("Error() still contains control characters: %q", err.Error())
 	}
 }
