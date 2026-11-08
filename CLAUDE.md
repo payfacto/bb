@@ -139,6 +139,7 @@ Resources are scoped structs returned by the client:
 client.PRs(workspace, repo).List(ctx, bitbucket.PRListOptions{State, SourceBranch, Sort, Since, Until, Query, Limit})
 client.PRs(workspace, repo).MergeabilityChecks(ctx, prID) // PRMergeability{Mergeable, Checks}
 client.PRs(workspace, repo).Conflicts(ctx, prID)          // follows the 302 to file-conflicts
+client.PRs(workspace, repo).Update(ctx, prID, bitbucket.UpdatePRInput{Title, Description, Draft, Destination}) // nil = keep
 client.Repos(workspace).List(ctx, sort)
 client.Branches(workspace, repo).List(ctx, sort)
 client.Tags(workspace, repo).List(ctx, sort)

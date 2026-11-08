@@ -154,11 +154,12 @@ var (
 	prUpdateDescriptionFile string
 	prUpdateDraft           bool
 	prUpdateReady           bool
+	prUpdateToBranch        string
 )
 
 var prUpdateCmd = &cobra.Command{
 	Use:   "update",
-	Short: "Update a pull request's title, description, or draft state",
+	Short: "Update a pull request's title, description, draft state, or destination branch",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, r, err := workspaceAndRepo()
 		if err != nil {
@@ -185,21 +186,17 @@ var prUpdateCmd = &cobra.Command{
 				// The flags are mutually exclusive: --draft sends true, --ready false.
 				flagInput.Draft = &prUpdateDraft
 			}
+			if cmd.Flags().Changed("to-branch") {
+				destination := bitbucket.NewEndpoint(prUpdateToBranch)
+				flagInput.Destination = &destination
+			}
 			return flagInput
 		}); err != nil {
 			return err
 		}
-		// Title cannot be blank: trim a provided title and reject if empty.
-		if input.Title != nil {
-			trimmed := strings.TrimSpace(*input.Title)
-			if trimmed == "" {
-				return newCLIError(ErrCodeValidationFailed, "title cannot be empty", nil)
-			}
-			input.Title = &trimmed
-		}
-		if input.Title == nil && input.Description == nil && input.Draft == nil {
-			return newCLIError(ErrCodeValidationFailed,
-				"nothing to update: provide --title, --description, --draft, or --ready (or pipe JSON on stdin)", nil)
+		input, err = normalizeUpdatePRInput(input)
+		if err != nil {
+			return err
 		}
 		pr, err := client.PRs(ws, r).Update(context.Background(), prUpdateID, input)
 		if err != nil {
@@ -209,6 +206,30 @@ var prUpdateCmd = &cobra.Command{
 			fmt.Printf("PR #%d updated: %s\n", pr.ID, pr.Links.HTML.Href)
 		})
 	},
+}
+
+// normalizeUpdatePRInput trims the provided title and destination branch,
+// rejects either when blank, and rejects an input that changes nothing.
+func normalizeUpdatePRInput(input bitbucket.UpdatePRInput) (bitbucket.UpdatePRInput, error) {
+	if input.Title != nil {
+		trimmed := strings.TrimSpace(*input.Title)
+		if trimmed == "" {
+			return input, newCLIError(ErrCodeValidationFailed, "title cannot be empty", nil)
+		}
+		input.Title = &trimmed
+	}
+	if input.Destination != nil {
+		destination := bitbucket.NewEndpoint(strings.TrimSpace(input.Destination.Branch.Name))
+		if destination.Branch.Name == "" {
+			return input, newCLIError(ErrCodeValidationFailed, "destination branch cannot be empty", nil)
+		}
+		input.Destination = &destination
+	}
+	if input.Title == nil && input.Description == nil && input.Draft == nil && input.Destination == nil {
+		return input, newCLIError(ErrCodeValidationFailed,
+			"nothing to update: provide --title, --description, --draft, --ready, or --to-branch (or pipe JSON on stdin)", nil)
+	}
+	return input, nil
 }
 
 var prDiffID int
@@ -501,6 +522,7 @@ func init() {
 	prUpdateCmd.Flags().BoolVar(&prUpdateDraft, "draft", false, "mark the PR as draft (blocks merging until ready)")
 	prUpdateCmd.Flags().BoolVar(&prUpdateReady, "ready", false, "mark a draft PR as ready for review")
 	prUpdateCmd.MarkFlagsMutuallyExclusive("draft", "ready")
+	prUpdateCmd.Flags().StringVar(&prUpdateToBranch, "to-branch", "", "retarget the PR onto this destination branch")
 	// pr-id addresses the PR in the URL (not the body), so it stays required
 	// even though title/description may arrive via stdin JSON.
 

@@ -4394,6 +4394,11 @@
           "required": false
         },
         {
+          "name": "to-branch",
+          "type": "string",
+          "required": false
+        },
+        {
           "name": "token",
           "type": "string",
           "required": false

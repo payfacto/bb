@@ -666,3 +666,62 @@ func TestPRs_Update_NoDraftLeavesFieldOut(t *testing.T) {
 		t.Errorf("draft must be omitted when not provided, got %v", body["draft"])
 	}
 }
+
+func TestPRs_Update_DestinationSendsBranchName(t *testing.T) {
+	var putBody map[string]any
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			mustEncodeJSON(t, w, bitbucket.PR{ID: 7, Title: "keep title", Description: "keep desc"})
+		case http.MethodPut:
+			if err := json.NewDecoder(r.Body).Decode(&putBody); err != nil {
+				t.Fatalf("decode body: %v", err)
+			}
+			mustEncodeJSON(t, w, bitbucket.PR{ID: 7, Title: "keep title", Destination: bitbucket.NewEndpoint("release")})
+		default:
+			t.Fatalf("unexpected method %s", r.Method)
+		}
+	}))
+	dest := bitbucket.NewEndpoint("release")
+	got, err := c.PRs("ws", "repo").Update(context.Background(), 7, bitbucket.UpdatePRInput{Destination: &dest})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	destination, ok := putBody["destination"].(map[string]any)
+	if !ok {
+		t.Fatalf("PUT body must include destination object, got %v", putBody["destination"])
+	}
+	branch, _ := destination["branch"].(map[string]any)
+	if branch["name"] != "release" {
+		t.Errorf("destination.branch.name: got %v, want %q", branch["name"], "release")
+	}
+	if putBody["title"] != "keep title" || putBody["description"] != "keep desc" {
+		t.Errorf("title/description must be preserved: got %v", putBody)
+	}
+	if got.Destination.Branch.Name != "release" {
+		t.Errorf("returned destination: got %q", got.Destination.Branch.Name)
+	}
+}
+
+func TestPRs_Update_NoDestinationOmitsField(t *testing.T) {
+	var putBody map[string]any
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			mustEncodeJSON(t, w, bitbucket.PR{ID: 7, Title: "old"})
+		case http.MethodPut:
+			if err := json.NewDecoder(r.Body).Decode(&putBody); err != nil {
+				t.Fatalf("decode body: %v", err)
+			}
+			mustEncodeJSON(t, w, bitbucket.PR{ID: 7, Title: "new"})
+		default:
+			t.Fatalf("unexpected method %s", r.Method)
+		}
+	}))
+	if _, err := c.PRs("ws", "repo").Update(context.Background(), 7, bitbucket.UpdatePRInput{Title: strptr("new")}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, present := putBody["destination"]; present {
+		t.Errorf("destination must be omitted when not provided, got %v", putBody["destination"])
+	}
+}
