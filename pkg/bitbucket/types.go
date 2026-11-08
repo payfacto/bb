@@ -388,6 +388,8 @@ type Workspace struct {
 	Name  string `json:"name"`
 	UUID  string `json:"uuid"`
 	Links Links  `json:"links"`
+	// Administrator is true when the caller administers the workspace.
+	Administrator bool `json:"administrator"`
 }
 
 // Project types
@@ -635,34 +637,6 @@ type DeployKey struct {
 type AddDeployKeyInput struct {
 	Label string `json:"label"`
 	Key   string `json:"key"`
-}
-
-// Issue types
-
-type Issue struct {
-	ID        int     `json:"id"`
-	Title     string  `json:"title"`
-	State     string  `json:"state"`
-	Priority  string  `json:"priority"`
-	Kind      string  `json:"kind"`
-	Content   Content `json:"content"`
-	Reporter  Actor   `json:"reporter"`
-	Assignee  *Actor  `json:"assignee,omitempty"`
-	CreatedOn string  `json:"created_on"`
-	UpdatedOn string  `json:"updated_on"`
-	Links     Links   `json:"links"`
-}
-
-type CreateIssueInput struct {
-	Title    string   `json:"title"`
-	Content  *Content `json:"content,omitempty"`
-	Kind     string   `json:"kind,omitempty"`
-	Priority string   `json:"priority,omitempty"`
-}
-
-// UpdateIssueInput is the request body for updating an issue's status.
-type UpdateIssueInput struct {
-	Status string `json:"status"` // "new", "open", "resolved", "on hold", "invalid", "duplicate", "wontfix", "closed"
 }
 
 // BranchRestriction types

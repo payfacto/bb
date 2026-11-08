@@ -65,7 +65,7 @@ Workspace: myworkspace  Repo: myrepo
 **Navigation:** Arrow keys or `j`/`k` to move, `Enter` to drill in, `Esc` to go back. Breadcrumbs track your location (`Home > Pull Requests > #42 > Comments`).
 
 **Key features:**
-- Browse PRs, pipelines, branches, commits, tags, issues, repos, deployments, and settings
+- Browse PRs, pipelines, branches, commits, tags, repos, deployments, and settings
 - Drill into a PR to view comments, activity, statuses, diff, and tasks
 - Approve PRs instantly (`a`), merge/decline with confirmation (`m`)
 - Tab-cycle through filters (OPEN/MERGED/DECLINED) on PR lists
@@ -163,11 +163,10 @@ bb pr list --workspace myws --repo myrepo
 | `-n` | `--build-number` | `pipeline get/stop/steps/log/watch` |
 | `-c` | `--comment-id` | `comment get`, `comment reply` |
 | `-t` | `--text` | `comment add`, `comment reply` |
-| `-T` | `--title` | `pr create`, `issue create` |
-| `-d` | `--description` | `pr create`, `issue create` |
+| `-T` | `--title` | `pr create` |
+| `-d` | `--description` | `pr create` |
 | `-n` | `--name` | `branch create/delete`, `tag create/delete` |
-| `-i` | `--id` | `issue get/close/reopen`, `deploy-key delete`, `restriction delete` |
-| `-k` | `--kind` | `issue create` |
+| `-i` | `--id` | `deploy-key delete`, `restriction delete` |
 | `-k` | `--key` | `pipeline-var create`, `pipeline-var update` |
 | `-v` | `--value` | `pipeline-var create`, `pipeline-var update` |
 | `-x` | `--hash` | `commit get`, `commit statuses` |
@@ -283,16 +282,6 @@ bb repo update SLUG [--description "..."] [--default-branch BRANCH]
 bb repo delete SLUG
 bb repo create SLUG [--name "..."] [--description "..."] [--private] [--project KEY]
 bb repo fork SLUG [--name "..."] [--workspace SLUG]
-```
-
-### Issues
-
-```
-bb issue list [--sort FIELD]
-bb issue get -i ID
-bb issue create -T "..." [-d "..." | --description-file PATH] [-k bug|enhancement|proposal|task] [--priority trivial|minor|major|critical|blocker]
-bb issue close -i ID
-bb issue reopen -i ID
 ```
 
 ### Pipeline Variables
@@ -423,12 +412,12 @@ Key notes:
 - `bb --describe` emits a JSON capability manifest covering every command, its flags, action class (`read | write | destructive`), output Go type, and an auto-generated JSON Schema for both output and stdin input where applicable. Use this for discovery instead of parsing `--help`.
 - Default output is **JSON** (pipe-friendly, works with `jq`). For token-efficient output, pass `-f gcf` or set `BB_FORMAT=gcf` globally. List commands return arrays; single-resource commands return an object.
 - Create and update commands accept a JSON body on stdin (`echo '{...}' | bb pr create`) as an alternative to flags. When stdin is piped and non-empty, it replaces all flag values. Stdin is given 750ms to start producing data; if nothing arrives in that window (e.g. a shell that leaves stdin open with nothing coming), `bb` falls back to flags and notes it on stderr instead of hanging.
-- For multi-paragraph text bodies, prefer the `--*-file` variants over shell quoting / heredocs / stdin: `pr create --description-file PATH`, `issue create --description-file PATH`, `pr comment add --text-file PATH`, `pr comment reply --text-file PATH`. Each is mutually exclusive with its inline counterpart (`--description` / `--text`). Agents should write the body to a temp file and pass the path - no shell-escaping concerns.
-- IDs are integers for PRs, tasks, and issues. UUIDs (with `{}` braces) for pipelines, steps, and environments.
+- For multi-paragraph text bodies, prefer the `--*-file` variants over shell quoting / heredocs / stdin: `pr create --description-file PATH`, `pr comment add --text-file PATH`, `pr comment reply --text-file PATH`. Each is mutually exclusive with its inline counterpart (`--description` / `--text`). Agents should write the body to a temp file and pass the path - no shell-escaping concerns.
+- IDs are integers for PRs and tasks. UUIDs (with `{}` braces) for pipelines, steps, and environments.
 - `workspace` and `repo` can be omitted from flags if set in `~/.bbcloud.yaml`, or auto-detected from the current directory's git origin (which takes priority over a `~/.bbcloud.yaml` default - see "Pull Requests" above).
 - On failure the CLI exits non-zero and writes to stderr. With `--format json` the error shape is `{"error": {"code": "...", "message": "...", "details": {...}}}`. Codes are a fixed enum: `config_missing`, `auth_failed`, `not_found`, `validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`. stdout is never mixed with errors. API-error details include `http_status`; the raw `response_body` is redacted by default - set `BB_DEBUG=1` to include it. Required-flag failures include `details.missing_flags`.
 - The manifest exposes `manifest_schema_version` (currently `"1"`) at the top level; bump-detection on this field is cheaper than diffing the whole document. Stdin entries carry `behavior: "replaces_flags"` (the only value today) describing how piped JSON interacts with flags. Stdin is capped at 1 MiB.
-- `--sort` is supported on `pr list`, `pipeline list`, `branch list`, `tag list`, `commit list`, `repo list`, `issue list`, and `deployment list`. Note: the deployments endpoint only accepts a limited set of sort attributes (verified valid: `state.name`, `-state.name`; most others return HTTP 400). List commands without `--sort` use the Bitbucket API's default ordering - sort client-side from the JSON if you need a guaranteed order.
+- `--sort` is supported on `pr list`, `pipeline list`, `branch list`, `tag list`, `commit list`, `repo list`, and `deployment list`. Note: the deployments endpoint only accepts a limited set of sort attributes (verified valid: `state.name`, `-state.name`; most others return HTTP 400). List commands without `--sort` use the Bitbucket API's default ordering - sort client-side from the JSON if you need a guaranteed order.
 - List commands follow pagination and return the **full** result set, not just the first page. Bound a large `pr list` with `--since`/`--until` (ISO-8601 timestamps that filter PR `created_on`). PRs carry `created_on`, `updated_on`, `comment_count`, `task_count`, and `draft` (boolean; `--draft`/`--no-draft` filter it client-side); comments carry `created_on` and `updated_on`.
 
 ## Development

@@ -91,13 +91,6 @@ var commandRegistry = map[string]commandSpec{
 	"repo fork":   {Action: actionWrite, OutputType: "Repo", StdinType: "ForkRepoInput", Example: "bb repo fork source-repo --target-workspace ws"},
 	"repo delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb repo delete my-repo"},
 
-	// issue ------------------------------------------------------------
-	"issue list":   {Action: actionRead, OutputType: "[]Issue", Example: "bb issue list"},
-	"issue get":    {Action: actionRead, OutputType: "Issue", Example: "bb issue get --id 7"},
-	"issue create": {Action: actionWrite, OutputType: "Issue", StdinType: "CreateIssueInput", Example: "bb issue create --title 'bug' --kind bug"},
-	"issue close":  {Action: actionDestructive, OutputType: "Issue", Example: "bb issue close --id 7"},
-	"issue reopen": {Action: actionWrite, OutputType: "Issue", Example: "bb issue reopen --id 7"},
-
 	// deployment -------------------------------------------------------
 	"deployment list": {Action: actionRead, OutputType: "[]Deployment", Ordering: "unspecified", Example: "bb deployment list"},
 	"deployment get":  {Action: actionRead, OutputType: "Deployment", Example: "bb deployment get --uuid '{uuid}'"},
@@ -220,10 +213,6 @@ var typeRegistry = map[string]any{
 	"CreateRepoInput": bitbucket.CreateRepoInput{},
 	"UpdateRepoInput": bitbucket.UpdateRepoInput{},
 	"ForkRepoInput":   bitbucket.ForkRepoInput{},
-
-	"Issue":            bitbucket.Issue{},
-	"[]Issue":          []bitbucket.Issue{},
-	"CreateIssueInput": bitbucket.CreateIssueInput{},
 
 	"Deployment":   bitbucket.Deployment{},
 	"[]Deployment": []bitbucket.Deployment{},
