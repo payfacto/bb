@@ -491,6 +491,48 @@ type CommitStatus struct {
 	RefName     string `json:"refname"`
 }
 
+// Report is a Code Insights report attached to a commit by an external tool.
+type Report struct {
+	UUID              string       `json:"uuid"`
+	ExternalID        string       `json:"external_id,omitempty"`
+	Title             string       `json:"title"`
+	Details           string       `json:"details,omitempty"`
+	Reporter          string       `json:"reporter,omitempty"`
+	Link              string       `json:"link,omitempty"`
+	LogoURL           string       `json:"logo_url,omitempty"`
+	RemoteLinkEnabled bool         `json:"remote_link_enabled,omitempty"`
+	ReportType        string       `json:"report_type,omitempty"` // SECURITY | COVERAGE | TEST | BUG
+	Result            string       `json:"result,omitempty"`      // PASSED | FAILED | PENDING
+	Data              []ReportData `json:"data,omitempty"`
+	CreatedOn         string       `json:"created_on,omitempty"`
+	UpdatedOn         string       `json:"updated_on,omitempty"`
+}
+
+// ReportData is one key/value metric displayed on a report. Value's JSON type
+// depends on Type (number, boolean, string, or link object).
+type ReportData struct {
+	Type  string `json:"type,omitempty"` // BOOLEAN | DATE | DURATION | LINK | NUMBER | PERCENTAGE | TEXT
+	Title string `json:"title"`
+	Value any    `json:"value"`
+}
+
+// ReportAnnotation is an individual finding on a report, optionally anchored
+// to a file and line.
+type ReportAnnotation struct {
+	UUID           string `json:"uuid"`
+	ExternalID     string `json:"external_id,omitempty"`
+	AnnotationType string `json:"annotation_type,omitempty"` // VULNERABILITY | CODE_SMELL | BUG
+	Path           string `json:"path,omitempty"`
+	Line           int    `json:"line,omitempty"`
+	Summary        string `json:"summary"`
+	Details        string `json:"details,omitempty"`
+	Result         string `json:"result,omitempty"`   // PASSED | FAILED | SKIPPED | IGNORED
+	Severity       string `json:"severity,omitempty"` // CRITICAL | HIGH | MEDIUM | LOW
+	Link           string `json:"link,omitempty"`
+	CreatedOn      string `json:"created_on,omitempty"`
+	UpdatedOn      string `json:"updated_on,omitempty"`
+}
+
 // User type
 
 type User struct {

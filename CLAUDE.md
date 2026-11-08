@@ -91,7 +91,7 @@ bb                    (no args → launches TUI)
 ├── pipeline-config get / enable / disable
 ├── branch list / create / delete
 ├── tag list / create / delete
-├── commit list / get / statuses
+├── commit list / get / statuses / reports / report / annotations
 ├── file get
 ├── repo list / get / create / update / delete / fork
 ├── deployment list [--env-uuid UUID] [--sort FIELD] / get

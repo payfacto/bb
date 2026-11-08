@@ -169,7 +169,7 @@ bb pr list --workspace myws --repo myrepo
 | `-i` | `--id` | `deploy-key delete`, `restriction delete` |
 | `-k` | `--key` | `pipeline-var create`, `pipeline-var update` |
 | `-v` | `--value` | `pipeline-var create`, `pipeline-var update` |
-| `-x` | `--hash` | `commit get`, `commit statuses` |
+| `-x` | `--hash` | `commit get`, `commit statuses`, `commit reports`, `commit report`, `commit annotations` |
 
 ## Commands
 
@@ -287,8 +287,16 @@ bb tag delete -n TAG
 bb commit list -b BRANCH [--sort FIELD]
 bb commit get -x HASH
 bb commit statuses -x HASH
+bb commit reports -x HASH
+bb commit report -x HASH --report-id ID
+bb commit annotations -x HASH --report-id ID
 bb file get --ref REF --path PATH
 ```
+
+`commit reports` / `report` / `annotations` read Code Insights reports that
+external tools (SonarCloud, Snyk, test runners, ...) attach to a commit.
+`--report-id` accepts the report UUID or its external ID. Read-only: creating
+or deleting reports and annotations is not supported.
 
 ### Repositories
 

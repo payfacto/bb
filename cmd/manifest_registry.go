@@ -91,9 +91,12 @@ var commandRegistry = map[string]commandSpec{
 	"tag delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb tag delete --name v1.0.0"},
 
 	// commit -----------------------------------------------------------
-	"commit list":     {Action: actionRead, OutputType: "[]Commit", Example: "bb commit list --branch main"},
-	"commit get":      {Action: actionRead, OutputType: "Commit", Example: "bb commit get --hash {sha}"},
-	"commit statuses": {Action: actionRead, OutputType: "[]CommitStatus", Ordering: "unspecified", Example: "bb commit statuses --hash {hash}"},
+	"commit list":        {Action: actionRead, OutputType: "[]Commit", Example: "bb commit list --branch main"},
+	"commit get":         {Action: actionRead, OutputType: "Commit", Example: "bb commit get --hash {sha}"},
+	"commit statuses":    {Action: actionRead, OutputType: "[]CommitStatus", Ordering: "unspecified", Example: "bb commit statuses --hash {hash}"},
+	"commit reports":     {Action: actionRead, OutputType: "[]Report", Ordering: "unspecified", Example: "bb commit reports --hash {hash}"},
+	"commit report":      {Action: actionRead, OutputType: "Report", Example: "bb commit report --hash {hash} --report-id {report-id}"},
+	"commit annotations": {Action: actionRead, OutputType: "[]ReportAnnotation", Ordering: "unspecified", Example: "bb commit annotations --hash {hash} --report-id {report-id}"},
 
 	// file (top-level, sibling of commit) ------------------------------
 	"file get": {Action: actionRead, OutputType: "string", Example: "bb file get --ref main --path README.md"},
@@ -229,10 +232,13 @@ var typeRegistry = map[string]any{
 	"[]Tag":          []bitbucket.Tag{},
 	"CreateTagInput": bitbucket.CreateTagInput{},
 
-	"Commit":         bitbucket.Commit{},
-	"[]Commit":       []bitbucket.Commit{},
-	"CommitStatus":   bitbucket.CommitStatus{},
-	"[]CommitStatus": []bitbucket.CommitStatus{},
+	"Commit":             bitbucket.Commit{},
+	"[]Commit":           []bitbucket.Commit{},
+	"CommitStatus":       bitbucket.CommitStatus{},
+	"[]CommitStatus":     []bitbucket.CommitStatus{},
+	"Report":             bitbucket.Report{},
+	"[]Report":           []bitbucket.Report{},
+	"[]ReportAnnotation": []bitbucket.ReportAnnotation{},
 
 	"Repo":            bitbucket.Repo{},
 	"[]Repo":          []bitbucket.Repo{},
