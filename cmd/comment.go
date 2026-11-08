@@ -138,9 +138,65 @@ var commentReplyCmd = &cobra.Command{
 	},
 }
 
+var (
+	commentResolvePRID      int
+	commentResolveCommentID int
+)
+
+var commentResolveCmd = &cobra.Command{
+	Use:   "resolve",
+	Short: "Resolve a top-level pull request comment thread",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, r, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		res, err := client.Comments(ws, r, commentResolvePRID).Resolve(
+			context.Background(), commentResolveCommentID)
+		if err != nil {
+			return err
+		}
+		return printOutput(res, func() { render.CommentResolved(commentResolveCommentID, res) })
+	},
+}
+
+var (
+	commentReopenPRID      int
+	commentReopenCommentID int
+)
+
+var commentReopenCmd = &cobra.Command{
+	Use:   "reopen",
+	Short: "Reopen a resolved pull request comment thread",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, r, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		if err := client.Comments(ws, r, commentReopenPRID).Reopen(
+			context.Background(), commentReopenCommentID); err != nil {
+			return err
+		}
+		return printOutput(map[string]any{"reopened": commentReopenCommentID}, func() {
+			fmt.Printf("Reopened comment %d.\n", commentReopenCommentID)
+		})
+	},
+}
+
 func init() {
 	prCmd.AddCommand(commentCmd)
-	commentCmd.AddCommand(commentListCmd, commentGetCmd, commentAddCmd, commentReplyCmd)
+	commentCmd.AddCommand(commentListCmd, commentGetCmd, commentAddCmd, commentReplyCmd,
+		commentResolveCmd, commentReopenCmd)
+
+	commentResolveCmd.Flags().IntVarP(&commentResolvePRID, "pr-id", "p", 0, "pull request ID")
+	commentResolveCmd.Flags().IntVarP(&commentResolveCommentID, "comment-id", "c", 0, "top-level comment ID")
+	commentResolveCmd.MarkFlagRequired("pr-id")
+	commentResolveCmd.MarkFlagRequired("comment-id")
+
+	commentReopenCmd.Flags().IntVarP(&commentReopenPRID, "pr-id", "p", 0, "pull request ID")
+	commentReopenCmd.Flags().IntVarP(&commentReopenCommentID, "comment-id", "c", 0, "top-level comment ID")
+	commentReopenCmd.MarkFlagRequired("pr-id")
+	commentReopenCmd.MarkFlagRequired("comment-id")
 
 	commentListCmd.Flags().IntVarP(&commentListPRID, "pr-id", "p", 0, "pull request ID")
 	commentListCmd.MarkFlagRequired("pr-id")

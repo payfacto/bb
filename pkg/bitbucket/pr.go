@@ -134,6 +134,24 @@ func (r *PRResource) Approve(ctx context.Context, prID int) error {
 	return err
 }
 
+// RequestChanges records that the authenticated user requests changes on the
+// pull request.
+func (r *PRResource) RequestChanges(ctx context.Context, prID int) error {
+	_, err := r.client.do(ctx, "POST", r.requestChangesPath(prID), nil, nil)
+	return err
+}
+
+// WithdrawRequestChanges withdraws the authenticated user's request for
+// changes on the pull request.
+func (r *PRResource) WithdrawRequestChanges(ctx context.Context, prID int) error {
+	_, err := r.client.do(ctx, "DELETE", r.requestChangesPath(prID), nil, nil)
+	return err
+}
+
+func (r *PRResource) requestChangesPath(prID int) string {
+	return r.prPath(prID) + "/request-changes"
+}
+
 // Merge merges the pull request using the given strategy.
 // strategy: "merge_commit", "squash", or "fast_forward".
 func (r *PRResource) Merge(ctx context.Context, prID int, strategy string) error {

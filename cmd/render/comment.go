@@ -46,6 +46,18 @@ func CommentDetail(c bitbucket.Comment) {
 	fmt.Print(CommentDetailString(c))
 }
 
+// CommentResolvedString returns a one-line confirmation that a comment thread
+// was resolved, including who resolved it and when.
+func CommentResolvedString(commentID int, res bitbucket.CommentResolution) string {
+	return fmt.Sprintf("Resolved comment %d (by %s at %s).\n",
+		commentID, res.User.DisplayName, res.CreatedOn)
+}
+
+// CommentResolved prints the resolve confirmation to stdout.
+func CommentResolved(commentID int, res bitbucket.CommentResolution) {
+	fmt.Print(CommentResolvedString(commentID, res))
+}
+
 // TaskListString returns formatted text for a list of PR tasks.
 func TaskListString(tasks []bitbucket.Task) string {
 	if len(tasks) == 0 {

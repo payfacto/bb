@@ -45,6 +45,26 @@ func (r *CommentResource) Add(ctx context.Context, input AddCommentInput) (Comme
 	return decode[Comment](data)
 }
 
+// Resolve marks a top-level comment thread as resolved and returns the
+// resolution details.
+func (r *CommentResource) Resolve(ctx context.Context, commentID int) (CommentResolution, error) {
+	data, err := r.client.do(ctx, "POST", r.resolvePath(commentID), nil, nil)
+	if err != nil {
+		return CommentResolution{}, err
+	}
+	return decode[CommentResolution](data)
+}
+
+// Reopen reopens a previously resolved comment thread.
+func (r *CommentResource) Reopen(ctx context.Context, commentID int) error {
+	_, err := r.client.do(ctx, "DELETE", r.resolvePath(commentID), nil, nil)
+	return err
+}
+
+func (r *CommentResource) resolvePath(commentID int) string {
+	return fmt.Sprintf("%s/%d/resolve", r.basePath(), commentID)
+}
+
 // Reply posts a reply to an existing comment identified by parentID.
 func (r *CommentResource) Reply(ctx context.Context, parentID int, text string) (Comment, error) {
 	input := AddCommentInput{

@@ -9,6 +9,44 @@ import (
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
+func TestComments_Resolve(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+		if r.URL.Path != "/repositories/ws/repo/pullrequests/42/comments/7/resolve" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		mustEncodeJSON(t, w, map[string]any{
+			"type":       "comment_resolution",
+			"user":       map[string]string{"display_name": "Alice"},
+			"created_on": "2026-11-07T10:00:00+00:00",
+		})
+	}))
+	got, err := c.Comments("ws", "repo", 42).Resolve(context.Background(), 7)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Type != "comment_resolution" || got.User.DisplayName != "Alice" || got.CreatedOn != "2026-11-07T10:00:00+00:00" {
+		t.Errorf("unexpected resolution: %+v", got)
+	}
+}
+
+func TestComments_Reopen(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("expected DELETE, got %s", r.Method)
+		}
+		if r.URL.Path != "/repositories/ws/repo/pullrequests/42/comments/7/resolve" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	if err := c.Comments("ws", "repo", 42).Reopen(context.Background(), 7); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestComments_List(t *testing.T) {
 	want := []bitbucket.Comment{
 		{ID: 1, Content: bitbucket.Content{Raw: "Looks good"}, User: bitbucket.Actor{DisplayName: "Alice"}},

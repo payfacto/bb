@@ -250,6 +250,44 @@ var prApproveCmd = &cobra.Command{
 }
 
 var (
+	prRequestChangesID       int
+	prRequestChangesWithdraw bool
+)
+
+var prRequestChangesCmd = &cobra.Command{
+	Use:   "request-changes",
+	Short: "Request changes on a pull request (or withdraw with --withdraw)",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, r, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		if prRequestChangesWithdraw {
+			return withdrawRequestChanges(client.PRs(ws, r))
+		}
+		return requestChanges(client.PRs(ws, r))
+	},
+}
+
+func requestChanges(prs *bitbucket.PRResource) error {
+	if err := prs.RequestChanges(context.Background(), prRequestChangesID); err != nil {
+		return err
+	}
+	return printOutput(map[string]string{"result": "changes_requested"}, func() {
+		fmt.Println("Changes requested.")
+	})
+}
+
+func withdrawRequestChanges(prs *bitbucket.PRResource) error {
+	if err := prs.WithdrawRequestChanges(context.Background(), prRequestChangesID); err != nil {
+		return err
+	}
+	return printOutput(map[string]string{"result": "changes_request_withdrawn"}, func() {
+		fmt.Println("Change request withdrawn.")
+	})
+}
+
+var (
 	prMergeID       int
 	prMergeStrategy string
 )
@@ -423,7 +461,7 @@ var prConflictsCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(prCmd)
-	prCmd.AddCommand(prListCmd, prGetCmd, prCreateCmd, prUpdateCmd, prDiffCmd, prApproveCmd, prMergeCmd, prDeclineCmd, prOpenCmd, prActivityCmd, prStatusesCmd, prChecksCmd, prConflictsCmd, prAddReviewerCmd)
+	prCmd.AddCommand(prListCmd, prGetCmd, prCreateCmd, prUpdateCmd, prDiffCmd, prApproveCmd, prRequestChangesCmd, prMergeCmd, prDeclineCmd, prOpenCmd, prActivityCmd, prStatusesCmd, prChecksCmd, prConflictsCmd, prAddReviewerCmd)
 
 	prListCmd.Flags().StringVarP(&prListState, "state", "s", "OPEN",
 		"filter by state: OPEN, MERGED, DECLINED, SUPERSEDED")
@@ -471,6 +509,11 @@ func init() {
 
 	prApproveCmd.Flags().IntVarP(&prApproveID, "pr-id", "p", 0, "pull request ID")
 	prApproveCmd.MarkFlagRequired("pr-id")
+
+	prRequestChangesCmd.Flags().IntVarP(&prRequestChangesID, "pr-id", "p", 0, "pull request ID")
+	prRequestChangesCmd.Flags().BoolVar(&prRequestChangesWithdraw, "withdraw", false,
+		"withdraw your previous request for changes")
+	prRequestChangesCmd.MarkFlagRequired("pr-id")
 
 	prMergeCmd.Flags().IntVarP(&prMergeID, "pr-id", "p", 0, "pull request ID")
 	prMergeCmd.Flags().StringVar(&prMergeStrategy, "strategy", "merge_commit",

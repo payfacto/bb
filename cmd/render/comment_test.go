@@ -40,6 +40,20 @@ func TestCommentDetailString_inline(t *testing.T) {
 	}
 }
 
+func TestCommentResolvedString(t *testing.T) {
+	res := bitbucket.CommentResolution{
+		Type:      "comment_resolution",
+		User:      bitbucket.Actor{DisplayName: "alice"},
+		CreatedOn: "2026-11-07T10:00:00+00:00",
+	}
+	out := render.CommentResolvedString(7, res)
+	for _, want := range []string{"Resolved comment 7", "alice", "2026-11-07T10:00:00+00:00"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q in output, got: %q", want, out)
+		}
+	}
+}
+
 func TestTaskListString_empty(t *testing.T) {
 	out := render.TaskListString(nil)
 	if !strings.Contains(out, "No tasks found.") {

@@ -84,6 +84,13 @@ type Comment struct {
 	UpdatedOn string  `json:"updated_on,omitempty"`
 }
 
+// CommentResolution records who resolved a comment thread and when.
+type CommentResolution struct {
+	Type      string `json:"type"`
+	User      Actor  `json:"user"`
+	CreatedOn string `json:"created_on,omitempty"`
+}
+
 // Content holds the raw text of a comment.
 type Content struct {
 	Raw string `json:"raw"`

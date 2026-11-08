@@ -81,9 +81,9 @@ Command hierarchy:
 ```
 bb                    (no args → launches TUI)
 ├── pr
-│   ├── list / get / create / update / diff / approve / merge / decline / open
+│   ├── list / get / create / update / diff / approve / request-changes / merge / decline / open
 │   ├── activity / statuses / checks / conflicts / add-reviewer
-│   ├── comment list / get / add / reply
+│   ├── comment list / get / add / reply / resolve / reopen
 │   └── task list / complete / reopen
 ├── pipeline list / get / trigger / stop / steps / log / watch
 ├── pipeline-var list / get / create / update / delete
@@ -140,6 +140,8 @@ client.Tags(workspace, repo).List(ctx, sort)
 client.Commits(workspace, repo).List(ctx, branch, sort)
 client.Pipelines(workspace, repo).List(ctx, sort)
 client.Comments(workspace, repo, prID).Add(ctx, input)
+client.Comments(workspace, repo, prID).Resolve(ctx, commentID)   // Reopen(ctx, commentID) undoes it
+client.PRs(workspace, repo).RequestChanges(ctx, prID)             // WithdrawRequestChanges(ctx, prID) undoes it
 client.Tasks(workspace, repo, prID).SetState(ctx, taskID, resolved)
 client.Search(workspace).Code(ctx, bitbucket.CodeSearchOptions{Query, Ext, Lang, Repo, Project, Limit})
 client.Search(workspace).Repos(ctx, term, limit)
