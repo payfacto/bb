@@ -295,6 +295,11 @@ func (c *Client) WorkspaceRunners(workspace string) *RunnerResource {
 	return &RunnerResource{client: c, collectionPath: workspacePath(workspace) + "/pipelines-config/runners"}
 }
 
+// DefaultReviewers returns a resource for the repository's default reviewers.
+func (c *Client) DefaultReviewers(workspace, repo string) *DefaultReviewerResource {
+	return &DefaultReviewerResource{client: c, workspace: workspace, repo: repo}
+}
+
 // PipelineCaches returns a resource for the repository's Pipelines caches.
 func (c *Client) PipelineCaches(workspace, repo string) *PipelineCacheResource {
 	return &PipelineCacheResource{client: c, workspace: workspace, repo: repo}

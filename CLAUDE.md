@@ -85,6 +85,7 @@ bb                    (no args → launches TUI)
 │   ├── activity / statuses / checks / conflicts / add-reviewer
 │   ├── comment list / get / add / reply / resolve / reopen
 │   └── task list / complete / reopen
+├── default-reviewer list [--effective]
 ├── pipeline list / get / trigger / stop / steps / log / watch / test-report / test-cases
 ├── pipeline-var list / get / create / update / delete
 ├── pipeline-schedule list / get / create / update / delete / executions
@@ -155,6 +156,7 @@ client.Search(workspace).Repos(ctx, term, limit)
 client.WorkspaceVariables(workspace).List(ctx)   // same *PipelineVariableResource as PipelineVariables
 client.RepoRunners(workspace, repo).List(ctx)    // or client.WorkspaceRunners(workspace)
 client.PipelineCaches(workspace, repo).DeleteByName(ctx, name)
+client.DefaultReviewers(workspace, repo).Effective(ctx) // or .List(ctx)
 ```
 
 Most List methods whose Bitbucket endpoint accepts a `sort=` query parameter take

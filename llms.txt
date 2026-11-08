@@ -199,6 +199,14 @@ null when the step published no test report (404) or never ran.
 --failed keeps FAILED/ERROR cases, --reasons adds `reasons[]` (message/output)
 per failed case. An unknown --step-uuid is a not_found error.
 
+### Default Reviewers
+
+```
+bb default-reviewer list [--effective]
+```
+
+Output is []DefaultReviewer {user, reviewer_type}. reviewer_type (repository|project) is only set with --effective.
+
 ### Branches
 
 ```

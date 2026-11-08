@@ -265,6 +265,17 @@ lists none.
 environment - run the custom pipeline whose step deploys to it). `--var K=V` sets
 per-run variables (repeatable, unsecured; keep secrets in repo/deployment variables).
 
+### Default Reviewers
+
+```
+bb default-reviewer list [--effective]
+```
+
+Without `--effective`, lists reviewers configured directly on the repository.
+`--effective` lists the reviewers actually applied to new pull requests,
+including those inherited from the project; each entry carries
+`reviewer_type` (`repository` or `project`). Read-only.
+
 ### Branches
 
 ```

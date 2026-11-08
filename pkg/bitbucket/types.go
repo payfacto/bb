@@ -571,6 +571,14 @@ type ReportAnnotation struct {
 	UpdatedOn      string `json:"updated_on,omitempty"`
 }
 
+// DefaultReviewer is a user automatically added as a reviewer on new pull
+// requests. ReviewerType is "repository" or "project" for effective default
+// reviewers and empty for the repository-only list.
+type DefaultReviewer struct {
+	User         Actor  `json:"user"`
+	ReviewerType string `json:"reviewer_type,omitempty"`
+}
+
 // User type
 
 type User struct {

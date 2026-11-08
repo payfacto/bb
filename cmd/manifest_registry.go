@@ -91,6 +91,9 @@ var commandRegistry = map[string]commandSpec{
 	"pipeline-cache delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline-cache delete --name gradle"},
 	"pipeline-cache url":    {Action: actionRead, OutputType: "PipelineCacheContentURI", Example: "bb pipeline-cache url --uuid '{uuid}'"},
 
+	// default-reviewer -------------------------------------------------
+	"default-reviewer list": {Action: actionRead, OutputType: "[]DefaultReviewer", Ordering: "unspecified", Example: "bb default-reviewer list --effective"},
+
 	// pipeline-config ----------------------------------------------------
 	"pipeline-config get":     {Action: actionRead, OutputType: "PipelineConfig", Example: "bb pipeline-config get"},
 	"pipeline-config enable":  {Action: actionWrite, OutputType: "PipelineConfig", Example: "bb pipeline-config enable"},
@@ -243,6 +246,7 @@ var typeRegistry = map[string]any{
 	"[]PipelineRunner":            []bitbucket.PipelineRunner{},
 	"[]PipelineCache":             []bitbucket.PipelineCache{},
 	"PipelineCacheContentURI":     bitbucket.PipelineCacheContentURI{},
+	"[]DefaultReviewer":           []bitbucket.DefaultReviewer{},
 
 	"Branch":            bitbucket.Branch{},
 	"[]Branch":          []bitbucket.Branch{},
