@@ -138,7 +138,7 @@ client.Tags(workspace, repo).List(ctx, sort)
 client.Commits(workspace, repo).List(ctx, branch, sort)
 client.Pipelines(workspace, repo).List(ctx, sort)
 client.Comments(workspace, repo, prID).Add(ctx, input)
-client.Tasks(workspace, repo, prID).Complete(ctx, taskID)
+client.Tasks(workspace, repo, prID).SetState(ctx, taskID, resolved)
 client.Search(workspace).Code(ctx, bitbucket.CodeSearchOptions{Query, Ext, Lang, Repo, Project, Limit})
 client.Search(workspace).Repos(ctx, term, limit)
 ```
