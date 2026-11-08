@@ -502,6 +502,26 @@ func TestPipelines_Steps(t *testing.T) {
 	}
 }
 
+func TestPipelines_Steps_followsPagination(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("page") == "2" {
+			mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.PipelineStep{{UUID: "{step-2}", Name: "deploy"}}})
+			return
+		}
+		mustEncodeJSON(t, w, map[string]any{
+			"values": []bitbucket.PipelineStep{{UUID: "{step-1}", Name: "build"}},
+			"next":   "http://" + r.Host + r.URL.Path + "?page=2",
+		})
+	}))
+	got, err := client.Pipelines("testws", "testrepo").Steps(context.Background(), "{abc-123}")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[1].Name != "deploy" {
+		t.Errorf("expected both pages of steps, got %+v", got)
+	}
+}
+
 func TestPipelines_Log(t *testing.T) {
 	logText := "Step 1: Building...\nStep 2: Done.\n"
 	// Bitbucket Cloud requires the curly braces on pipeline/step UUIDs.

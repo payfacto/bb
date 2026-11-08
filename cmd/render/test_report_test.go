@@ -42,6 +42,22 @@ func TestTestCasesString_showsReasons(t *testing.T) {
 	}
 }
 
+func TestTestCasesString_showsMessageAndOutput(t *testing.T) {
+	cases := []bitbucket.StepTestCase{{
+		TestCase: bitbucket.TestCase{Name: "testAdd", Status: "FAILED"},
+		Reasons: []bitbucket.TestCaseReason{{
+			Message: "expected 1 but was 2",
+			Output:  "at FooTest.testAdd(FooTest.java:12)",
+		}},
+	}}
+	out := render.TestCasesString(cases)
+	for _, want := range []string{"expected 1 but was 2", "at FooTest.testAdd(FooTest.java:12)"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q, got:\n%s", want, out)
+		}
+	}
+}
+
 func TestTestCasesString_fallsBackToName(t *testing.T) {
 	cases := []bitbucket.StepTestCase{{TestCase: bitbucket.TestCase{Name: "testSub", ClassName: "FooTest", Status: "ERROR"}}}
 	if out := render.TestCasesString(cases); !strings.Contains(out, "FooTest.testSub") {

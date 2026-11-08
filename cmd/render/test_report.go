@@ -88,13 +88,16 @@ func testCaseLabel(tc bitbucket.TestCase) string {
 	}
 }
 
-// reasonText returns the failure message, or the raw output when Bitbucket
-// recorded no message.
+// reasonText returns the failure message followed by the raw output (stack
+// trace, logs), omitting whichever Bitbucket did not record.
 func reasonText(r bitbucket.TestCaseReason) string {
-	if r.Message != "" {
-		return r.Message
+	var parts []string
+	for _, text := range []string{r.Message, r.Output} {
+		if trimmed := strings.TrimRight(text, "\n"); trimmed != "" {
+			parts = append(parts, trimmed)
+		}
 	}
-	return r.Output
+	return strings.Join(parts, "\n")
 }
 
 // indentLines prefixes every line of s with indent; empty s yields "".
