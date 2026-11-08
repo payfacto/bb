@@ -32,6 +32,26 @@ func TestEnvironmentVariables_List(t *testing.T) {
 	}
 }
 
+func TestEnvironmentVariables_List_followsPagination(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("page") == "2" {
+			mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.PipelineVariable{{UUID: "{v-2}", Key: "SECOND"}}})
+			return
+		}
+		mustEncodeJSON(t, w, map[string]any{
+			"values": []bitbucket.PipelineVariable{{UUID: "{v-1}", Key: "FIRST"}},
+			"next":   "http://" + r.Host + r.URL.EscapedPath() + "?page=2",
+		})
+	}))
+	got, err := client.EnvironmentVariables("testws", "testrepo", "{env-1}").List(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[1].Key != "SECOND" {
+		t.Errorf("expected both pages of variables, got %+v", got)
+	}
+}
+
 func TestEnvironmentVariables_Create(t *testing.T) {
 	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
