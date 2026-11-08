@@ -168,7 +168,13 @@ accumulates several optional filters; Since/Until bound `created_on` via BBQL;
 Query/Limit support `search prs` title/description filtering. List methods follow
 Bitbucket pagination internally and return the full result set.
 
-The generic `decode[T]()` function handles all JSON unmarshaling. HTTP errors
+The generic `decode[T]()` function handles all JSON unmarshaling. It also strips
+terminal control characters (C0 except `\n`/`\t`, DEL, C1) from every decoded
+string via `stripControlCharsDeep` (`pkg/bitbucket/sanitize.go`), so API text
+(titles, comments, file paths, report text) can never inject escape sequences
+into text output, the TUI, or `jq -r` pipelines. Raw-content endpoints
+(`pipeline log`, `pr diff`) bypass `decode` on purpose to keep build-log
+colours. New JSON decoding must go through `decode[T]`, not `json.Unmarshal`. HTTP errors
 (4xx/5xx) are wrapped into `*bitbucket.APIError{Status, Message, Body}` so
 callers (`cmd/errors.go`) can map them to stable CLI error codes.
 

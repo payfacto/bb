@@ -3,7 +3,6 @@ package bitbucket
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -88,11 +87,11 @@ func decodeTestCaseReasons(data []byte) ([]TestCaseReason, error) {
 	if bytes.HasPrefix(trimmed, []byte("[")) {
 		return decode[[]TestCaseReason](trimmed)
 	}
-	var envelope struct {
+	envelope, err := decode[struct {
 		Values *[]TestCaseReason `json:"values"`
-	}
-	if err := json.Unmarshal(trimmed, &envelope); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
+	}](trimmed)
+	if err != nil {
+		return nil, err
 	}
 	if envelope.Values != nil {
 		return *envelope.Values, nil
