@@ -50,13 +50,15 @@ var commandRegistry = map[string]commandSpec{
 	"pr task reopen":     {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pr task reopen --pr-id 42 --task-ids 1,2"},
 
 	// pipeline ---------------------------------------------------------
-	"pipeline list":    {Action: actionRead, OutputType: "[]Pipeline", Example: "bb pipeline list"},
-	"pipeline get":     {Action: actionRead, OutputType: "Pipeline", Example: "bb pipeline get -n 42"},
-	"pipeline trigger": {Action: actionWrite, OutputType: "Pipeline", Example: "bb pipeline trigger --branch main"},
-	"pipeline stop":    {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline stop -n 42"},
-	"pipeline steps":   {Action: actionRead, OutputType: "[]PipelineStep", Example: "bb pipeline steps -n 42"},
-	"pipeline log":     {Action: actionRead, OutputType: "string", Example: "bb pipeline log -n 42 --step-uuid '{step}'"},
-	"pipeline watch":   {Action: actionRead, OutputType: "PipelineWatchResult", Example: "bb pipeline watch -n 42"},
+	"pipeline list":        {Action: actionRead, OutputType: "[]Pipeline", Example: "bb pipeline list"},
+	"pipeline get":         {Action: actionRead, OutputType: "Pipeline", Example: "bb pipeline get -n 42"},
+	"pipeline trigger":     {Action: actionWrite, OutputType: "Pipeline", Example: "bb pipeline trigger --branch main"},
+	"pipeline stop":        {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline stop -n 42"},
+	"pipeline steps":       {Action: actionRead, OutputType: "[]PipelineStep", Example: "bb pipeline steps -n 42"},
+	"pipeline log":         {Action: actionRead, OutputType: "string", Example: "bb pipeline log -n 42 --step-uuid '{step}'"},
+	"pipeline watch":       {Action: actionRead, OutputType: "PipelineWatchResult", Example: "bb pipeline watch -n 42"},
+	"pipeline test-report": {Action: actionRead, OutputType: "[]StepTestReport", Example: "bb pipeline test-report -n 42"},
+	"pipeline test-cases":  {Action: actionRead, OutputType: "[]StepTestCase", Example: "bb pipeline test-cases -n 42 --failed --reasons"},
 
 	// pipeline-var -----------------------------------------------------
 	"pipeline-var list":   {Action: actionRead, OutputType: "[]PipelineVariable", Ordering: "unspecified", Example: "bb pipeline-var list"},
@@ -199,6 +201,8 @@ var typeRegistry = map[string]any{
 	"PipelineStep":                bitbucket.PipelineStep{},
 	"[]PipelineStep":              []bitbucket.PipelineStep{},
 	"PipelineWatchResult":         bitbucket.PipelineWatchResult{},
+	"[]StepTestReport":            []bitbucket.StepTestReport{},
+	"[]StepTestCase":              []bitbucket.StepTestCase{},
 	"PipelineVariable":            bitbucket.PipelineVariable{},
 	"[]PipelineVariable":          []bitbucket.PipelineVariable{},
 	"CreatePipelineVariableInput": bitbucket.CreatePipelineVariableInput{},

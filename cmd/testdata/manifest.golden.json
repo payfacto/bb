@@ -1661,6 +1661,136 @@
     {
       "path": [
         "pipeline",
+        "test-cases"
+      ],
+      "action": "read",
+      "flags": [
+        {
+          "name": "build-number",
+          "short": "n",
+          "type": "int",
+          "required": false
+        },
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "failed",
+          "type": "bool",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pipeline-uuid",
+          "short": "u",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reasons",
+          "type": "bool",
+          "required": false
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "step-uuid",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "[]StepTestCase"
+    },
+    {
+      "path": [
+        "pipeline",
+        "test-report"
+      ],
+      "action": "read",
+      "flags": [
+        {
+          "name": "build-number",
+          "short": "n",
+          "type": "int",
+          "required": false
+        },
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pipeline-uuid",
+          "short": "u",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "step-uuid",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "[]StepTestReport"
+    },
+    {
+      "path": [
+        "pipeline",
         "trigger"
       ],
       "action": "write",

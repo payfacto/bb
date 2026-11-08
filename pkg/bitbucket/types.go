@@ -264,6 +264,72 @@ type PipelineWatchResult struct {
 	ManualGate *ManualGate         `json:"manual_gate,omitempty"`
 }
 
+// TestReportSummary holds the per-step test counts Bitbucket parses from the
+// JUnit-style reports a pipeline step publishes.
+type TestReportSummary struct {
+	UUID            string `json:"uuid"`
+	StepUUID        string `json:"step_uuid"`
+	TotalCases      int    `json:"number_of_test_cases"`
+	SuccessfulCases int    `json:"number_of_successful_test_cases"`
+	FailedCases     int    `json:"number_of_failed_test_cases"`
+	ErrorCases      int    `json:"number_of_error_test_cases"`
+	SkippedCases    int    `json:"number_of_skipped_test_cases"`
+}
+
+// StepTestReport pairs a pipeline step with its test report summary. Report is
+// nil when the step published no test report (or did not run).
+type StepTestReport struct {
+	StepUUID string             `json:"step_uuid"`
+	StepName string             `json:"step_name"`
+	Report   *TestReportSummary `json:"report"`
+}
+
+// FlexString decodes a JSON string or number into a string. The test report
+// endpoints are untyped in Bitbucket's OpenAPI spec, so fields whose encoding
+// is not documented (e.g. a test case duration) accept either form.
+type FlexString string
+
+// UnmarshalJSON accepts a JSON string, number, or null.
+func (f *FlexString) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		*f = FlexString(s)
+		return nil
+	}
+	var n json.Number
+	if err := json.Unmarshal(data, &n); err != nil {
+		return err
+	}
+	*f = FlexString(n.String())
+	return nil
+}
+
+// TestCase is a single test case from a step's test report.
+type TestCase struct {
+	UUID               string     `json:"uuid"`
+	Name               string     `json:"name"`
+	ClassName          string     `json:"class_name,omitempty"`
+	PackageName        string     `json:"package_name,omitempty"`
+	FullyQualifiedName string     `json:"fully_qualified_name,omitempty"`
+	Status             string     `json:"status"`
+	Duration           FlexString `json:"duration,omitempty"`
+}
+
+// TestCaseReason is the failure output Bitbucket recorded for a test case.
+type TestCaseReason struct {
+	Message string `json:"message,omitempty"`
+	Output  string `json:"output,omitempty"`
+}
+
+// StepTestCase is a test case annotated with the step it ran in and, when
+// requested, its failure reasons.
+type StepTestCase struct {
+	StepUUID string `json:"step_uuid"`
+	StepName string `json:"step_name"`
+	TestCase
+	Reasons []TestCaseReason `json:"reasons,omitempty"`
+}
+
 // PipelineVariable represents a repository-level pipeline variable.
 type PipelineVariable struct {
 	UUID    string `json:"uuid"`

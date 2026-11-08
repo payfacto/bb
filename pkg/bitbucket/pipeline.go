@@ -16,6 +16,7 @@ const (
 	StateInProgress  = "IN_PROGRESS"
 	stateCompleted   = "COMPLETED"
 	resultSuccessful = "SUCCESSFUL"
+	resultNotRun     = "NOT_RUN" // step skipped; it cannot have published a test report
 	stagePaused      = "PAUSED"
 	stageHalted      = "HALTED"
 )

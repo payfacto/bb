@@ -159,8 +159,8 @@ bb pr list --workspace myws --repo myrepo
 | `-p` | `--pr-id` | All PR, comment, and task commands |
 | `-s` | `--state` | `pr list` |
 | `-b` | `--branch` | `commit list`, `pipeline list`, `pipeline trigger`, `pipeline watch` |
-| `-u` | `--pipeline-uuid` | `pipeline get/stop/steps/log/watch` |
-| `-n` | `--build-number` | `pipeline get/stop/steps/log/watch` |
+| `-u` | `--pipeline-uuid` | `pipeline get/stop/steps/log/watch/test-report/test-cases` |
+| `-n` | `--build-number` | `pipeline get/stop/steps/log/watch/test-report/test-cases` |
 | `-c` | `--comment-id` | `comment get`, `comment reply`, `comment resolve`, `comment reopen` |
 | `-t` | `--text` | `comment add`, `comment reply` |
 | `-T` | `--title` | `pr create` |
@@ -231,6 +231,8 @@ bb pipeline stop (-u UUID | -n BUILD)
 bb pipeline steps (-u UUID | -n BUILD)
 bb pipeline log (-u UUID | -n BUILD) --step-uuid UUID
 bb pipeline watch [-n BUILD | -u UUID | -b BRANCH] [--tail-log] [--interval 5] [--timeout 0]
+bb pipeline test-report (-u UUID | -n BUILD) [--step-uuid UUID]
+bb pipeline test-cases (-u UUID | -n BUILD) [--step-uuid UUID] [--failed] [--reasons]
 ```
 
 Pipeline JSON (`pipeline list` / `pipeline get`) includes a normalized `branch`
@@ -247,6 +249,16 @@ result carries `manual_gate` with the web URL to resume it), `3` timeout, `130`
 interrupted (Ctrl-C cancels the watch cleanly). This makes `bb pipeline watch -n 42
 && deploy` proceed only on success. Progress and `--tail-log` output go to stderr;
 stdout carries only the final result.
+
+`bb pipeline test-report` shows test counts (total, passed, failed, error,
+skipped) for every step, or one step with `--step-uuid`. A step that published
+no test report (Bitbucket returns 404) or never ran is listed with a `null`
+`report` (`no report` in text) instead of failing the command.
+`bb pipeline test-cases` lists test cases across those steps; `--failed` keeps
+only failed/error cases and `--reasons` adds each failed case's failure message
+and output (one extra request per failed case). Bitbucket's test case listing
+has been observed to return only non-passing cases, so a green step usually
+lists none.
 
 `bb pipeline trigger` runs against exactly one of `--branch`/`--tag`/`--commit`.
 `--custom NAME` runs a named custom pipeline (this is how you target a deployment

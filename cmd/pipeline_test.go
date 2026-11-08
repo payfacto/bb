@@ -212,3 +212,21 @@ func TestValidateWatchSelector(t *testing.T) {
 		})
 	}
 }
+
+func TestSelectSteps(t *testing.T) {
+	steps := []bitbucket.PipelineStep{{UUID: "{a}", Name: "build"}, {UUID: "{b}", Name: "deploy"}}
+
+	all, err := selectSteps(steps, "")
+	if err != nil || len(all) != 2 {
+		t.Fatalf("empty selector must keep every step: %v %+v", err, all)
+	}
+	one, err := selectSteps(steps, "{b}")
+	if err != nil || len(one) != 1 || one[0].Name != "deploy" {
+		t.Fatalf("expected only step {b}: %v %+v", err, one)
+	}
+	_, err = selectSteps(steps, "{missing}")
+	var cliErr *CLIError
+	if !errors.As(err, &cliErr) || cliErr.Code != ErrCodeNotFound {
+		t.Fatalf("unknown step must be a not_found CLIError, got %v", err)
+	}
+}
