@@ -59,8 +59,9 @@ Consequences worth knowing:
 - `CLAUDE.md`'s `@.context/INDEX.md` import dangles on the mirror. Harmless and
   deliberate; the architecture notes here are worth keeping on the public side.
 
-Cutover status and the full runbook live in `.context/HANDOFF.md`; the pattern
-itself, including the filter-repo variant, is in `.context/GO-RELEASE-PATTERNS.md`.
+The pattern and runbook, including the filter-repo variant, are in
+`.context/GO-RELEASE-PATTERNS.md`. Session handoffs live in Hindsight (bank
+`handoff::bb`, via the `handoff` skill), never in a committed file.
 
 ## Architecture
 
@@ -296,5 +297,4 @@ Direct dependencies only (`go.mod` `require` block):
 Design specs and TDD implementation plans live in `.context/specs/` and
 `.context/plans/` (indexed by `.context/INDEX.md`) — e.g.
 `.context/specs/2026-05-29-api-token-auth-design.md`. The original
-`2026-04-04-bb-cli-design.md` is not currently present in the repo; see the
-Outstanding backlog in `.context/HANDOFF.md`.
+`2026-04-04-bb-cli-design.md` is not currently present in the repo.

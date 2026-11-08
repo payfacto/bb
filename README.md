@@ -620,7 +620,7 @@ Dummy-proof checklist:
 6. **Verify the published version:**
    ```bash
    # via Homebrew (macOS / Linux)
-   brew update && brew upgrade bb
+   brew update && brew upgrade payfacto/tap/bb   # bare "bb" resolves to an unrelated cask
    bb --version
 
    # or download an archive from the GitHub Release page and run it
