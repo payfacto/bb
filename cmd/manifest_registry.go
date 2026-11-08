@@ -67,6 +67,14 @@ var commandRegistry = map[string]commandSpec{
 	"pipeline-var update": {Action: actionWrite, OutputType: "PipelineVariable", StdinType: "CreatePipelineVariableInput", Example: "bb pipeline-var update --uuid '{uuid}' --value newval"},
 	"pipeline-var delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline-var delete --uuid '{uuid}'"},
 
+	// pipeline-schedule ------------------------------------------------
+	"pipeline-schedule list":       {Action: actionRead, OutputType: "[]PipelineSchedule", Ordering: "unspecified", Example: "bb pipeline-schedule list"},
+	"pipeline-schedule get":        {Action: actionRead, OutputType: "PipelineSchedule", Example: "bb pipeline-schedule get --uuid '{uuid}'"},
+	"pipeline-schedule create":     {Action: actionWrite, OutputType: "PipelineSchedule", StdinType: "CreatePipelineScheduleInput", Example: "bb pipeline-schedule create --branch main --cron '0 0 12 * * ? *'"},
+	"pipeline-schedule update":     {Action: actionWrite, OutputType: "PipelineSchedule", StdinType: "UpdatePipelineScheduleInput", Example: "bb pipeline-schedule update --uuid '{uuid}' --disabled"},
+	"pipeline-schedule delete":     {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline-schedule delete --uuid '{uuid}'"},
+	"pipeline-schedule executions": {Action: actionRead, OutputType: "[]PipelineScheduleExecution", Ordering: "unspecified", Example: "bb pipeline-schedule executions --uuid '{uuid}'"},
+
 	// pipeline-config ----------------------------------------------------
 	"pipeline-config get":     {Action: actionRead, OutputType: "PipelineConfig", Example: "bb pipeline-config get"},
 	"pipeline-config enable":  {Action: actionWrite, OutputType: "PipelineConfig", Example: "bb pipeline-config enable"},
@@ -83,9 +91,12 @@ var commandRegistry = map[string]commandSpec{
 	"tag delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb tag delete --name v1.0.0"},
 
 	// commit -----------------------------------------------------------
-	"commit list":     {Action: actionRead, OutputType: "[]Commit", Example: "bb commit list --branch main"},
-	"commit get":      {Action: actionRead, OutputType: "Commit", Example: "bb commit get --hash {sha}"},
-	"commit statuses": {Action: actionRead, OutputType: "[]CommitStatus", Ordering: "unspecified", Example: "bb commit statuses --hash {hash}"},
+	"commit list":        {Action: actionRead, OutputType: "[]Commit", Example: "bb commit list --branch main"},
+	"commit get":         {Action: actionRead, OutputType: "Commit", Example: "bb commit get --hash {sha}"},
+	"commit statuses":    {Action: actionRead, OutputType: "[]CommitStatus", Ordering: "unspecified", Example: "bb commit statuses --hash {hash}"},
+	"commit reports":     {Action: actionRead, OutputType: "[]Report", Ordering: "unspecified", Example: "bb commit reports --hash {hash}"},
+	"commit report":      {Action: actionRead, OutputType: "Report", Example: "bb commit report --hash {hash} --report-id {report-id}"},
+	"commit annotations": {Action: actionRead, OutputType: "[]ReportAnnotation", Ordering: "unspecified", Example: "bb commit annotations --hash {hash} --report-id {report-id}"},
 
 	// file (top-level, sibling of commit) ------------------------------
 	"file get": {Action: actionRead, OutputType: "string", Example: "bb file get --ref main --path README.md"},
@@ -206,6 +217,11 @@ var typeRegistry = map[string]any{
 	"PipelineVariable":            bitbucket.PipelineVariable{},
 	"[]PipelineVariable":          []bitbucket.PipelineVariable{},
 	"CreatePipelineVariableInput": bitbucket.CreatePipelineVariableInput{},
+	"PipelineSchedule":            bitbucket.PipelineSchedule{},
+	"[]PipelineSchedule":          []bitbucket.PipelineSchedule{},
+	"CreatePipelineScheduleInput": bitbucket.CreatePipelineScheduleInput{},
+	"UpdatePipelineScheduleInput": bitbucket.UpdatePipelineScheduleInput{},
+	"[]PipelineScheduleExecution": []bitbucket.PipelineScheduleExecution{},
 	"PipelineConfig":              bitbucket.PipelineConfig{},
 
 	"Branch":            bitbucket.Branch{},
@@ -216,10 +232,13 @@ var typeRegistry = map[string]any{
 	"[]Tag":          []bitbucket.Tag{},
 	"CreateTagInput": bitbucket.CreateTagInput{},
 
-	"Commit":         bitbucket.Commit{},
-	"[]Commit":       []bitbucket.Commit{},
-	"CommitStatus":   bitbucket.CommitStatus{},
-	"[]CommitStatus": []bitbucket.CommitStatus{},
+	"Commit":             bitbucket.Commit{},
+	"[]Commit":           []bitbucket.Commit{},
+	"CommitStatus":       bitbucket.CommitStatus{},
+	"[]CommitStatus":     []bitbucket.CommitStatus{},
+	"Report":             bitbucket.Report{},
+	"[]Report":           []bitbucket.Report{},
+	"[]ReportAnnotation": []bitbucket.ReportAnnotation{},
 
 	"Repo":            bitbucket.Repo{},
 	"[]Repo":          []bitbucket.Repo{},

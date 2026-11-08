@@ -106,7 +106,7 @@ echo '{"title":"fix","source":{"branch":{"name":"feat/x"}},"destination":{"branc
 echo '{"key":"API_KEY","value":"secret","secured":true}' | bb pipeline-var create
 ```
 
-Stdin-capable commands: `pr create`, `pr comment add`, `branch create`, `tag create`, `repo create`, `repo update`, `repo fork`, `webhook create`, `deploy-key add`, `pipeline-var create`, `restriction create`.
+Stdin-capable commands: `pr create`, `pr comment add`, `branch create`, `tag create`, `repo create`, `repo update`, `repo fork`, `webhook create`, `deploy-key add`, `pipeline-var create`, `pipeline-schedule create`, `pipeline-schedule update`, `restriction create`.
 
 ## Multi-paragraph text bodies
 
@@ -221,8 +221,16 @@ bb tag delete -n TAG
 bb commit list -b BRANCH [--sort FIELD]
 bb commit get -x HASH
 bb commit statuses -x HASH
+bb commit reports -x HASH
+bb commit report -x HASH --report-id ID
+bb commit annotations -x HASH --report-id ID
 bb file get --ref REF --path PATH
 ```
+
+`commit reports` / `report` / `annotations` read Code Insights reports that
+external tools (SonarCloud, Snyk, test runners, ...) attach to a commit.
+`--report-id` accepts the report UUID or its external ID. Read-only: creating
+or deleting reports and annotations is not supported.
 
 ### Repositories
 
@@ -244,6 +252,25 @@ bb pipeline-var create -k KEY -v VALUE [--secured]
 bb pipeline-var update --uuid UUID -v VALUE [-k KEY] [--secured]
 bb pipeline-var delete --uuid UUID
 ```
+
+### Pipeline Schedules
+
+```
+bb pipeline-schedule list
+bb pipeline-schedule get --uuid UUID
+bb pipeline-schedule create -b BRANCH --cron EXPR [--selector-type TYPE] [--pattern NAME] [--disabled]
+bb pipeline-schedule update --uuid UUID (--enabled | --disabled)
+bb pipeline-schedule delete --uuid UUID
+bb pipeline-schedule executions --uuid UUID
+```
+
+`--cron` is a 7-field, second-precision expression evaluated in UTC
+(`seconds minutes hours day-of-month month day-of-week year`), e.g.
+`"0 0 12 * * ? *"` runs daily at 12:00 UTC. `--selector-type` is one of
+`branches | tags | bookmarks | default | custom` (default `branches`, with
+`--pattern` defaulting to the branch name); use `--selector-type custom
+--pattern NAME` to schedule a custom pipeline. Bitbucket only lets `update`
+toggle the enabled state; delete and re-create to change anything else.
 
 ### Pipeline Config
 

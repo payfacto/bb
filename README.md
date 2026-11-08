@@ -158,7 +158,7 @@ bb pr list --workspace myws --repo myrepo
 |-------|------|---------|
 | `-p` | `--pr-id` | All PR, comment, and task commands |
 | `-s` | `--state` | `pr list` |
-| `-b` | `--branch` | `commit list`, `pipeline list`, `pipeline trigger`, `pipeline watch` |
+| `-b` | `--branch` | `commit list`, `pipeline list`, `pipeline trigger`, `pipeline watch`, `pipeline-schedule create` |
 | `-u` | `--pipeline-uuid` | `pipeline get/stop/steps/log/watch/test-report/test-cases` |
 | `-n` | `--build-number` | `pipeline get/stop/steps/log/watch/test-report/test-cases` |
 | `-c` | `--comment-id` | `comment get`, `comment reply`, `comment resolve`, `comment reopen` |
@@ -169,7 +169,7 @@ bb pr list --workspace myws --repo myrepo
 | `-i` | `--id` | `deploy-key delete`, `restriction delete` |
 | `-k` | `--key` | `pipeline-var create`, `pipeline-var update` |
 | `-v` | `--value` | `pipeline-var create`, `pipeline-var update` |
-| `-x` | `--hash` | `commit get`, `commit statuses` |
+| `-x` | `--hash` | `commit get`, `commit statuses`, `commit reports`, `commit report`, `commit annotations` |
 
 ## Commands
 
@@ -287,8 +287,16 @@ bb tag delete -n TAG
 bb commit list -b BRANCH [--sort FIELD]
 bb commit get -x HASH
 bb commit statuses -x HASH
+bb commit reports -x HASH
+bb commit report -x HASH --report-id ID
+bb commit annotations -x HASH --report-id ID
 bb file get --ref REF --path PATH
 ```
+
+`commit reports` / `report` / `annotations` read Code Insights reports that
+external tools (SonarCloud, Snyk, test runners, ...) attach to a commit.
+`--report-id` accepts the report UUID or its external ID. Read-only: creating
+or deleting reports and annotations is not supported.
 
 ### Repositories
 
@@ -315,6 +323,25 @@ bb pipeline-var delete --uuid UUID
 variable's value is unreadable via GET, so a fetch-then-reuse would blank it).
 `--key` and `--secured` default to the current variable's values when omitted.
 Pipe a full JSON body to skip the flag path entirely.
+
+### Pipeline Schedules
+
+```
+bb pipeline-schedule list
+bb pipeline-schedule get --uuid UUID
+bb pipeline-schedule create -b BRANCH --cron EXPR [--selector-type TYPE] [--pattern NAME] [--disabled]
+bb pipeline-schedule update --uuid UUID (--enabled | --disabled)
+bb pipeline-schedule delete --uuid UUID
+bb pipeline-schedule executions --uuid UUID
+```
+
+`--cron` is a 7-field, second-precision expression evaluated in UTC
+(`seconds minutes hours day-of-month month day-of-week year`), e.g.
+`"0 0 12 * * ? *"` runs daily at 12:00 UTC. `--selector-type` is one of
+`branches | tags | bookmarks | default | custom` (default `branches`, with
+`--pattern` defaulting to the branch name); use `--selector-type custom
+--pattern NAME` to schedule a custom pipeline. Bitbucket only lets `update`
+toggle the enabled state; delete and re-create to change anything else.
 
 ### Pipeline Config
 

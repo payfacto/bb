@@ -71,6 +71,69 @@ var commitStatusesCmd = &cobra.Command{
 	},
 }
 
+var commitReportsHash string
+
+var commitReportsCmd = &cobra.Command{
+	Use:   "reports",
+	Short: "List Code Insights reports (coverage, scans, tests) for a commit",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		reports, err := client.Commits(ws, repo).Reports(context.Background(), commitReportsHash)
+		if err != nil {
+			return err
+		}
+		return printOutput(reports, func() { render.ReportList(reports) })
+	},
+}
+
+var (
+	commitReportHash string
+	commitReportID   string
+)
+
+var commitReportCmd = &cobra.Command{
+	Use:   "report",
+	Short: "Get a single Code Insights report for a commit",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		report, err := client.Commits(ws, repo).Report(context.Background(), commitReportHash, commitReportID)
+		if err != nil {
+			return err
+		}
+		return printOutput(report, func() { render.ReportDetail(report) })
+	},
+}
+
+var (
+	commitAnnotationsHash     string
+	commitAnnotationsReportID string
+)
+
+var commitAnnotationsCmd = &cobra.Command{
+	Use:   "annotations",
+	Short: "List the annotations (findings) on a commit's Code Insights report",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		annotations, err := client.Commits(ws, repo).ReportAnnotations(context.Background(), commitAnnotationsHash, commitAnnotationsReportID)
+		if err != nil {
+			return err
+		}
+		return printOutput(annotations, func() { render.ReportAnnotationList(annotations) })
+	},
+}
+
+// reportIDFlagUsage is shared by the commands that address a single report.
+const reportIDFlagUsage = "report UUID or external ID, as shown by 'bb commit reports' (required)"
+
 var fileCmd = &cobra.Command{
 	Use:   "file",
 	Short: "Read file contents from the repository",
@@ -110,12 +173,26 @@ func init() {
 	commitStatusesCmd.Flags().StringVarP(&commitStatusesHash, "hash", "x", "", "commit hash (required)")
 	commitStatusesCmd.MarkFlagRequired("hash")
 
+	commitReportsCmd.Flags().StringVarP(&commitReportsHash, "hash", "x", "", "commit hash (required)")
+	commitReportsCmd.MarkFlagRequired("hash")
+
+	commitReportCmd.Flags().StringVarP(&commitReportHash, "hash", "x", "", "commit hash (required)")
+	commitReportCmd.Flags().StringVar(&commitReportID, "report-id", "", reportIDFlagUsage)
+	commitReportCmd.MarkFlagRequired("hash")
+	commitReportCmd.MarkFlagRequired("report-id")
+
+	commitAnnotationsCmd.Flags().StringVarP(&commitAnnotationsHash, "hash", "x", "", "commit hash (required)")
+	commitAnnotationsCmd.Flags().StringVar(&commitAnnotationsReportID, "report-id", "", reportIDFlagUsage)
+	commitAnnotationsCmd.MarkFlagRequired("hash")
+	commitAnnotationsCmd.MarkFlagRequired("report-id")
+
 	fileGetCmd.Flags().StringVar(&fileGetRef, "ref", "", "branch name, tag, or commit hash (required)")
 	fileGetCmd.Flags().StringVar(&fileGetPath, "path", "", "file path within the repository (required)")
 	fileGetCmd.MarkFlagRequired("ref")
 	fileGetCmd.MarkFlagRequired("path")
 
-	commitCmd.AddCommand(commitListCmd, commitGetCmd, commitStatusesCmd)
+	commitCmd.AddCommand(commitListCmd, commitGetCmd, commitStatusesCmd,
+		commitReportsCmd, commitReportCmd, commitAnnotationsCmd)
 	fileCmd.AddCommand(fileGetCmd)
 	rootCmd.AddCommand(commitCmd, fileCmd)
 }

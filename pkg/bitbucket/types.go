@@ -345,6 +345,55 @@ type CreatePipelineVariableInput struct {
 	Secured bool   `json:"secured"`
 }
 
+// PipelineRefTargetType is the Bitbucket object type of a branch/tag pipeline target.
+const PipelineRefTargetType = "pipeline_ref_target"
+
+// PipelineSchedule is a cron-triggered pipeline run. CronPattern is a 7-field
+// expression with second precision, evaluated in UTC (e.g. "0 0 12 * * ? *"
+// runs at 12:00 UTC every day).
+type PipelineSchedule struct {
+	UUID        string                 `json:"uuid"`
+	Enabled     bool                   `json:"enabled"`
+	CronPattern string                 `json:"cron_pattern"`
+	Target      PipelineScheduleTarget `json:"target"`
+	CreatedOn   string                 `json:"created_on,omitempty"`
+	UpdatedOn   string                 `json:"updated_on,omitempty"`
+}
+
+// PipelineScheduleTarget is the branch and pipeline definition a schedule runs.
+type PipelineScheduleTarget struct {
+	Type     string           `json:"type,omitempty"` // pipeline_ref_target
+	RefType  string           `json:"ref_type"`       // branch (the only type schedules accept)
+	RefName  string           `json:"ref_name"`
+	Selector PipelineSelector `json:"selector"`
+}
+
+// PipelineSelector picks the bitbucket-pipelines.yml definition to run.
+type PipelineSelector struct {
+	Type    string `json:"type"` // branches | tags | bookmarks | default | custom
+	Pattern string `json:"pattern,omitempty"`
+}
+
+// CreatePipelineScheduleInput is the request body for creating a schedule.
+// Enabled is a pointer so an unset value is omitted and the API default applies.
+type CreatePipelineScheduleInput struct {
+	Target      PipelineScheduleTarget `json:"target"`
+	CronPattern string                 `json:"cron_pattern"`
+	Enabled     *bool                  `json:"enabled,omitempty"`
+}
+
+// UpdatePipelineScheduleInput is the request body for updating a schedule;
+// enabled is the only mutable field. It is a pointer so that an input which
+// omits it (e.g. stdin `{}`) is rejected instead of silently disabling the
+// schedule.
+type UpdatePipelineScheduleInput struct {
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// PipelineScheduleExecution is one recorded run of a schedule. The API
+// publishes no fixed schema for it, so the raw object is passed through.
+type PipelineScheduleExecution map[string]any
+
 // PipelineConfig represents the repository's pipelines_config resource. The
 // real API response carries more fields (repository, build_image, etc.); this
 // type only models Enabled, the one bb exposes, since decode[T] ignores JSON
@@ -442,6 +491,48 @@ type CommitStatus struct {
 	State       string `json:"state"` // SUCCESSFUL | FAILED | INPROGRESS | STOPPED
 	URL         string `json:"url"`
 	RefName     string `json:"refname"`
+}
+
+// Report is a Code Insights report attached to a commit by an external tool.
+type Report struct {
+	UUID              string       `json:"uuid"`
+	ExternalID        string       `json:"external_id,omitempty"`
+	Title             string       `json:"title"`
+	Details           string       `json:"details,omitempty"`
+	Reporter          string       `json:"reporter,omitempty"`
+	Link              string       `json:"link,omitempty"`
+	LogoURL           string       `json:"logo_url,omitempty"`
+	RemoteLinkEnabled bool         `json:"remote_link_enabled,omitempty"`
+	ReportType        string       `json:"report_type,omitempty"` // SECURITY | COVERAGE | TEST | BUG
+	Result            string       `json:"result,omitempty"`      // PASSED | FAILED | PENDING
+	Data              []ReportData `json:"data,omitempty"`
+	CreatedOn         string       `json:"created_on,omitempty"`
+	UpdatedOn         string       `json:"updated_on,omitempty"`
+}
+
+// ReportData is one key/value metric displayed on a report. Value's JSON type
+// depends on Type (number, boolean, string, or link object).
+type ReportData struct {
+	Type  string `json:"type,omitempty"` // BOOLEAN | DATE | DURATION | LINK | NUMBER | PERCENTAGE | TEXT
+	Title string `json:"title"`
+	Value any    `json:"value"`
+}
+
+// ReportAnnotation is an individual finding on a report, optionally anchored
+// to a file and line.
+type ReportAnnotation struct {
+	UUID           string `json:"uuid"`
+	ExternalID     string `json:"external_id,omitempty"`
+	AnnotationType string `json:"annotation_type,omitempty"` // VULNERABILITY | CODE_SMELL | BUG
+	Path           string `json:"path,omitempty"`
+	Line           int    `json:"line,omitempty"`
+	Summary        string `json:"summary"`
+	Details        string `json:"details,omitempty"`
+	Result         string `json:"result,omitempty"`   // PASSED | FAILED | SKIPPED | IGNORED
+	Severity       string `json:"severity,omitempty"` // CRITICAL | HIGH | MEDIUM | LOW
+	Link           string `json:"link,omitempty"`
+	CreatedOn      string `json:"created_on,omitempty"`
+	UpdatedOn      string `json:"updated_on,omitempty"`
 }
 
 // User type

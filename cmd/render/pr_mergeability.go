@@ -32,7 +32,7 @@ func PRMergeabilityString(m bitbucket.PRMergeability) string {
 	for _, c := range m.Checks {
 		sb.WriteString(mergeabilityCheckLine(c))
 	}
-	sb.WriteString(fmt.Sprintf("\n%s %s\n", LabelStyle.Render("mergeable:"), yesNo(m.Mergeable)))
+	sb.WriteString(fmt.Sprintf("\n%s %s\n", LabelStyle.Render("mergeable:"), coloredYesNo(m.Mergeable)))
 	return sb.String()
 }
 
@@ -112,7 +112,8 @@ func formatKeyValues(values map[string]any) string {
 	return strings.Join(pairs, ", ")
 }
 
-func yesNo(b bool) string {
+// coloredYesNo renders a boolean as a green "yes" or red "no".
+func coloredYesNo(b bool) string {
 	if b {
 		return successStyle.Render("yes")
 	}
