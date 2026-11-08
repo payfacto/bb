@@ -205,7 +205,8 @@ type flagValues struct {
 // git origin is a precise, per-invocation signal — but an explicit flag
 // still wins over both. getOrigin is injected for testability (mirrors the
 // pattern used by the old inferWorkspaceRepo). Nothing is resolved if
-// getOrigin errors, returns empty, or returns a non-bitbucket.org remote —
+// getOrigin errors, returns empty, or returns a non-Bitbucket remote (see
+// git.ParseBitbucketRemote for the accepted hosts) -
 // cfg keeps its existing (config-file) value in that case, exactly like
 // before. Returns one note per field that was filled or overridden, for the
 // caller to print on stderr; never silent about an override.

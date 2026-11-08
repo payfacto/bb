@@ -142,7 +142,7 @@ bb pr conflicts -p ID   # file conflicts -> [{path,scenario,message}]; empty lis
 bb pr add-reviewer -p ID --account-id ACCOUNT_ID
 ```
 
-# every command infers --workspace/--repo from the git origin of cwd (bitbucket.org only) when not passed explicitly, OVERRIDING a differing ~/.bbcloud.yaml default (an explicit flag still wins over both); pr create additionally infers --from-branch from the current branch when omitted; notes go to stderr.
+# every command infers --workspace/--repo from the git origin of cwd (bitbucket.org or ssh.bitbucket.org only) when not passed explicitly, OVERRIDING a differing ~/.bbcloud.yaml default (an explicit flag still wins over both); pr create additionally infers --from-branch from the current branch when omitted; notes go to stderr.
 
 ### PR Comments
 
