@@ -82,6 +82,8 @@ type Comment struct {
 	Parent    *Parent `json:"parent,omitempty"`
 	CreatedOn string  `json:"created_on,omitempty"`
 	UpdatedOn string  `json:"updated_on,omitempty"`
+	// Resolution is set when the comment thread is resolved; nil means open.
+	Resolution *CommentResolution `json:"resolution,omitempty"`
 }
 
 // CommentResolution records who resolved a comment thread and when.

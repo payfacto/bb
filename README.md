@@ -205,7 +205,7 @@ stderr so JSON/GCF output on stdout stays clean.
 ### PR Comments
 
 ```
-bb pr comment list -p ID
+bb pr comment list -p ID   # resolved threads carry "resolution" {user, created_on}; text output marks them RESOLVED
 bb pr comment get -p ID -c COMMENT_ID
 bb pr comment add -p ID [-t "..." | --text-file PATH] [--file PATH --line N]
 bb pr comment reply -p ID -c COMMENT_ID [-t "..." | --text-file PATH]

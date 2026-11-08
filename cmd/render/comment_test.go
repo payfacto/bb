@@ -54,6 +54,43 @@ func TestCommentResolvedString(t *testing.T) {
 	}
 }
 
+func resolvedComment() bitbucket.Comment {
+	return bitbucket.Comment{
+		ID: 10, User: bitbucket.Actor{DisplayName: "alice"}, Content: bitbucket.Content{Raw: "nit"},
+		Resolution: &bitbucket.CommentResolution{User: bitbucket.Actor{DisplayName: "bob"}, CreatedOn: "2026-11-07T10:00:00+00:00"},
+	}
+}
+
+func TestCommentListString_marksResolved(t *testing.T) {
+	out := render.CommentListString([]bitbucket.Comment{resolvedComment()})
+	if !strings.Contains(out, "RESOLVED") {
+		t.Errorf("expected RESOLVED marker, got: %q", out)
+	}
+}
+
+func TestCommentListString_openHasNoResolvedMarker(t *testing.T) {
+	out := render.CommentListString([]bitbucket.Comment{{ID: 10, User: bitbucket.Actor{DisplayName: "alice"}, Content: bitbucket.Content{Raw: "nit"}}})
+	if strings.Contains(out, "RESOLVED") {
+		t.Errorf("open comment must not be marked resolved, got: %q", out)
+	}
+}
+
+func TestCommentDetailString_showsResolution(t *testing.T) {
+	out := render.CommentDetailString(resolvedComment())
+	for _, want := range []string{"Status", "RESOLVED", "bob", "2026-11-07T10:00:00+00:00"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q in output, got: %q", want, out)
+		}
+	}
+}
+
+func TestCommentDetailString_showsOpen(t *testing.T) {
+	out := render.CommentDetailString(bitbucket.Comment{ID: 10, User: bitbucket.Actor{DisplayName: "alice"}, Content: bitbucket.Content{Raw: "nit"}})
+	if !strings.Contains(out, "OPEN") {
+		t.Errorf("expected OPEN status, got: %q", out)
+	}
+}
+
 func TestTaskListString_empty(t *testing.T) {
 	out := render.TaskListString(nil)
 	if !strings.Contains(out, "No tasks found.") {
