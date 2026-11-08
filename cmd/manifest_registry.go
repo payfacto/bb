@@ -74,6 +74,25 @@ var commandRegistry = map[string]commandSpec{
 	"pipeline-schedule update":     {Action: actionWrite, OutputType: "PipelineSchedule", StdinType: "UpdatePipelineScheduleInput", Example: "bb pipeline-schedule update --uuid '{uuid}' --disabled"},
 	"pipeline-schedule delete":     {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline-schedule delete --uuid '{uuid}'"},
 	"pipeline-schedule executions": {Action: actionRead, OutputType: "[]PipelineScheduleExecution", Ordering: "unspecified", Example: "bb pipeline-schedule executions --uuid '{uuid}'"},
+	// workspace-var ---------------------------------------------------
+	"workspace-var list":   {Action: actionRead, OutputType: "[]PipelineVariable", Ordering: "unspecified", Example: "bb workspace-var list"},
+	"workspace-var get":    {Action: actionRead, OutputType: "PipelineVariable", Example: "bb workspace-var get --uuid '{uuid}'"},
+	"workspace-var create": {Action: actionWrite, OutputType: "PipelineVariable", StdinType: "CreatePipelineVariableInput", Example: "bb workspace-var create --key API_KEY --value secret --secured"},
+	"workspace-var update": {Action: actionWrite, OutputType: "PipelineVariable", StdinType: "CreatePipelineVariableInput", Example: "bb workspace-var update --uuid '{uuid}' --value newval"},
+	"workspace-var delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb workspace-var delete --uuid '{uuid}'"},
+
+	// runner -----------------------------------------------------------
+	"runner list":   {Action: actionRead, OutputType: "[]PipelineRunner", Ordering: "unspecified", Example: "bb runner list --workspace-level"},
+	"runner get":    {Action: actionRead, OutputType: "PipelineRunner", Example: "bb runner get --uuid '{uuid}'"},
+	"runner delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb runner delete --uuid '{uuid}'"},
+
+	// pipeline-cache ---------------------------------------------------
+	"pipeline-cache list":   {Action: actionRead, OutputType: "[]PipelineCache", Ordering: "unspecified", Example: "bb pipeline-cache list"},
+	"pipeline-cache delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline-cache delete --name gradle"},
+	"pipeline-cache url":    {Action: actionRead, OutputType: "PipelineCacheContentURI", Example: "bb pipeline-cache url --uuid '{uuid}'"},
+
+	// default-reviewer -------------------------------------------------
+	"default-reviewer list": {Action: actionRead, OutputType: "[]DefaultReviewer", Ordering: "unspecified", Example: "bb default-reviewer list --effective"},
 
 	// pipeline-config ----------------------------------------------------
 	"pipeline-config get":     {Action: actionRead, OutputType: "PipelineConfig", Example: "bb pipeline-config get"},
@@ -97,6 +116,7 @@ var commandRegistry = map[string]commandSpec{
 	"commit reports":     {Action: actionRead, OutputType: "[]Report", Ordering: "unspecified", Example: "bb commit reports --hash {hash}"},
 	"commit report":      {Action: actionRead, OutputType: "Report", Example: "bb commit report --hash {hash} --report-id {report-id}"},
 	"commit annotations": {Action: actionRead, OutputType: "[]ReportAnnotation", Ordering: "unspecified", Example: "bb commit annotations --hash {hash} --report-id {report-id}"},
+	"commit merge-base":  {Action: actionRead, OutputType: "Commit", Example: "bb commit merge-base main feat/x"},
 
 	// file (top-level, sibling of commit) ------------------------------
 	"file get": {Action: actionRead, OutputType: "string", Example: "bb file get --ref main --path README.md"},
@@ -223,6 +243,11 @@ var typeRegistry = map[string]any{
 	"UpdatePipelineScheduleInput": bitbucket.UpdatePipelineScheduleInput{},
 	"[]PipelineScheduleExecution": []bitbucket.PipelineScheduleExecution{},
 	"PipelineConfig":              bitbucket.PipelineConfig{},
+	"PipelineRunner":              bitbucket.PipelineRunner{},
+	"[]PipelineRunner":            []bitbucket.PipelineRunner{},
+	"[]PipelineCache":             []bitbucket.PipelineCache{},
+	"PipelineCacheContentURI":     bitbucket.PipelineCacheContentURI{},
+	"[]DefaultReviewer":           []bitbucket.DefaultReviewer{},
 
 	"Branch":            bitbucket.Branch{},
 	"[]Branch":          []bitbucket.Branch{},

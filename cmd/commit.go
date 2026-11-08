@@ -131,6 +131,23 @@ var commitAnnotationsCmd = &cobra.Command{
 	},
 }
 
+var commitMergeBaseCmd = &cobra.Command{
+	Use:   "merge-base <rev-a> <rev-b>",
+	Short: "Get the common ancestor commit of two branches, tags, or hashes",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, repo, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		c, err := client.Commits(ws, repo).MergeBase(context.Background(), args[0], args[1])
+		if err != nil {
+			return err
+		}
+		return printOutput(c, func() { render.CommitDetail(c) })
+	},
+}
+
 // reportIDFlagUsage is shared by the commands that address a single report.
 const reportIDFlagUsage = "report UUID or external ID, as shown by 'bb commit reports' (required)"
 
@@ -192,7 +209,7 @@ func init() {
 	fileGetCmd.MarkFlagRequired("path")
 
 	commitCmd.AddCommand(commitListCmd, commitGetCmd, commitStatusesCmd,
-		commitReportsCmd, commitReportCmd, commitAnnotationsCmd)
+		commitReportsCmd, commitReportCmd, commitAnnotationsCmd, commitMergeBaseCmd)
 	fileCmd.AddCommand(fileGetCmd)
 	rootCmd.AddCommand(commitCmd, fileCmd)
 }

@@ -330,7 +330,45 @@ type StepTestCase struct {
 	Reasons []TestCaseReason `json:"reasons,omitempty"`
 }
 
-// PipelineVariable represents a repository-level pipeline variable.
+// PipelineRunner is a self-hosted Pipelines runner. The API's oauth_client
+// block is intentionally not modelled: it carries credentials that bb never
+// needs to display.
+type PipelineRunner struct {
+	UUID      string              `json:"uuid"`
+	Name      string              `json:"name"`
+	Labels    []string            `json:"labels"`
+	State     PipelineRunnerState `json:"state"`
+	CreatedOn string              `json:"created_on"`
+	UpdatedOn string              `json:"updated_on"`
+}
+
+// PipelineRunnerState is a runner's current status (UNREGISTERED, ONLINE,
+// OFFLINE, DISABLED, ENABLED, UNHEALTHY) and whether it is cordoned.
+type PipelineRunnerState struct {
+	Status    string `json:"status"`
+	Cordoned  bool   `json:"cordoned"`
+	UpdatedOn string `json:"updated_on"`
+}
+
+// PipelineCache is the metadata of one stored version of a Pipelines cache.
+type PipelineCache struct {
+	UUID          string `json:"uuid"`
+	PipelineUUID  string `json:"pipeline_uuid"`
+	StepUUID      string `json:"step_uuid"`
+	Name          string `json:"name"`
+	KeyHash       string `json:"key_hash"`
+	Path          string `json:"path"`
+	FileSizeBytes int64  `json:"file_size_bytes"`
+	CreatedOn     string `json:"created_on"`
+}
+
+// PipelineCacheContentURI is a short-lived URI for downloading a cache archive.
+type PipelineCacheContentURI struct {
+	URI string `json:"uri"`
+}
+
+// PipelineVariable represents a pipeline variable. Repository, workspace and
+// deployment-environment variables share this shape.
 type PipelineVariable struct {
 	UUID    string `json:"uuid"`
 	Key     string `json:"key"`
@@ -533,6 +571,14 @@ type ReportAnnotation struct {
 	Link           string `json:"link,omitempty"`
 	CreatedOn      string `json:"created_on,omitempty"`
 	UpdatedOn      string `json:"updated_on,omitempty"`
+}
+
+// DefaultReviewer is a user automatically added as a reviewer on new pull
+// requests. ReviewerType is "repository" or "project" for effective default
+// reviewers and empty for the repository-only list.
+type DefaultReviewer struct {
+	User         Actor  `json:"user"`
+	ReviewerType string `json:"reviewer_type,omitempty"`
 }
 
 // User type

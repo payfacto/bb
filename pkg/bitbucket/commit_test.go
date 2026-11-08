@@ -91,3 +91,22 @@ func TestCommits_File(t *testing.T) {
 		t.Errorf("expected %q, got %q", fileContent, got)
 	}
 }
+
+func TestCommits_MergeBase(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if got, want := r.URL.EscapedPath(), "/repositories/ws/repo/merge-base/main..feat%2Fx"; got != want {
+			t.Errorf("escaped path = %q, want %q", got, want)
+		}
+		mustEncodeJSON(t, w, bitbucket.Commit{Hash: "base123", Message: "common ancestor"})
+	}))
+	got, err := client.Commits("ws", "repo").MergeBase(context.Background(), "main", "feat/x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Hash != "base123" {
+		t.Errorf("unexpected commit: %+v", got)
+	}
+}

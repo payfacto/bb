@@ -271,12 +271,38 @@ func (c *Client) Restrictions(workspace, repo string) *BranchRestrictionResource
 
 // PipelineVariables returns a resource for pipeline variable operations on the given repo.
 func (c *Client) PipelineVariables(workspace, repo string) *PipelineVariableResource {
-	return &PipelineVariableResource{client: c, workspace: workspace, repo: repo}
+	return &PipelineVariableResource{client: c, collectionPath: repoPath(workspace, repo) + "/pipelines_config/variables/"}
+}
+
+// WorkspaceVariables returns a resource for workspace-level pipeline variable
+// operations (shared by every repository in the workspace).
+func (c *Client) WorkspaceVariables(workspace string) *PipelineVariableResource {
+	return &PipelineVariableResource{client: c, collectionPath: workspacePath(workspace) + "/pipelines-config/variables"}
 }
 
 // PipelineSchedules returns a resource for scheduled pipeline operations on the given repo.
 func (c *Client) PipelineSchedules(workspace, repo string) *PipelineScheduleResource {
 	return &PipelineScheduleResource{client: c, workspace: workspace, repo: repo}
+}
+
+// RepoRunners returns a resource for the repository's self-hosted runners.
+func (c *Client) RepoRunners(workspace, repo string) *RunnerResource {
+	return &RunnerResource{client: c, collectionPath: repoPath(workspace, repo) + "/pipelines-config/runners"}
+}
+
+// WorkspaceRunners returns a resource for the workspace's self-hosted runners.
+func (c *Client) WorkspaceRunners(workspace string) *RunnerResource {
+	return &RunnerResource{client: c, collectionPath: workspacePath(workspace) + "/pipelines-config/runners"}
+}
+
+// DefaultReviewers returns a resource for the repository's default reviewers.
+func (c *Client) DefaultReviewers(workspace, repo string) *DefaultReviewerResource {
+	return &DefaultReviewerResource{client: c, workspace: workspace, repo: repo}
+}
+
+// PipelineCaches returns a resource for the repository's Pipelines caches.
+func (c *Client) PipelineCaches(workspace, repo string) *PipelineCacheResource {
+	return &PipelineCacheResource{client: c, workspace: workspace, repo: repo}
 }
 
 // PipelineConfig returns a resource for reading and toggling whether
@@ -299,6 +325,11 @@ func (c *Client) Webhooks(workspace, repo string) *WebhookResource {
 // repoPath returns the API path prefix for a repository.
 func repoPath(workspace, repo string) string {
 	return fmt.Sprintf("/repositories/%s/%s", workspace, repo)
+}
+
+// workspacePath returns the API path prefix for a workspace.
+func workspacePath(workspace string) string {
+	return "/workspaces/" + workspace
 }
 
 // do executes an authenticated HTTP request and returns the raw response body.

@@ -49,13 +49,5 @@ func (r *EnvironmentVariableResource) Update(ctx context.Context, uuid string, i
 // returned with an empty value (the API hides it).
 func (r *EnvironmentVariableResource) List(ctx context.Context) ([]PipelineVariable, error) {
 	q := url.Values{"pagelen": {pagelenDefault}}
-	data, err := r.client.do(ctx, "GET", r.basePath(), nil, q)
-	if err != nil {
-		return nil, err
-	}
-	page, err := decode[paged[PipelineVariable]](data)
-	if err != nil {
-		return nil, err
-	}
-	return page.Values, nil
+	return fetchAllPages[PipelineVariable](ctx, r.client, r.basePath(), q)
 }

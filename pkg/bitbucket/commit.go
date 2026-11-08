@@ -50,6 +50,18 @@ func (r *CommitResource) Get(ctx context.Context, hash string) (Commit, error) {
 	return decode[Commit](data)
 }
 
+// MergeBase returns the best common ancestor of two revisions (branch, tag,
+// or commit hash), using the API's "A..B" revspec.
+func (r *CommitResource) MergeBase(ctx context.Context, revA, revB string) (Commit, error) {
+	revspec := url.PathEscape(revA) + ".." + url.PathEscape(revB)
+	path := fmt.Sprintf("%s/merge-base/%s", repoPath(r.workspace, r.repo), revspec)
+	data, err := r.client.do(ctx, "GET", path, nil, nil)
+	if err != nil {
+		return Commit{}, err
+	}
+	return decode[Commit](data)
+}
+
 // Statuses returns the build/CI statuses attached to a commit.
 func (r *CommitResource) Statuses(ctx context.Context, hash string) ([]CommitStatus, error) {
 	path := fmt.Sprintf("%s/commit/%s/statuses", repoPath(r.workspace, r.repo), url.PathEscape(hash))

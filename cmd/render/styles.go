@@ -45,3 +45,11 @@ func StateBadge(state string) string {
 		return badgeOther.Render(state)
 	}
 }
+
+// yesNo renders a boolean as plain "yes" or "no".
+func yesNo(b bool) string {
+	if b {
+		return "yes"
+	}
+	return "no"
+}

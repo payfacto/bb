@@ -167,8 +167,8 @@ bb pr list --workspace myws --repo myrepo
 | `-d` | `--description` | `pr create` |
 | `-n` | `--name` | `branch create/delete`, `tag create/delete` |
 | `-i` | `--id` | `deploy-key delete`, `restriction delete` |
-| `-k` | `--key` | `pipeline-var create`, `pipeline-var update` |
-| `-v` | `--value` | `pipeline-var create`, `pipeline-var update` |
+| `-k` | `--key` | `pipeline-var create/update`, `workspace-var create/update` |
+| `-v` | `--value` | `pipeline-var create/update`, `workspace-var create/update` |
 | `-x` | `--hash` | `commit get`, `commit statuses`, `commit reports`, `commit report`, `commit annotations` |
 
 ## Commands
@@ -265,6 +265,17 @@ lists none.
 environment - run the custom pipeline whose step deploys to it). `--var K=V` sets
 per-run variables (repeatable, unsecured; keep secrets in repo/deployment variables).
 
+### Default Reviewers
+
+```
+bb default-reviewer list [--effective]
+```
+
+Without `--effective`, lists reviewers configured directly on the repository.
+`--effective` lists the reviewers actually applied to new pull requests,
+including those inherited from the project; each entry carries
+`reviewer_type` (`repository` or `project`). Read-only.
+
 ### Branches
 
 ```
@@ -290,6 +301,7 @@ bb commit statuses -x HASH
 bb commit reports -x HASH
 bb commit report -x HASH --report-id ID
 bb commit annotations -x HASH --report-id ID
+bb commit merge-base REV_A REV_B
 bb file get --ref REF --path PATH
 ```
 
@@ -297,6 +309,9 @@ bb file get --ref REF --path PATH
 external tools (SonarCloud, Snyk, test runners, ...) attach to a commit.
 `--report-id` accepts the report UUID or its external ID. Read-only: creating
 or deleting reports and annotations is not supported.
+
+`commit merge-base` takes two positional revisions (branch, tag, or hash) and
+returns their best common ancestor commit.
 
 ### Repositories
 
@@ -342,6 +357,46 @@ bb pipeline-schedule executions --uuid UUID
 `--pattern` defaulting to the branch name); use `--selector-type custom
 --pattern NAME` to schedule a custom pipeline. Bitbucket only lets `update`
 toggle the enabled state; delete and re-create to change anything else.
+
+### Workspace Variables
+
+```
+bb workspace-var list
+bb workspace-var get --uuid UUID
+bb workspace-var create -k KEY -v VALUE [--secured]
+bb workspace-var update --uuid UUID -v VALUE [-k KEY] [--secured]
+bb workspace-var delete --uuid UUID
+```
+
+Workspace-level pipeline variables, shared by every repository in the
+workspace. Needs only `--workspace` (no `--repo`). Flags, stdin JSON input and
+update semantics match `bb pipeline-var`.
+
+### Runners
+
+```
+bb runner list [--workspace-level]
+bb runner get --uuid UUID [--workspace-level]
+bb runner delete --uuid UUID [--workspace-level]
+```
+
+Self-hosted Pipelines runners. Repository runners by default;
+`--workspace-level` targets the workspace's runners (needs only
+`--workspace`). Creating a runner is not supported: the API returns a
+one-time OAuth secret that `bb` deliberately does not surface.
+
+### Pipeline Caches
+
+```
+bb pipeline-cache list
+bb pipeline-cache delete --name NAME
+bb pipeline-cache url --uuid UUID
+```
+
+`list` shows every stored cache version (a name can have several, one per
+key hash). `delete` removes all versions of the named cache (the name from
+`bitbucket-pipelines.yml`) and is destructive. `url` prints a short-lived
+download URL for one cache version's archive.
 
 ### Pipeline Config
 

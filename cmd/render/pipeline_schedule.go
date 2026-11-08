@@ -16,14 +16,6 @@ const (
 	executionTypeWidth    = 40
 )
 
-// yesNo renders a boolean as a human-friendly yes/no.
-func yesNo(b bool) string {
-	if b {
-		return "yes"
-	}
-	return "no"
-}
-
 // scheduleSelector renders the pipeline definition a schedule runs, e.g.
 // "custom: nightly" or "branches: main".
 func scheduleSelector(sel bitbucket.PipelineSelector) string {
