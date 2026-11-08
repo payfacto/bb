@@ -295,6 +295,11 @@ func (c *Client) WorkspaceRunners(workspace string) *RunnerResource {
 	return &RunnerResource{client: c, collectionPath: workspacePath(workspace) + "/pipelines-config/runners"}
 }
 
+// PipelineCaches returns a resource for the repository's Pipelines caches.
+func (c *Client) PipelineCaches(workspace, repo string) *PipelineCacheResource {
+	return &PipelineCacheResource{client: c, workspace: workspace, repo: repo}
+}
+
 // PipelineConfig returns a resource for reading and toggling whether
 // Pipelines is enabled on the given repo.
 func (c *Client) PipelineConfig(workspace, repo string) *PipelineConfigResource {

@@ -350,6 +350,23 @@ type PipelineRunnerState struct {
 	UpdatedOn string `json:"updated_on"`
 }
 
+// PipelineCache is the metadata of one stored version of a Pipelines cache.
+type PipelineCache struct {
+	UUID          string `json:"uuid"`
+	PipelineUUID  string `json:"pipeline_uuid"`
+	StepUUID      string `json:"step_uuid"`
+	Name          string `json:"name"`
+	KeyHash       string `json:"key_hash"`
+	Path          string `json:"path"`
+	FileSizeBytes int64  `json:"file_size_bytes"`
+	CreatedOn     string `json:"created_on"`
+}
+
+// PipelineCacheContentURI is a short-lived URI for downloading a cache archive.
+type PipelineCacheContentURI struct {
+	URI string `json:"uri"`
+}
+
 // PipelineVariable represents a pipeline variable. Repository, workspace and
 // deployment-environment variables share this shape.
 type PipelineVariable struct {

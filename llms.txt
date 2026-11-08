@@ -294,6 +294,16 @@ bb runner delete --uuid UUID [--workspace-level]
 
 Repository runners by default; --workspace-level targets workspace runners. delete is destructive. No create (one-time secret is out of scope).
 
+### Pipeline Caches
+
+```
+bb pipeline-cache list
+bb pipeline-cache delete --name NAME
+bb pipeline-cache url --uuid UUID
+```
+
+delete removes all versions of the named cache (destructive). url returns {uri} - a short-lived download link for one version.
+
 ### Pipeline Config
 
 ```

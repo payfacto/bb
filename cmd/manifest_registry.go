@@ -86,6 +86,11 @@ var commandRegistry = map[string]commandSpec{
 	"runner get":    {Action: actionRead, OutputType: "PipelineRunner", Example: "bb runner get --uuid '{uuid}'"},
 	"runner delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb runner delete --uuid '{uuid}'"},
 
+	// pipeline-cache ---------------------------------------------------
+	"pipeline-cache list":   {Action: actionRead, OutputType: "[]PipelineCache", Ordering: "unspecified", Example: "bb pipeline-cache list"},
+	"pipeline-cache delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline-cache delete --name gradle"},
+	"pipeline-cache url":    {Action: actionRead, OutputType: "PipelineCacheContentURI", Example: "bb pipeline-cache url --uuid '{uuid}'"},
+
 	// pipeline-config ----------------------------------------------------
 	"pipeline-config get":     {Action: actionRead, OutputType: "PipelineConfig", Example: "bb pipeline-config get"},
 	"pipeline-config enable":  {Action: actionWrite, OutputType: "PipelineConfig", Example: "bb pipeline-config enable"},
@@ -236,6 +241,8 @@ var typeRegistry = map[string]any{
 	"PipelineConfig":              bitbucket.PipelineConfig{},
 	"PipelineRunner":              bitbucket.PipelineRunner{},
 	"[]PipelineRunner":            []bitbucket.PipelineRunner{},
+	"[]PipelineCache":             []bitbucket.PipelineCache{},
+	"PipelineCacheContentURI":     bitbucket.PipelineCacheContentURI{},
 
 	"Branch":            bitbucket.Branch{},
 	"[]Branch":          []bitbucket.Branch{},

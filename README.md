@@ -370,6 +370,19 @@ Self-hosted Pipelines runners. Repository runners by default;
 `--workspace`). Creating a runner is not supported: the API returns a
 one-time OAuth secret that `bb` deliberately does not surface.
 
+### Pipeline Caches
+
+```
+bb pipeline-cache list
+bb pipeline-cache delete --name NAME
+bb pipeline-cache url --uuid UUID
+```
+
+`list` shows every stored cache version (a name can have several, one per
+key hash). `delete` removes all versions of the named cache (the name from
+`bitbucket-pipelines.yml`) and is destructive. `url` prints a short-lived
+download URL for one cache version's archive.
+
 ### Pipeline Config
 
 ```
