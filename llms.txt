@@ -106,7 +106,7 @@ echo '{"title":"fix","source":{"branch":{"name":"feat/x"}},"destination":{"branc
 echo '{"key":"API_KEY","value":"secret","secured":true}' | bb pipeline-var create
 ```
 
-Stdin-capable commands: `pr create`, `pr comment add`, `branch create`, `tag create`, `repo create`, `repo update`, `repo fork`, `webhook create`, `deploy-key add`, `pipeline-var create`, `pipeline-schedule create`, `pipeline-schedule update`, `restriction create`.
+Stdin-capable commands: `pr create`, `pr comment add`, `branch create`, `tag create`, `repo create`, `repo update`, `repo fork`, `webhook create`, `deploy-key add`, `pipeline-var create`, `pipeline-schedule create`, `pipeline-schedule update`, `workspace-var create`, `workspace-var update`, `restriction create`.
 
 ## Multi-paragraph text bodies
 
@@ -271,6 +271,18 @@ bb pipeline-schedule executions --uuid UUID
 `--pattern` defaulting to the branch name); use `--selector-type custom
 --pattern NAME` to schedule a custom pipeline. Bitbucket only lets `update`
 toggle the enabled state; delete and re-create to change anything else.
+
+### Workspace Variables
+
+Workspace-level pipeline variables (need only --workspace). Same flags, stdin and update semantics as pipeline-var.
+
+```
+bb workspace-var list
+bb workspace-var get --uuid UUID
+bb workspace-var create -k KEY -v VALUE [--secured]
+bb workspace-var update --uuid UUID -v VALUE [-k KEY] [--secured]
+bb workspace-var delete --uuid UUID
+```
 
 ### Pipeline Config
 

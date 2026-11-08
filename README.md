@@ -167,8 +167,8 @@ bb pr list --workspace myws --repo myrepo
 | `-d` | `--description` | `pr create` |
 | `-n` | `--name` | `branch create/delete`, `tag create/delete` |
 | `-i` | `--id` | `deploy-key delete`, `restriction delete` |
-| `-k` | `--key` | `pipeline-var create`, `pipeline-var update` |
-| `-v` | `--value` | `pipeline-var create`, `pipeline-var update` |
+| `-k` | `--key` | `pipeline-var create/update`, `workspace-var create/update` |
+| `-v` | `--value` | `pipeline-var create/update`, `workspace-var create/update` |
 | `-x` | `--hash` | `commit get`, `commit statuses`, `commit reports`, `commit report`, `commit annotations` |
 
 ## Commands
@@ -342,6 +342,20 @@ bb pipeline-schedule executions --uuid UUID
 `--pattern` defaulting to the branch name); use `--selector-type custom
 --pattern NAME` to schedule a custom pipeline. Bitbucket only lets `update`
 toggle the enabled state; delete and re-create to change anything else.
+
+### Workspace Variables
+
+```
+bb workspace-var list
+bb workspace-var get --uuid UUID
+bb workspace-var create -k KEY -v VALUE [--secured]
+bb workspace-var update --uuid UUID -v VALUE [-k KEY] [--secured]
+bb workspace-var delete --uuid UUID
+```
+
+Workspace-level pipeline variables, shared by every repository in the
+workspace. Needs only `--workspace` (no `--repo`). Flags, stdin JSON input and
+update semantics match `bb pipeline-var`.
 
 ### Pipeline Config
 

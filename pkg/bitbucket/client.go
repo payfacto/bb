@@ -271,7 +271,13 @@ func (c *Client) Restrictions(workspace, repo string) *BranchRestrictionResource
 
 // PipelineVariables returns a resource for pipeline variable operations on the given repo.
 func (c *Client) PipelineVariables(workspace, repo string) *PipelineVariableResource {
-	return &PipelineVariableResource{client: c, workspace: workspace, repo: repo}
+	return &PipelineVariableResource{client: c, collectionPath: repoPath(workspace, repo) + "/pipelines_config/variables/"}
+}
+
+// WorkspaceVariables returns a resource for workspace-level pipeline variable
+// operations (shared by every repository in the workspace).
+func (c *Client) WorkspaceVariables(workspace string) *PipelineVariableResource {
+	return &PipelineVariableResource{client: c, collectionPath: workspacePath(workspace) + "/pipelines-config/variables"}
 }
 
 // PipelineSchedules returns a resource for scheduled pipeline operations on the given repo.
@@ -299,6 +305,11 @@ func (c *Client) Webhooks(workspace, repo string) *WebhookResource {
 // repoPath returns the API path prefix for a repository.
 func repoPath(workspace, repo string) string {
 	return fmt.Sprintf("/repositories/%s/%s", workspace, repo)
+}
+
+// workspacePath returns the API path prefix for a workspace.
+func workspacePath(workspace string) string {
+	return "/workspaces/" + workspace
 }
 
 // do executes an authenticated HTTP request and returns the raw response body.

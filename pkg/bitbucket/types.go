@@ -330,7 +330,8 @@ type StepTestCase struct {
 	Reasons []TestCaseReason `json:"reasons,omitempty"`
 }
 
-// PipelineVariable represents a repository-level pipeline variable.
+// PipelineVariable represents a pipeline variable. Repository, workspace and
+// deployment-environment variables share this shape.
 type PipelineVariable struct {
 	UUID    string `json:"uuid"`
 	Key     string `json:"key"`

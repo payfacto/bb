@@ -45,23 +45,11 @@ var pipelineVarCreateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		var input bitbucket.CreatePipelineVariableInput
-		consumed, err := stdinInputOr(&input, func() bitbucket.CreatePipelineVariableInput {
-			return bitbucket.CreatePipelineVariableInput{
-				Key:     pipelineVarCreateKey,
-				Value:   pipelineVarCreateValue,
-				Secured: pipelineVarCreateSecured,
-			}
+		v, err := createVariable(client.PipelineVariables(ws, repo), bitbucket.CreatePipelineVariableInput{
+			Key:     pipelineVarCreateKey,
+			Value:   pipelineVarCreateValue,
+			Secured: pipelineVarCreateSecured,
 		})
-		if err != nil {
-			return err
-		}
-		if !consumed {
-			if err := requireFlag("key", pipelineVarCreateKey); err != nil {
-				return err
-			}
-		}
-		v, err := client.PipelineVariables(ws, repo).Create(context.Background(), input)
 		if err != nil {
 			return err
 		}
@@ -102,43 +90,11 @@ var pipelineVarUpdateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := requireFlag("uuid", pipelineVarUpdateUUID); err != nil {
-			return err
-		}
-		res := client.PipelineVariables(ws, repo)
-
-		var input bitbucket.CreatePipelineVariableInput
-		consumed, err := stdinInputOr(&input, func() bitbucket.CreatePipelineVariableInput {
-			return bitbucket.CreatePipelineVariableInput{
-				Key:     pipelineVarUpdateKey,
-				Value:   pipelineVarUpdateValue,
-				Secured: pipelineVarUpdateSecured,
-			}
+		v, err := updateVariable(cmd, client.PipelineVariables(ws, repo), pipelineVarUpdateUUID, bitbucket.CreatePipelineVariableInput{
+			Key:     pipelineVarUpdateKey,
+			Value:   pipelineVarUpdateValue,
+			Secured: pipelineVarUpdateSecured,
 		})
-		if err != nil {
-			return err
-		}
-
-		if !consumed {
-			// Flag path: stdinInputOr already populated input from flag vars; requireFlag validates the --value flag is present.
-			// Default key/secured from the current variable unless overridden. (A secured variable's value
-			// is not readable, so we never reuse the fetched value.)
-			if err := requireFlag("value", pipelineVarUpdateValue); err != nil {
-				return err
-			}
-			current, err := res.Get(context.Background(), pipelineVarUpdateUUID)
-			if err != nil {
-				return err
-			}
-			if !cmd.Flags().Changed("key") {
-				input.Key = current.Key
-			}
-			if !cmd.Flags().Changed("secured") {
-				input.Secured = current.Secured
-			}
-		}
-
-		v, err := res.Update(context.Background(), pipelineVarUpdateUUID, input)
 		if err != nil {
 			return err
 		}
@@ -163,6 +119,56 @@ var pipelineVarDeleteCmd = &cobra.Command{
 			fmt.Printf("Pipeline variable %s deleted\n", pipelineVarDeleteUUID)
 		})
 	},
+}
+
+// createVariable creates a pipeline variable (repository or workspace scope)
+// from piped stdin JSON, falling back to the flag-built input. --key is
+// required on the flag path.
+func createVariable(res *bitbucket.PipelineVariableResource, flagInput bitbucket.CreatePipelineVariableInput) (bitbucket.PipelineVariable, error) {
+	var input bitbucket.CreatePipelineVariableInput
+	consumed, err := stdinInputOr(&input, func() bitbucket.CreatePipelineVariableInput { return flagInput })
+	if err != nil {
+		return bitbucket.PipelineVariable{}, err
+	}
+	if !consumed {
+		if err := requireFlag("key", flagInput.Key); err != nil {
+			return bitbucket.PipelineVariable{}, err
+		}
+	}
+	return res.Create(context.Background(), input)
+}
+
+// updateVariable replaces a pipeline variable (repository or workspace scope)
+// from piped stdin JSON, falling back to the flag-built input. On the flag
+// path --value is required and key/secured default to the current variable
+// unless their flags were set. The fetched value is never reused: a secured
+// variable's value is not readable.
+func updateVariable(cmd *cobra.Command, res *bitbucket.PipelineVariableResource, uuid string, flagInput bitbucket.CreatePipelineVariableInput) (bitbucket.PipelineVariable, error) {
+	ctx := context.Background()
+	if err := requireFlag("uuid", uuid); err != nil {
+		return bitbucket.PipelineVariable{}, err
+	}
+	var input bitbucket.CreatePipelineVariableInput
+	consumed, err := stdinInputOr(&input, func() bitbucket.CreatePipelineVariableInput { return flagInput })
+	if err != nil {
+		return bitbucket.PipelineVariable{}, err
+	}
+	if !consumed {
+		if err := requireFlag("value", flagInput.Value); err != nil {
+			return bitbucket.PipelineVariable{}, err
+		}
+		current, err := res.Get(ctx, uuid)
+		if err != nil {
+			return bitbucket.PipelineVariable{}, err
+		}
+		if !cmd.Flags().Changed("key") {
+			input.Key = current.Key
+		}
+		if !cmd.Flags().Changed("secured") {
+			input.Secured = current.Secured
+		}
+	}
+	return res.Update(ctx, uuid, input)
 }
 
 func init() {

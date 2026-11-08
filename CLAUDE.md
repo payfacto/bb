@@ -88,6 +88,7 @@ bb                    (no args → launches TUI)
 ├── pipeline list / get / trigger / stop / steps / log / watch / test-report / test-cases
 ├── pipeline-var list / get / create / update / delete
 ├── pipeline-schedule list / get / create / update / delete / executions
+├── workspace-var list / get / create / update / delete
 ├── pipeline-config get / enable / disable
 ├── branch list / create / delete
 ├── tag list / create / delete
@@ -149,6 +150,7 @@ client.PRs(workspace, repo).RequestChanges(ctx, prID)             // WithdrawReq
 client.Tasks(workspace, repo, prID).SetState(ctx, taskID, resolved)
 client.Search(workspace).Code(ctx, bitbucket.CodeSearchOptions{Query, Ext, Lang, Repo, Project, Limit})
 client.Search(workspace).Repos(ctx, term, limit)
+client.WorkspaceVariables(workspace).List(ctx)   // same *PipelineVariableResource as PipelineVariables
 ```
 
 Most List methods whose Bitbucket endpoint accepts a `sort=` query parameter take

@@ -74,6 +74,12 @@ var commandRegistry = map[string]commandSpec{
 	"pipeline-schedule update":     {Action: actionWrite, OutputType: "PipelineSchedule", StdinType: "UpdatePipelineScheduleInput", Example: "bb pipeline-schedule update --uuid '{uuid}' --disabled"},
 	"pipeline-schedule delete":     {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline-schedule delete --uuid '{uuid}'"},
 	"pipeline-schedule executions": {Action: actionRead, OutputType: "[]PipelineScheduleExecution", Ordering: "unspecified", Example: "bb pipeline-schedule executions --uuid '{uuid}'"},
+	// workspace-var ---------------------------------------------------
+	"workspace-var list":   {Action: actionRead, OutputType: "[]PipelineVariable", Ordering: "unspecified", Example: "bb workspace-var list"},
+	"workspace-var get":    {Action: actionRead, OutputType: "PipelineVariable", Example: "bb workspace-var get --uuid '{uuid}'"},
+	"workspace-var create": {Action: actionWrite, OutputType: "PipelineVariable", StdinType: "CreatePipelineVariableInput", Example: "bb workspace-var create --key API_KEY --value secret --secured"},
+	"workspace-var update": {Action: actionWrite, OutputType: "PipelineVariable", StdinType: "CreatePipelineVariableInput", Example: "bb workspace-var update --uuid '{uuid}' --value newval"},
+	"workspace-var delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb workspace-var delete --uuid '{uuid}'"},
 
 	// pipeline-config ----------------------------------------------------
 	"pipeline-config get":     {Action: actionRead, OutputType: "PipelineConfig", Example: "bb pipeline-config get"},
