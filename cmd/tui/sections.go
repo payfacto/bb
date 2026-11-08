@@ -346,9 +346,6 @@ func buildMenuItems(client *bitbucket.Client, cfg *config.Config, hist *history.
 				},
 			})
 		})},
-		{label: "Issues", description: "Track and manage issues", onSelect: needRepo(func() View {
-			return newIssueListView(client, ws, repo, ps)
-		})},
 		{label: "Deployments", description: "View deployments", onSelect: needRepo(func() View {
 			return newListView(ListConfig{
 				Title:         "Deployments",
@@ -2065,8 +2062,6 @@ func newCommitListView(client *bitbucket.Client, ws, repo string, pageSize int) 
 	})
 }
 
-// --- Issue Section ---
-
 // fetchAndPushCommitDetail fetches a commit by hash then pushes a full commit detail view with actionable parents.
 func fetchAndPushCommitDetail(client *bitbucket.Client, ws, repo, hash string) tea.Cmd {
 	short := abbrevHash(hash)
@@ -2097,88 +2092,6 @@ func newCommitDetailView(client *bitbucket.Client, ws, repo string, c bitbucket.
 		Title:        "Commit: " + hash,
 		ContentFetch: func() string { return render.CommitDetailString(c) },
 		Actions:      actions,
-	})
-}
-
-func newIssueListView(client *bitbucket.Client, ws, repo string, pageSize int) *listModel {
-	newIssueKey := key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "new issue"))
-	return newListView(ListConfig{
-		Title:     "Issues",
-		PageSize:  pageSize,
-		EmptyMsg:  "No issues found.",
-		Shortcuts: []key.Binding{newIssueKey},
-		Fetch: func(ctx context.Context, _ string) ([]listItem, error) {
-			issues, err := client.Issues(ws, repo).List(ctx, "")
-			if err != nil {
-				return nil, err
-			}
-			items := make([]listItem, len(issues))
-			for i, issue := range issues {
-				items[i] = listItem{id: fmt.Sprintf("#%d", issue.ID), title: render.StateBadge(issue.State) + " " + issue.Title, subtitle: issue.Kind, data: issue}
-			}
-			return items, nil
-		},
-		OnKey: func(msg tea.KeyMsg, _ listItem, items []listItem) ([]listItem, tea.Cmd) {
-			if !key.Matches(msg, newIssueKey) {
-				return nil, nil
-			}
-			return nil, pushViewCmd(newInputView("New Issue — Title", "issue title", func(title string) tea.Cmd {
-				return pushViewCmd(newInputView("Kind (bug/enhancement/proposal/task)", "bug", func(kind string) tea.Cmd {
-					if kind == "" {
-						kind = "bug"
-					}
-					return executeAction(func() error {
-						_, err := client.Issues(ws, repo).Create(context.Background(), bitbucket.CreateIssueInput{
-							Title: title,
-							Kind:  kind,
-						})
-						return err
-					}, fmt.Sprintf("Issue %q created", title))
-				}))
-			}))
-		},
-		OnSelect: func(item listItem) tea.Cmd {
-			issue := item.data.(bitbucket.Issue)
-			actions := []ActionItem{
-				{Label: "Open in browser", OnSelect: func() tea.Cmd {
-					return openURLCmd(issue.Links.HTML.Href)
-				}},
-			}
-			if issue.State == "new" || issue.State == "open" {
-				actions = append(actions, ActionItem{
-					Label: "✓ Close",
-					Style: &actionWarnStyle,
-					Confirm: &ConfirmConfig{
-						Message: fmt.Sprintf("Close issue #%d?", issue.ID),
-						OnYes: func() tea.Cmd {
-							return executeAction(func() error {
-								_, err := client.Issues(ws, repo).Update(context.Background(), issue.ID, bitbucket.UpdateIssueInput{Status: "resolved"})
-								return err
-							}, fmt.Sprintf("Issue #%d closed", issue.ID))
-						},
-					},
-				})
-			} else {
-				actions = append(actions, ActionItem{
-					Label: "↺ Reopen",
-					Style: &actionSuccessStyle,
-					Confirm: &ConfirmConfig{
-						Message: fmt.Sprintf("Reopen issue #%d?", issue.ID),
-						OnYes: func() tea.Cmd {
-							return executeAction(func() error {
-								_, err := client.Issues(ws, repo).Update(context.Background(), issue.ID, bitbucket.UpdateIssueInput{Status: "open"})
-								return err
-							}, fmt.Sprintf("Issue #%d reopened", issue.ID))
-						},
-					},
-				})
-			}
-			return pushViewCmd(newDetailView(DetailConfig{
-				Title:   fmt.Sprintf("Issue #%d", issue.ID),
-				Content: render.IssueDetailString(issue),
-				Actions: actions,
-			}))
-		},
 	})
 }
 

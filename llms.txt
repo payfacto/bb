@@ -106,15 +106,14 @@ echo '{"title":"fix","source":{"branch":{"name":"feat/x"}},"destination":{"branc
 echo '{"key":"API_KEY","value":"secret","secured":true}' | bb pipeline-var create
 ```
 
-Stdin-capable commands: `pr create`, `pr comment add`, `branch create`, `tag create`, `repo create`, `repo update`, `repo fork`, `issue create`, `webhook create`, `deploy-key add`, `pipeline-var create`, `restriction create`.
+Stdin-capable commands: `pr create`, `pr comment add`, `branch create`, `tag create`, `repo create`, `repo update`, `repo fork`, `webhook create`, `deploy-key add`, `pipeline-var create`, `restriction create`.
 
 ## Multi-paragraph text bodies
 
-For PR descriptions, issue descriptions, or comment bodies that span multiple paragraphs, **prefer the file-flag form** over inline `-d "..."` / `-t "..."`. Shells (especially MINGW bash on Windows) can block on unclosed quoted strings containing literal newlines, which can look like `bb` hanging.
+For PR descriptions or comment bodies that span multiple paragraphs, **prefer the file-flag form** over inline `-d "..."` / `-t "..."`. Shells (especially MINGW bash on Windows) can block on unclosed quoted strings containing literal newlines, which can look like `bb` hanging.
 
 ```bash
 bb pr create -T "..." --from-branch X --to-branch main --description-file /tmp/body.md
-bb issue create -T "..." --description-file /tmp/body.md
 bb pr comment add -p 42 --text-file /tmp/comment.md
 bb pr comment reply -p 42 -c 7 --text-file /tmp/reply.md
 ```
@@ -224,16 +223,6 @@ bb repo create SLUG [--name "..."] [--description "..."] [--private] [--project 
 bb repo fork SLUG [--name "..."] [--workspace SLUG]
 ```
 
-### Issues
-
-```
-bb issue list [--sort FIELD]
-bb issue get -i ID
-bb issue create -T "..." [-d "..." | --description-file PATH] [-k bug|enhancement|proposal|task] [--priority trivial|minor|major|critical|blocker]
-bb issue close -i ID
-bb issue reopen -i ID
-```
-
 ### Pipeline Variables
 
 ```
@@ -338,11 +327,11 @@ Errors are emitted on **stderr** in the active format - see "Error format" above
 
 - Always use `bb <command>` with explicit subcommands. Running bare `bb` launches an interactive TUI meant for humans - agents should never do this.
 - Default output is GCF. Pass `-f json` or set `BB_FORMAT=json` for JSON. List commands return arrays; single-resource commands return objects.
-- IDs are integers for PRs, tasks, issues, deploy keys, and restrictions. UUIDs (with `{}` braces) for pipelines, steps, environments, and webhooks.
+- IDs are integers for PRs, tasks, deploy keys, and restrictions. UUIDs (with `{}` braces) for pipelines, steps, environments, and webhooks.
 - The CLI exits non-zero on errors and writes to stderr in the active format (see "Error format"). With `format=json` the envelope is `{"error": {"code", "message", "details"}}`.
 - Use `bb --describe` to enumerate every command, flag, action class, and JSON Schema in a single call.
-- `--sort` is available on `pr list`, `pipeline list`, `branch list`, `tag list`, `commit list`, `repo list`, `issue list`, and `deployment list`. Note: the deployments endpoint only accepts a limited set of sort attributes (verified valid: `state.name`, `-state.name`; most others return HTTP 400). Other list commands do not accept `--sort` because the underlying Bitbucket endpoint does not - sort their JSON output client-side if you need deterministic ordering.
+- `--sort` is available on `pr list`, `pipeline list`, `branch list`, `tag list`, `commit list`, `repo list`, and `deployment list`. Note: the deployments endpoint only accepts a limited set of sort attributes (verified valid: `state.name`, `-state.name`; most others return HTTP 400). Other list commands do not accept `--sort` because the underlying Bitbucket endpoint does not - sort their JSON output client-side if you need deterministic ordering.
 - List commands follow Bitbucket pagination and return the **full** result set, not just the first page. For `pr list`, bound large result sets with `--since`/`--until` (ISO-8601 timestamps filtering PR `created_on`). PRs include `created_on`, `updated_on`, `comment_count`, `task_count`, `draft`; comments include `created_on`, `updated_on`.
 - Workspace and repo can be omitted from flags if set in `~/.bbcloud.yaml`, or auto-detected from the current directory's git origin — which takes priority over a `~/.bbcloud.yaml` default (see the workspace/repo inference note above).
-- All long flags have short equivalents: `-p` (pr-id), `-s` (state), `-b` (branch), `-u` (pipeline-uuid), `-c` (comment-id), `-t` (text), `-T` (title), `-d` (description), `-n` (name), `-i` (id), `-k` (kind or key), `-v` (value), `-x` (hash).
+- All long flags have short equivalents: `-p` (pr-id), `-s` (state), `-b` (branch), `-u` (pipeline-uuid), `-c` (comment-id), `-t` (text), `-T` (title), `-d` (description), `-n` (name), `-i` (id), `-k` (key), `-v` (value), `-x` (hash).
 - Pipeline variable UUIDs are returned as strings with `{}` braces (e.g. `{abc-123}`); pass the full UUID including braces to `--uuid`.

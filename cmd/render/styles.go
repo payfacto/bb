@@ -26,7 +26,7 @@ var (
 // WarningStyle renders inline prose warnings (red foreground, no background).
 var WarningStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#f38ba8")).Bold(true).PaddingLeft(2)
 
-// StateBadge returns a colored badge string for a PR, pipeline, task, or issue state.
+// StateBadge returns a colored badge string for a PR, pipeline, or task state.
 func StateBadge(state string) string {
 	switch strings.ToUpper(state) {
 	case "OPEN", "NEW", "ACTIVE", "SUCCESSFUL", "RESOLVED":

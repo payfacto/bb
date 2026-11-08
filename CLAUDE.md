@@ -93,7 +93,6 @@ bb                    (no args → launches TUI)
 ├── commit list / get / statuses
 ├── file get
 ├── repo list / get / create / update / delete / fork
-├── issue list / get / create / close / reopen
 ├── deployment list [--env-uuid UUID] [--sort FIELD] / get
 ├── env list / get / create / delete
 ├── env-var list / create / update / delete --env-uuid UUID
@@ -137,10 +136,9 @@ client.Repos(workspace).List(ctx, sort)
 client.Branches(workspace, repo).List(ctx, sort)
 client.Tags(workspace, repo).List(ctx, sort)
 client.Commits(workspace, repo).List(ctx, branch, sort)
-client.Issues(workspace, repo).List(ctx, sort)
 client.Pipelines(workspace, repo).List(ctx, sort)
 client.Comments(workspace, repo, prID).Add(ctx, input)
-client.Tasks(workspace, repo, prID).Complete(ctx, taskID)
+client.Tasks(workspace, repo, prID).SetState(ctx, taskID, resolved)
 client.Search(workspace).Code(ctx, bitbucket.CodeSearchOptions{Query, Ext, Lang, Repo, Project, Limit})
 client.Search(workspace).Repos(ctx, term, limit)
 ```
