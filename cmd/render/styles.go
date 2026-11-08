@@ -29,9 +29,9 @@ var WarningStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#f38ba8")).Bol
 // StateBadge returns a colored badge string for a PR, pipeline, or task state.
 func StateBadge(state string) string {
 	switch strings.ToUpper(state) {
-	case "OPEN", "NEW", "ACTIVE", "SUCCESSFUL", "RESOLVED":
+	case "OPEN", "NEW", "ACTIVE", "SUCCESSFUL", "RESOLVED", "PASSED":
 		return badgeOpen.Render(state)
-	case "COMPLETED", "MERGED", "PENDING", "PAUSED", "UNRESOLVED", "ON HOLD", "STOPPED", "NOT_RUN":
+	case "COMPLETED", "MERGED", "PENDING", "PAUSED", "UNRESOLVED", "ON HOLD", "STOPPED", "NOT_RUN", "SKIPPED":
 		return badgeMerged.Render(state)
 	case "IN_PROGRESS", "RUNNING":
 		return badgeOther.Render(state)

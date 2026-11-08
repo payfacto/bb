@@ -82,7 +82,7 @@ Command hierarchy:
 bb                    (no args → launches TUI)
 ├── pr
 │   ├── list / get / create / update / diff / approve / merge / decline / open
-│   ├── activity / statuses / add-reviewer
+│   ├── activity / statuses / checks / conflicts / add-reviewer
 │   ├── comment list / get / add / reply
 │   └── task list / complete / reopen
 ├── pipeline list / get / trigger / stop / steps / log / watch
@@ -132,6 +132,8 @@ Resources are scoped structs returned by the client:
 
 ```go
 client.PRs(workspace, repo).List(ctx, bitbucket.PRListOptions{State, SourceBranch, Sort, Since, Until, Query, Limit})
+client.PRs(workspace, repo).MergeabilityChecks(ctx, prID) // PRMergeability{Mergeable, Checks}
+client.PRs(workspace, repo).Conflicts(ctx, prID)          // follows the 302 to file-conflicts
 client.Repos(workspace).List(ctx, sort)
 client.Branches(workspace, repo).List(ctx, sort)
 client.Tags(workspace, repo).List(ctx, sort)

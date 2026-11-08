@@ -187,6 +187,8 @@ bb pr decline -p ID
 bb pr open -p ID
 bb pr activity -p ID
 bb pr statuses -p ID
+bb pr checks -p ID      # mergeability checks; BLOCKING marks what prevents merging
+bb pr conflicts -p ID   # files conflicting between source and destination
 bb pr add-reviewer -p ID --account-id ACCOUNT_ID
 ```
 

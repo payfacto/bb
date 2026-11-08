@@ -383,9 +383,47 @@ var prStatusesCmd = &cobra.Command{
 	},
 }
 
+var prChecksID int
+
+var prChecksCmd = &cobra.Command{
+	Use:   "checks",
+	Short: "Show mergeability checks for a pull request",
+	Long: "Show the checks Bitbucket evaluates before merging (state, permissions, git conflicts,\n" +
+		"merge checks, merge queue). The PR is mergeable when no check is blocking.",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, r, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		mergeability, err := client.PRs(ws, r).MergeabilityChecks(context.Background(), prChecksID)
+		if err != nil {
+			return err
+		}
+		return printOutput(mergeability, func() { render.PRMergeability(mergeability) })
+	},
+}
+
+var prConflictsID int
+
+var prConflictsCmd = &cobra.Command{
+	Use:   "conflicts",
+	Short: "List files that conflict between a pull request's source and destination",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, r, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		conflicts, err := client.PRs(ws, r).Conflicts(context.Background(), prConflictsID)
+		if err != nil {
+			return err
+		}
+		return printOutput(conflicts, func() { render.PRConflicts(conflicts) })
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(prCmd)
-	prCmd.AddCommand(prListCmd, prGetCmd, prCreateCmd, prUpdateCmd, prDiffCmd, prApproveCmd, prMergeCmd, prDeclineCmd, prOpenCmd, prActivityCmd, prStatusesCmd, prAddReviewerCmd)
+	prCmd.AddCommand(prListCmd, prGetCmd, prCreateCmd, prUpdateCmd, prDiffCmd, prApproveCmd, prMergeCmd, prDeclineCmd, prOpenCmd, prActivityCmd, prStatusesCmd, prChecksCmd, prConflictsCmd, prAddReviewerCmd)
 
 	prListCmd.Flags().StringVarP(&prListState, "state", "s", "OPEN",
 		"filter by state: OPEN, MERGED, DECLINED, SUPERSEDED")
@@ -450,6 +488,12 @@ func init() {
 
 	prStatusesCmd.Flags().IntVarP(&prStatusesID, "pr-id", "p", 0, "pull request ID")
 	prStatusesCmd.MarkFlagRequired("pr-id")
+
+	prChecksCmd.Flags().IntVarP(&prChecksID, "pr-id", "p", 0, "pull request ID")
+	prChecksCmd.MarkFlagRequired("pr-id")
+
+	prConflictsCmd.Flags().IntVarP(&prConflictsID, "pr-id", "p", 0, "pull request ID")
+	prConflictsCmd.MarkFlagRequired("pr-id")
 
 	prAddReviewerCmd.Flags().IntVarP(&prAddReviewerID, "id", "i", 0, "pull request ID (required)")
 	prAddReviewerCmd.Flags().StringVar(&prAddReviewerAccountID, "account-id", "", "reviewer account ID (required)")

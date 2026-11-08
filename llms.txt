@@ -136,6 +136,8 @@ bb pr decline -p ID
 bb pr open -p ID
 bb pr activity -p ID
 bb pr statuses -p ID
+bb pr checks -p ID      # mergeability checks -> {mergeable, checks[{type,status,required,blocking,...}]}; mergeable = no check blocking
+bb pr conflicts -p ID   # file conflicts -> [{path,scenario,message}]; empty list when none
 bb pr add-reviewer -p ID --account-id ACCOUNT_ID
 ```
 
