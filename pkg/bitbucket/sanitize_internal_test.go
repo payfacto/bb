@@ -82,3 +82,21 @@ func TestParseHTTPError_StripsControlCharsFromRawBody(t *testing.T) {
 		t.Errorf("Error() still contains control characters: %q", err.Error())
 	}
 }
+
+func TestDecode_MapKeyCollisionKeepsEveryEntry(t *testing.T) {
+	for range 20 { // map iteration order is random; the result must not be
+		got, err := decode[map[string]string]([]byte(`{"name":"clean","na\u001bme":"dirty","x\u0007":"only"}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := map[string]string{"name": "clean", `na\x1bme`: "dirty", "x": "only"}
+		if len(got) != len(want) {
+			t.Fatalf("entries lost: got %q, want %q", got, want)
+		}
+		for k, v := range want {
+			if got[k] != v {
+				t.Fatalf("got %q, want %q", got, want)
+			}
+		}
+	}
+}

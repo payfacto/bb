@@ -1,7 +1,9 @@
 package bitbucket
 
 import (
+	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 )
 
@@ -86,20 +88,66 @@ func cleanValue(v reflect.Value) {
 }
 
 // cleanMap rebuilds a map's entries, since map elements are not addressable.
+// No entry is ever dropped: when a cleaned string key collides with one
+// already present, the entry keeps a visibly escaped key instead.
 func cleanMap(m reflect.Value) {
 	if m.IsNil() {
 		return
 	}
 	cleaned := reflect.MakeMapWithSize(m.Type(), m.Len())
-	iter := m.MapRange()
-	for iter.Next() {
-		cleaned.SetMapIndex(cleanedCopy(iter.Key()), cleanedCopy(iter.Value()))
+	for _, key := range keysCleanFirst(m) {
+		cleaned.SetMapIndex(uniqueCleanKey(cleaned, key), cleanedCopy(m.MapIndex(key)))
 	}
 	m.Clear()
-	iter = cleaned.MapRange()
+	iter := cleaned.MapRange()
 	for iter.Next() {
 		m.SetMapIndex(iter.Key(), iter.Value())
 	}
+}
+
+// keysCleanFirst orders string keys so that keys without control characters
+// come first (they keep their exact name on collision), then the rest in
+// lexical order, making the outcome independent of map iteration order.
+func keysCleanFirst(m reflect.Value) []reflect.Value {
+	keys := m.MapKeys()
+	if m.Type().Key().Kind() != reflect.String {
+		return keys
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		a, b := keys[i].String(), keys[j].String()
+		aDirty, bDirty := stripControlChars(a) != a, stripControlChars(b) != b
+		if aDirty != bDirty {
+			return !aDirty
+		}
+		return a < b
+	})
+	return keys
+}
+
+// uniqueCleanKey returns the cleaned form of key, or, if dst already holds an
+// entry under that form, the key with its control characters escaped.
+func uniqueCleanKey(dst, key reflect.Value) reflect.Value {
+	cleaned := cleanedCopy(key)
+	if key.Kind() != reflect.String || !dst.MapIndex(cleaned).IsValid() {
+		return cleaned
+	}
+	escaped := reflect.New(key.Type()).Elem()
+	escaped.SetString(escapeControlChars(key.String()))
+	return escaped
+}
+
+// escapeControlChars replaces each unsafe control character with a visible
+// \xHH escape (all such runes are below U+0100), keeping other text as is.
+func escapeControlChars(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if isUnsafeControl(r) {
+			fmt.Fprintf(&b, `\x%02x`, r)
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 // cleanedCopy returns an addressable, cleaned copy of v, for values (map
