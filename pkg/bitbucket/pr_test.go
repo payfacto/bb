@@ -373,6 +373,36 @@ func TestPRs_Approve(t *testing.T) {
 	}
 }
 
+func TestPRs_RequestChanges(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+		if r.URL.Path != "/repositories/ws/repo/pullrequests/1/request-changes" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		mustEncodeJSON(t, w, map[string]string{"state": "changes_requested"})
+	}))
+	if err := c.PRs("ws", "repo").RequestChanges(context.Background(), 1); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestPRs_WithdrawRequestChanges(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("expected DELETE, got %s", r.Method)
+		}
+		if r.URL.Path != "/repositories/ws/repo/pullrequests/1/request-changes" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	if err := c.PRs("ws", "repo").WithdrawRequestChanges(context.Background(), 1); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestPRs_Merge(t *testing.T) {
 	var receivedBody map[string]any
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

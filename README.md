@@ -161,7 +161,7 @@ bb pr list --workspace myws --repo myrepo
 | `-b` | `--branch` | `commit list`, `pipeline list`, `pipeline trigger`, `pipeline watch` |
 | `-u` | `--pipeline-uuid` | `pipeline get/stop/steps/log/watch` |
 | `-n` | `--build-number` | `pipeline get/stop/steps/log/watch` |
-| `-c` | `--comment-id` | `comment get`, `comment reply` |
+| `-c` | `--comment-id` | `comment get`, `comment reply`, `comment resolve`, `comment reopen` |
 | `-t` | `--text` | `comment add`, `comment reply` |
 | `-T` | `--title` | `pr create` |
 | `-d` | `--description` | `pr create` |
@@ -182,6 +182,7 @@ bb pr create --title "..." --from-branch BRANCH --to-branch BRANCH [-d "..." | -
 bb pr update -p ID [-T "..."] [-d "..." | --description-file PATH] [--draft | --ready]
 bb pr diff -p ID
 bb pr approve -p ID
+bb pr request-changes -p ID [--withdraw]   # --withdraw removes your change request
 bb pr merge -p ID [--strategy merge_commit|squash|fast_forward]   # refuses a draft PR
 bb pr decline -p ID
 bb pr open -p ID
@@ -208,6 +209,8 @@ bb pr comment list -p ID
 bb pr comment get -p ID -c COMMENT_ID
 bb pr comment add -p ID [-t "..." | --text-file PATH] [--file PATH --line N]
 bb pr comment reply -p ID -c COMMENT_ID [-t "..." | --text-file PATH]
+bb pr comment resolve -p ID -c COMMENT_ID   # top-level comments only
+bb pr comment reopen -p ID -c COMMENT_ID
 ```
 
 ### PR Tasks
