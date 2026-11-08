@@ -274,6 +274,11 @@ func (c *Client) PipelineVariables(workspace, repo string) *PipelineVariableReso
 	return &PipelineVariableResource{client: c, workspace: workspace, repo: repo}
 }
 
+// PipelineSchedules returns a resource for scheduled pipeline operations on the given repo.
+func (c *Client) PipelineSchedules(workspace, repo string) *PipelineScheduleResource {
+	return &PipelineScheduleResource{client: c, workspace: workspace, repo: repo}
+}
+
 // PipelineConfig returns a resource for reading and toggling whether
 // Pipelines is enabled on the given repo.
 func (c *Client) PipelineConfig(workspace, repo string) *PipelineConfigResource {

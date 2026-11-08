@@ -345,6 +345,53 @@ type CreatePipelineVariableInput struct {
 	Secured bool   `json:"secured"`
 }
 
+// PipelineRefTargetType is the Bitbucket object type of a branch/tag pipeline target.
+const PipelineRefTargetType = "pipeline_ref_target"
+
+// PipelineSchedule is a cron-triggered pipeline run. CronPattern is a 7-field
+// expression with second precision, evaluated in UTC (e.g. "0 0 12 * * ? *"
+// runs at 12:00 UTC every day).
+type PipelineSchedule struct {
+	UUID        string                 `json:"uuid"`
+	Enabled     bool                   `json:"enabled"`
+	CronPattern string                 `json:"cron_pattern"`
+	Target      PipelineScheduleTarget `json:"target"`
+	CreatedOn   string                 `json:"created_on,omitempty"`
+	UpdatedOn   string                 `json:"updated_on,omitempty"`
+}
+
+// PipelineScheduleTarget is the branch and pipeline definition a schedule runs.
+type PipelineScheduleTarget struct {
+	Type     string           `json:"type,omitempty"` // pipeline_ref_target
+	RefType  string           `json:"ref_type"`       // branch (the only type schedules accept)
+	RefName  string           `json:"ref_name"`
+	Selector PipelineSelector `json:"selector"`
+}
+
+// PipelineSelector picks the bitbucket-pipelines.yml definition to run.
+type PipelineSelector struct {
+	Type    string `json:"type"` // branches | tags | bookmarks | default | custom
+	Pattern string `json:"pattern,omitempty"`
+}
+
+// CreatePipelineScheduleInput is the request body for creating a schedule.
+// Enabled is a pointer so an unset value is omitted and the API default applies.
+type CreatePipelineScheduleInput struct {
+	Target      PipelineScheduleTarget `json:"target"`
+	CronPattern string                 `json:"cron_pattern"`
+	Enabled     *bool                  `json:"enabled,omitempty"`
+}
+
+// UpdatePipelineScheduleInput is the request body for updating a schedule;
+// enabled is the only mutable field.
+type UpdatePipelineScheduleInput struct {
+	Enabled bool `json:"enabled"`
+}
+
+// PipelineScheduleExecution is one recorded run of a schedule. The API
+// publishes no fixed schema for it, so the raw object is passed through.
+type PipelineScheduleExecution map[string]any
+
 // PipelineConfig represents the repository's pipelines_config resource. The
 // real API response carries more fields (repository, build_image, etc.); this
 // type only models Enabled, the one bb exposes, since decode[T] ignores JSON

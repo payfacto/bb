@@ -67,6 +67,14 @@ var commandRegistry = map[string]commandSpec{
 	"pipeline-var update": {Action: actionWrite, OutputType: "PipelineVariable", StdinType: "CreatePipelineVariableInput", Example: "bb pipeline-var update --uuid '{uuid}' --value newval"},
 	"pipeline-var delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline-var delete --uuid '{uuid}'"},
 
+	// pipeline-schedule ------------------------------------------------
+	"pipeline-schedule list":       {Action: actionRead, OutputType: "[]PipelineSchedule", Ordering: "unspecified", Example: "bb pipeline-schedule list"},
+	"pipeline-schedule get":        {Action: actionRead, OutputType: "PipelineSchedule", Example: "bb pipeline-schedule get --uuid '{uuid}'"},
+	"pipeline-schedule create":     {Action: actionWrite, OutputType: "PipelineSchedule", StdinType: "CreatePipelineScheduleInput", Example: "bb pipeline-schedule create --branch main --cron '0 0 12 * * ? *'"},
+	"pipeline-schedule update":     {Action: actionWrite, OutputType: "PipelineSchedule", StdinType: "UpdatePipelineScheduleInput", Example: "bb pipeline-schedule update --uuid '{uuid}' --disabled"},
+	"pipeline-schedule delete":     {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline-schedule delete --uuid '{uuid}'"},
+	"pipeline-schedule executions": {Action: actionRead, OutputType: "[]PipelineScheduleExecution", Ordering: "unspecified", Example: "bb pipeline-schedule executions --uuid '{uuid}'"},
+
 	// pipeline-config ----------------------------------------------------
 	"pipeline-config get":     {Action: actionRead, OutputType: "PipelineConfig", Example: "bb pipeline-config get"},
 	"pipeline-config enable":  {Action: actionWrite, OutputType: "PipelineConfig", Example: "bb pipeline-config enable"},
@@ -206,6 +214,11 @@ var typeRegistry = map[string]any{
 	"PipelineVariable":            bitbucket.PipelineVariable{},
 	"[]PipelineVariable":          []bitbucket.PipelineVariable{},
 	"CreatePipelineVariableInput": bitbucket.CreatePipelineVariableInput{},
+	"PipelineSchedule":            bitbucket.PipelineSchedule{},
+	"[]PipelineSchedule":          []bitbucket.PipelineSchedule{},
+	"CreatePipelineScheduleInput": bitbucket.CreatePipelineScheduleInput{},
+	"UpdatePipelineScheduleInput": bitbucket.UpdatePipelineScheduleInput{},
+	"[]PipelineScheduleExecution": []bitbucket.PipelineScheduleExecution{},
 	"PipelineConfig":              bitbucket.PipelineConfig{},
 
 	"Branch":            bitbucket.Branch{},
