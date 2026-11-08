@@ -13,14 +13,6 @@ const (
 	runnerStatusWidth = 12
 )
 
-// yesNo renders a boolean as "yes" or "no" for detail views.
-func yesNo(b bool) string {
-	if b {
-		return "yes"
-	}
-	return "no"
-}
-
 // RunnerListString returns formatted text for a list of self-hosted runners.
 func RunnerListString(runners []bitbucket.PipelineRunner) string {
 	if len(runners) == 0 {

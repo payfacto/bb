@@ -245,6 +245,61 @@
     {
       "path": [
         "commit",
+        "annotations"
+      ],
+      "action": "read",
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "hash",
+          "short": "x",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "report-id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "[]ReportAnnotation",
+      "ordering": "unspecified"
+    },
+    {
+      "path": [
+        "commit",
         "get"
       ],
       "action": "read",
@@ -387,6 +442,110 @@
         }
       ],
       "output_type": "Commit"
+    },
+    {
+      "path": [
+        "commit",
+        "report"
+      ],
+      "action": "read",
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "hash",
+          "short": "x",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "report-id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "Report"
+    },
+    {
+      "path": [
+        "commit",
+        "reports"
+      ],
+      "action": "read",
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "hash",
+          "short": "x",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "[]Report",
+      "ordering": "unspecified"
     },
     {
       "path": [
@@ -1429,276 +1588,6 @@
     },
     {
       "path": [
-        "issue",
-        "close"
-      ],
-      "action": "destructive",
-      "flags": [
-        {
-          "name": "config",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "format",
-          "short": "f",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "id",
-          "short": "i",
-          "type": "int",
-          "required": true
-        },
-        {
-          "name": "repo",
-          "short": "r",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "token",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "username",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "workspace",
-          "short": "w",
-          "type": "string",
-          "required": false
-        }
-      ],
-      "output_type": "Issue"
-    },
-    {
-      "path": [
-        "issue",
-        "create"
-      ],
-      "action": "write",
-      "flags": [
-        {
-          "name": "config",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "description",
-          "short": "d",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "description-file",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "format",
-          "short": "f",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "kind",
-          "short": "k",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "priority",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "repo",
-          "short": "r",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "title",
-          "short": "T",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "token",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "username",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "workspace",
-          "short": "w",
-          "type": "string",
-          "required": false
-        }
-      ],
-      "stdin": {
-        "type": "CreateIssueInput",
-        "behavior": "replaces_flags"
-      },
-      "output_type": "Issue"
-    },
-    {
-      "path": [
-        "issue",
-        "get"
-      ],
-      "action": "read",
-      "flags": [
-        {
-          "name": "config",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "format",
-          "short": "f",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "id",
-          "short": "i",
-          "type": "int",
-          "required": true
-        },
-        {
-          "name": "repo",
-          "short": "r",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "token",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "username",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "workspace",
-          "short": "w",
-          "type": "string",
-          "required": false
-        }
-      ],
-      "output_type": "Issue"
-    },
-    {
-      "path": [
-        "issue",
-        "list"
-      ],
-      "action": "read",
-      "flags": [
-        {
-          "name": "config",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "format",
-          "short": "f",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "repo",
-          "short": "r",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "sort",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "token",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "username",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "workspace",
-          "short": "w",
-          "type": "string",
-          "required": false
-        }
-      ],
-      "output_type": "[]Issue"
-    },
-    {
-      "path": [
-        "issue",
-        "reopen"
-      ],
-      "action": "write",
-      "flags": [
-        {
-          "name": "config",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "format",
-          "short": "f",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "id",
-          "short": "i",
-          "type": "int",
-          "required": true
-        },
-        {
-          "name": "repo",
-          "short": "r",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "token",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "username",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "workspace",
-          "short": "w",
-          "type": "string",
-          "required": false
-        }
-      ],
-      "output_type": "Issue"
-    },
-    {
-      "path": [
         "member",
         "list"
       ],
@@ -2019,6 +1908,136 @@
         }
       ],
       "output_type": "ResultMap"
+    },
+    {
+      "path": [
+        "pipeline",
+        "test-cases"
+      ],
+      "action": "read",
+      "flags": [
+        {
+          "name": "build-number",
+          "short": "n",
+          "type": "int",
+          "required": false
+        },
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "failed",
+          "type": "bool",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pipeline-uuid",
+          "short": "u",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reasons",
+          "type": "bool",
+          "required": false
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "step-uuid",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "[]StepTestCase"
+    },
+    {
+      "path": [
+        "pipeline",
+        "test-report"
+      ],
+      "action": "read",
+      "flags": [
+        {
+          "name": "build-number",
+          "short": "n",
+          "type": "int",
+          "required": false
+        },
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pipeline-uuid",
+          "short": "u",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "step-uuid",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "[]StepTestReport"
     },
     {
       "path": [
@@ -2433,6 +2452,330 @@
         }
       ],
       "output_type": "PipelineConfig"
+    },
+    {
+      "path": [
+        "pipeline-schedule",
+        "create"
+      ],
+      "action": "write",
+      "flags": [
+        {
+          "name": "branch",
+          "short": "b",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "cron",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "bool",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pattern",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "selector-type",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "stdin": {
+        "type": "CreatePipelineScheduleInput",
+        "behavior": "replaces_flags"
+      },
+      "output_type": "PipelineSchedule"
+    },
+    {
+      "path": [
+        "pipeline-schedule",
+        "delete"
+      ],
+      "action": "destructive",
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "uuid",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "ResultMap"
+    },
+    {
+      "path": [
+        "pipeline-schedule",
+        "executions"
+      ],
+      "action": "read",
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "uuid",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "[]PipelineScheduleExecution",
+      "ordering": "unspecified"
+    },
+    {
+      "path": [
+        "pipeline-schedule",
+        "get"
+      ],
+      "action": "read",
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "uuid",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "PipelineSchedule"
+    },
+    {
+      "path": [
+        "pipeline-schedule",
+        "list"
+      ],
+      "action": "read",
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "[]PipelineSchedule",
+      "ordering": "unspecified"
+    },
+    {
+      "path": [
+        "pipeline-schedule",
+        "update"
+      ],
+      "action": "write",
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "bool",
+          "required": false
+        },
+        {
+          "name": "enabled",
+          "type": "bool",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "uuid",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "stdin": {
+        "type": "UpdatePipelineScheduleInput",
+        "behavior": "replaces_flags"
+      },
+      "output_type": "PipelineSchedule"
     },
     {
       "path": [
@@ -2862,6 +3205,55 @@
     {
       "path": [
         "pr",
+        "checks"
+      ],
+      "action": "read",
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pr-id",
+          "short": "p",
+          "type": "int",
+          "required": true
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "PRMergeability"
+    },
+    {
+      "path": [
+        "pr",
         "comment",
         "add"
       ],
@@ -3044,6 +3436,62 @@
       "path": [
         "pr",
         "comment",
+        "reopen"
+      ],
+      "action": "write",
+      "flags": [
+        {
+          "name": "comment-id",
+          "short": "c",
+          "type": "int",
+          "required": true
+        },
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pr-id",
+          "short": "p",
+          "type": "int",
+          "required": true
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "ResultMap"
+    },
+    {
+      "path": [
+        "pr",
+        "comment",
         "reply"
       ],
       "action": "write",
@@ -3106,6 +3554,111 @@
         }
       ],
       "output_type": "Comment"
+    },
+    {
+      "path": [
+        "pr",
+        "comment",
+        "resolve"
+      ],
+      "action": "write",
+      "flags": [
+        {
+          "name": "comment-id",
+          "short": "c",
+          "type": "int",
+          "required": true
+        },
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pr-id",
+          "short": "p",
+          "type": "int",
+          "required": true
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "CommentResolution"
+    },
+    {
+      "path": [
+        "pr",
+        "conflicts"
+      ],
+      "action": "read",
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pr-id",
+          "short": "p",
+          "type": "int",
+          "required": true
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "[]FileConflict"
     },
     {
       "path": [
@@ -3509,6 +4062,60 @@
         {
           "name": "username",
           "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "ResultMap"
+    },
+    {
+      "path": [
+        "pr",
+        "request-changes"
+      ],
+      "action": "write",
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pr-id",
+          "short": "p",
+          "type": "int",
+          "required": true
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "withdraw",
+          "type": "bool",
           "required": false
         },
         {
