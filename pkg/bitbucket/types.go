@@ -330,6 +330,26 @@ type StepTestCase struct {
 	Reasons []TestCaseReason `json:"reasons,omitempty"`
 }
 
+// PipelineRunner is a self-hosted Pipelines runner. The API's oauth_client
+// block is intentionally not modelled: it carries credentials that bb never
+// needs to display.
+type PipelineRunner struct {
+	UUID      string              `json:"uuid"`
+	Name      string              `json:"name"`
+	Labels    []string            `json:"labels"`
+	State     PipelineRunnerState `json:"state"`
+	CreatedOn string              `json:"created_on"`
+	UpdatedOn string              `json:"updated_on"`
+}
+
+// PipelineRunnerState is a runner's current status (UNREGISTERED, ONLINE,
+// OFFLINE, DISABLED, ENABLED, UNHEALTHY) and whether it is cordoned.
+type PipelineRunnerState struct {
+	Status    string `json:"status"`
+	Cordoned  bool   `json:"cordoned"`
+	UpdatedOn string `json:"updated_on"`
+}
+
 // PipelineVariable represents a pipeline variable. Repository, workspace and
 // deployment-environment variables share this shape.
 type PipelineVariable struct {

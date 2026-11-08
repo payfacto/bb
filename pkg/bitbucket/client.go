@@ -285,6 +285,16 @@ func (c *Client) PipelineSchedules(workspace, repo string) *PipelineScheduleReso
 	return &PipelineScheduleResource{client: c, workspace: workspace, repo: repo}
 }
 
+// RepoRunners returns a resource for the repository's self-hosted runners.
+func (c *Client) RepoRunners(workspace, repo string) *RunnerResource {
+	return &RunnerResource{client: c, collectionPath: repoPath(workspace, repo) + "/pipelines-config/runners"}
+}
+
+// WorkspaceRunners returns a resource for the workspace's self-hosted runners.
+func (c *Client) WorkspaceRunners(workspace string) *RunnerResource {
+	return &RunnerResource{client: c, collectionPath: workspacePath(workspace) + "/pipelines-config/runners"}
+}
+
 // PipelineConfig returns a resource for reading and toggling whether
 // Pipelines is enabled on the given repo.
 func (c *Client) PipelineConfig(workspace, repo string) *PipelineConfigResource {

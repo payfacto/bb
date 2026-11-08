@@ -81,6 +81,11 @@ var commandRegistry = map[string]commandSpec{
 	"workspace-var update": {Action: actionWrite, OutputType: "PipelineVariable", StdinType: "CreatePipelineVariableInput", Example: "bb workspace-var update --uuid '{uuid}' --value newval"},
 	"workspace-var delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb workspace-var delete --uuid '{uuid}'"},
 
+	// runner -----------------------------------------------------------
+	"runner list":   {Action: actionRead, OutputType: "[]PipelineRunner", Ordering: "unspecified", Example: "bb runner list --workspace-level"},
+	"runner get":    {Action: actionRead, OutputType: "PipelineRunner", Example: "bb runner get --uuid '{uuid}'"},
+	"runner delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb runner delete --uuid '{uuid}'"},
+
 	// pipeline-config ----------------------------------------------------
 	"pipeline-config get":     {Action: actionRead, OutputType: "PipelineConfig", Example: "bb pipeline-config get"},
 	"pipeline-config enable":  {Action: actionWrite, OutputType: "PipelineConfig", Example: "bb pipeline-config enable"},
@@ -229,6 +234,8 @@ var typeRegistry = map[string]any{
 	"UpdatePipelineScheduleInput": bitbucket.UpdatePipelineScheduleInput{},
 	"[]PipelineScheduleExecution": []bitbucket.PipelineScheduleExecution{},
 	"PipelineConfig":              bitbucket.PipelineConfig{},
+	"PipelineRunner":              bitbucket.PipelineRunner{},
+	"[]PipelineRunner":            []bitbucket.PipelineRunner{},
 
 	"Branch":            bitbucket.Branch{},
 	"[]Branch":          []bitbucket.Branch{},

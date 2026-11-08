@@ -284,6 +284,16 @@ bb workspace-var update --uuid UUID -v VALUE [-k KEY] [--secured]
 bb workspace-var delete --uuid UUID
 ```
 
+### Runners
+
+```
+bb runner list [--workspace-level]
+bb runner get --uuid UUID [--workspace-level]
+bb runner delete --uuid UUID [--workspace-level]
+```
+
+Repository runners by default; --workspace-level targets workspace runners. delete is destructive. No create (one-time secret is out of scope).
+
 ### Pipeline Config
 
 ```

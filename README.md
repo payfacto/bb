@@ -357,6 +357,19 @@ Workspace-level pipeline variables, shared by every repository in the
 workspace. Needs only `--workspace` (no `--repo`). Flags, stdin JSON input and
 update semantics match `bb pipeline-var`.
 
+### Runners
+
+```
+bb runner list [--workspace-level]
+bb runner get --uuid UUID [--workspace-level]
+bb runner delete --uuid UUID [--workspace-level]
+```
+
+Self-hosted Pipelines runners. Repository runners by default;
+`--workspace-level` targets the workspace's runners (needs only
+`--workspace`). Creating a runner is not supported: the API returns a
+one-time OAuth secret that `bb` deliberately does not surface.
+
 ### Pipeline Config
 
 ```
