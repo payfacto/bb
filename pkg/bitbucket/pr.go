@@ -179,3 +179,41 @@ func (r *PRResource) Statuses(ctx context.Context, prID int) ([]PRStatus, error)
 	path := fmt.Sprintf("%s/statuses", r.prPath(prID))
 	return fetchAllPages[PRStatus](ctx, r.client, path, url.Values{"pagelen": {pagelenDefault}})
 }
+
+// MergeabilityChecks returns the checks Bitbucket evaluates before merging the
+// pull request. The endpoint is not paginated. The PR is reported mergeable
+// when no check is blocking.
+func (r *PRResource) MergeabilityChecks(ctx context.Context, prID int) (PRMergeability, error) {
+	data, err := r.client.do(ctx, "GET", r.prPath(prID)+"/mergeability/checks", nil, nil)
+	if err != nil {
+		return PRMergeability{}, err
+	}
+	resp, err := decode[struct {
+		Values []MergeabilityCheck `json:"values"`
+	}](data)
+	if err != nil {
+		return PRMergeability{}, err
+	}
+	checks := resp.Values
+	if checks == nil {
+		checks = []MergeabilityCheck{}
+	}
+	return PRMergeability{Mergeable: !anyBlocking(checks), Checks: checks}, nil
+}
+
+func anyBlocking(checks []MergeabilityCheck) bool {
+	for _, c := range checks {
+		if c.Blocking {
+			return true
+		}
+	}
+	return false
+}
+
+// Conflicts returns the files that conflict between the pull request's source
+// and destination. Bitbucket answers with a same-host 302 to the repository
+// file-conflicts endpoint; the http.Client follows it with the Authorization
+// header intact, and pagination is followed across all pages.
+func (r *PRResource) Conflicts(ctx context.Context, prID int) ([]FileConflict, error) {
+	return fetchAllPages[FileConflict](ctx, r.client, r.prPath(prID)+"/conflicts", nil)
+}

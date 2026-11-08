@@ -34,6 +34,8 @@ var commandRegistry = map[string]commandSpec{
 	"pr add-reviewer": {Action: actionWrite, OutputType: "ResultMap", Example: "bb pr add-reviewer --id 42 --account-id {uuid}"},
 	"pr activity":     {Action: actionRead, OutputType: "[]Activity", Example: "bb pr activity --pr-id 42"},
 	"pr statuses":     {Action: actionRead, OutputType: "[]PRStatus", Example: "bb pr statuses --pr-id 42"},
+	"pr checks":       {Action: actionRead, OutputType: "PRMergeability", Example: "bb pr checks --pr-id 42"},
+	"pr conflicts":    {Action: actionRead, OutputType: "[]FileConflict", Example: "bb pr conflicts --pr-id 42"},
 
 	// pr comment / pr task --------------------------------------------
 	"pr comment list":  {Action: actionRead, OutputType: "[]Comment", Example: "bb pr comment list --pr-id 42"},
@@ -178,6 +180,9 @@ var typeRegistry = map[string]any{
 	"[]Activity":    []bitbucket.Activity{},
 	"PRStatus":      bitbucket.PRStatus{},
 	"[]PRStatus":    []bitbucket.PRStatus{},
+
+	"PRMergeability": bitbucket.PRMergeability{},
+	"[]FileConflict": []bitbucket.FileConflict{},
 
 	"Comment":         bitbucket.Comment{},
 	"[]Comment":       []bitbucket.Comment{},

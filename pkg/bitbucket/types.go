@@ -535,6 +535,59 @@ type PRStatus struct {
 	CreatedOn   string `json:"created_on"`
 }
 
+// PR mergeability types
+
+// PRMergeability summarises whether a pull request can be merged right now.
+// Mergeable is derived client-side: true when no check is blocking.
+type PRMergeability struct {
+	Mergeable bool                `json:"mergeable"`
+	Checks    []MergeabilityCheck `json:"checks"`
+}
+
+// MergeabilityCheck is one check from the mergeability/checks endpoint. Type
+// selects which optional fields are populated: State (pullrequest_state_check),
+// Reason (git_mergeability_check), Check/Requirement/Observed
+// (standard_merge_check), Check/Message (custom_pre_merge_check,
+// custom_on_merge_check), Queued/MergeQueue (merge_queue_check).
+type MergeabilityCheck struct {
+	Type        string                `json:"type"`
+	Status      string                `json:"status"`
+	Required    bool                  `json:"required"`
+	Blocking    bool                  `json:"blocking"`
+	State       string                `json:"state,omitempty"`
+	Reason      string                `json:"reason,omitempty"`
+	Check       *MergeCheckDefinition `json:"check,omitempty"`
+	Requirement map[string]any        `json:"requirement,omitempty"`
+	Observed    map[string]any        `json:"observed,omitempty"`
+	Message     string                `json:"message,omitempty"`
+	Queued      bool                  `json:"queued,omitempty"`
+	MergeQueue  *MergeQueue           `json:"merge_queue,omitempty"`
+}
+
+// MergeCheckDefinition identifies a standard (Kind) or custom (ID, Name)
+// merge check.
+type MergeCheckDefinition struct {
+	Type string `json:"type"`
+	Kind string `json:"kind,omitempty"`
+	ID   string `json:"id,omitempty"`
+	Name string `json:"name,omitempty"`
+}
+
+// MergeQueue is the merge queue configured for a pull request's destination.
+type MergeQueue struct {
+	UUID  string `json:"uuid"`
+	Name  string `json:"name"`
+	State string `json:"state"`
+}
+
+// FileConflict is a file that conflicts between a pull request's source and
+// destination.
+type FileConflict struct {
+	Path     string `json:"path"`
+	Scenario string `json:"scenario"`
+	Message  string `json:"message,omitempty"`
+}
+
 // Tag types
 
 type Tag struct {
