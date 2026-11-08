@@ -2,6 +2,7 @@ package bitbucket
 
 import (
 	"context"
+	"net/url"
 	"strings"
 )
 
@@ -17,7 +18,7 @@ type PipelineVariableResource struct {
 }
 
 func (r *PipelineVariableResource) itemPath(uuid string) string {
-	return strings.TrimSuffix(r.collectionPath, "/") + "/" + uuid
+	return strings.TrimSuffix(r.collectionPath, "/") + "/" + url.PathEscape(uuid)
 }
 
 // List returns all pipeline variables in scope, following pagination.

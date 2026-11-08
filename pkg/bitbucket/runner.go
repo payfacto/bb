@@ -1,6 +1,9 @@
 package bitbucket
 
-import "context"
+import (
+	"context"
+	"net/url"
+)
 
 // RunnerResource provides read and delete operations on self-hosted Pipelines
 // runners. The same resource serves repository and workspace runners; only
@@ -13,7 +16,7 @@ type RunnerResource struct {
 }
 
 func (r *RunnerResource) itemPath(uuid string) string {
-	return r.collectionPath + "/" + uuid
+	return r.collectionPath + "/" + url.PathEscape(uuid)
 }
 
 // List returns every runner in scope, following pagination.

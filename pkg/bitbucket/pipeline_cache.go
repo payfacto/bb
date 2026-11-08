@@ -31,7 +31,7 @@ func (r *PipelineCacheResource) DeleteByName(ctx context.Context, name string) e
 
 // ContentURI returns a short-lived download URI for a cache version's archive.
 func (r *PipelineCacheResource) ContentURI(ctx context.Context, uuid string) (PipelineCacheContentURI, error) {
-	data, err := r.client.do(ctx, "GET", r.basePath()+"/"+uuid+"/content-uri", nil, nil)
+	data, err := r.client.do(ctx, "GET", r.basePath()+"/"+url.PathEscape(uuid)+"/content-uri", nil, nil)
 	if err != nil {
 		return PipelineCacheContentURI{}, err
 	}
