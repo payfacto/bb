@@ -482,23 +482,26 @@ func parseHTTPError(statusCode int, data []byte) error {
 	if len(body) > maxBody {
 		body = body[:maxBody]
 	}
+	body = stripControlChars(body)
 	var envelope struct {
 		Error struct {
 			Message string `json:"message"`
 		} `json:"error"`
 	}
 	if err := json.Unmarshal(data, &envelope); err == nil && envelope.Error.Message != "" {
-		return &APIError{Status: statusCode, Message: envelope.Error.Message, Body: body}
+		return &APIError{Status: statusCode, Message: stripControlChars(envelope.Error.Message), Body: body}
 	}
 	return &APIError{Status: statusCode, Body: body}
 }
 
-// decode unmarshals JSON data into a typed value T.
+// decode unmarshals JSON data into a typed value T and strips terminal
+// control characters from every string in it (see sanitize.go).
 func decode[T any](data []byte) (T, error) {
 	var v T
 	if err := json.Unmarshal(data, &v); err != nil {
 		return v, fmt.Errorf("decode response: %w", err)
 	}
+	stripControlCharsDeep(&v)
 	return v, nil
 }
 
