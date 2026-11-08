@@ -116,6 +116,7 @@ var commandRegistry = map[string]commandSpec{
 	"commit reports":     {Action: actionRead, OutputType: "[]Report", Ordering: "unspecified", Example: "bb commit reports --hash {hash}"},
 	"commit report":      {Action: actionRead, OutputType: "Report", Example: "bb commit report --hash {hash} --report-id {report-id}"},
 	"commit annotations": {Action: actionRead, OutputType: "[]ReportAnnotation", Ordering: "unspecified", Example: "bb commit annotations --hash {hash} --report-id {report-id}"},
+	"commit merge-base":  {Action: actionRead, OutputType: "Commit", Example: "bb commit merge-base main feat/x"},
 
 	// file (top-level, sibling of commit) ------------------------------
 	"file get": {Action: actionRead, OutputType: "string", Example: "bb file get --ref main --path README.md"},

@@ -301,6 +301,7 @@ bb commit statuses -x HASH
 bb commit reports -x HASH
 bb commit report -x HASH --report-id ID
 bb commit annotations -x HASH --report-id ID
+bb commit merge-base REV_A REV_B
 bb file get --ref REF --path PATH
 ```
 
@@ -308,6 +309,9 @@ bb file get --ref REF --path PATH
 external tools (SonarCloud, Snyk, test runners, ...) attach to a commit.
 `--report-id` accepts the report UUID or its external ID. Read-only: creating
 or deleting reports and annotations is not supported.
+
+`commit merge-base` takes two positional revisions (branch, tag, or hash) and
+returns their best common ancestor commit.
 
 ### Repositories
 

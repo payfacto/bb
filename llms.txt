@@ -232,6 +232,7 @@ bb commit statuses -x HASH
 bb commit reports -x HASH
 bb commit report -x HASH --report-id ID
 bb commit annotations -x HASH --report-id ID
+bb commit merge-base REV_A REV_B
 bb file get --ref REF --path PATH
 ```
 
