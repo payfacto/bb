@@ -383,9 +383,11 @@ type CreatePipelineScheduleInput struct {
 }
 
 // UpdatePipelineScheduleInput is the request body for updating a schedule;
-// enabled is the only mutable field.
+// enabled is the only mutable field. It is a pointer so that an input which
+// omits it (e.g. stdin `{}`) is rejected instead of silently disabling the
+// schedule.
 type UpdatePipelineScheduleInput struct {
-	Enabled bool `json:"enabled"`
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // PipelineScheduleExecution is one recorded run of a schedule. The API

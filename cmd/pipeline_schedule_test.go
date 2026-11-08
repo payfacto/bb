@@ -3,6 +3,8 @@ package cmd
 import (
 	"errors"
 	"testing"
+
+	"github.com/payfacto/bb/pkg/bitbucket"
 )
 
 func TestScheduleInputFromFlags_defaultsSelectorToBranch(t *testing.T) {
@@ -64,5 +66,20 @@ func TestResolveScheduleEnabled(t *testing.T) {
 				t.Errorf("got %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestScheduleUpdateFromStdin_rejectsMissingEnabled(t *testing.T) {
+	err := validateScheduleUpdate(bitbucket.UpdatePipelineScheduleInput{})
+	var cliErr *CLIError
+	if !errors.As(err, &cliErr) || cliErr.Code != ErrCodeValidationFailed {
+		t.Fatalf("expected validation_failed, got %v", err)
+	}
+}
+
+func TestScheduleUpdateFromStdin_acceptsExplicitFalse(t *testing.T) {
+	disabled := false
+	if err := validateScheduleUpdate(bitbucket.UpdatePipelineScheduleInput{Enabled: &disabled}); err != nil {
+		t.Fatalf("expected explicit enabled=false to be accepted, got %v", err)
 	}
 }

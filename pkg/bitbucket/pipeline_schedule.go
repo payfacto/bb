@@ -2,6 +2,7 @@ package bitbucket
 
 import (
 	"context"
+	"errors"
 	"net/url"
 )
 
@@ -49,9 +50,16 @@ func (r *PipelineScheduleResource) Create(ctx context.Context, input CreatePipel
 	return decode[PipelineSchedule](data)
 }
 
+// ErrScheduleEnabledRequired is returned by Update when the input does not
+// say whether the schedule should be enabled or disabled.
+var ErrScheduleEnabledRequired = errors.New("schedule update requires \"enabled\" (true or false)")
+
 // Update changes a schedule. The Bitbucket PUT only accepts the enabled flag;
 // target and cron pattern are immutable (delete and re-create to change them).
 func (r *PipelineScheduleResource) Update(ctx context.Context, uuid string, input UpdatePipelineScheduleInput) (PipelineSchedule, error) {
+	if input.Enabled == nil {
+		return PipelineSchedule{}, ErrScheduleEnabledRequired
+	}
 	data, err := r.client.do(ctx, "PUT", r.schedulePath(uuid), input, nil)
 	if err != nil {
 		return PipelineSchedule{}, err

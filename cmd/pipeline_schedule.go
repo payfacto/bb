@@ -144,6 +144,16 @@ func resolveScheduleEnabled(enabled, disabled bool) (bool, error) {
 	return enabled, nil
 }
 
+// validateScheduleUpdate rejects an update that does not state the enabled
+// value, so piped JSON such as {} cannot silently disable a schedule.
+func validateScheduleUpdate(input bitbucket.UpdatePipelineScheduleInput) error {
+	if input.Enabled == nil {
+		return newCLIError(ErrCodeValidationFailed,
+			`stdin JSON must set "enabled" to true or false`, nil)
+	}
+	return nil
+}
+
 var (
 	pipelineScheduleUpdateUUID     string
 	pipelineScheduleUpdateEnabled  bool
@@ -175,7 +185,10 @@ var pipelineScheduleUpdateCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			input.Enabled = enabled
+			input.Enabled = &enabled
+		}
+		if err := validateScheduleUpdate(input); err != nil {
+			return err
 		}
 		s, err := client.PipelineSchedules(ws, repo).Update(context.Background(), pipelineScheduleUpdateUUID, input)
 		if err != nil {

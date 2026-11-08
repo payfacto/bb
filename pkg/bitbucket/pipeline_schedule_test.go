@@ -167,7 +167,7 @@ func TestPipelineSchedules_Update(t *testing.T) {
 		mustEncodeJSON(t, w, map[string]any{"uuid": "{s-1}", "enabled": true})
 	}))
 	got, err := client.PipelineSchedules("testws", "testrepo").Update(context.Background(), "{s-1}",
-		bitbucket.UpdatePipelineScheduleInput{Enabled: true})
+		bitbucket.UpdatePipelineScheduleInput{Enabled: boolPtr(true)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,3 +211,16 @@ func TestPipelineSchedules_Executions(t *testing.T) {
 		t.Errorf("unexpected executions: %+v", got)
 	}
 }
+
+func TestPipelineSchedules_Update_rejectsMissingEnabled(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("no request expected when enabled is unset, got %s %s", r.Method, r.URL.Path)
+	}))
+	_, err := client.PipelineSchedules("testws", "testrepo").Update(context.Background(), "{s-1}",
+		bitbucket.UpdatePipelineScheduleInput{})
+	if err == nil {
+		t.Fatal("expected an error when enabled is unset")
+	}
+}
+
+func boolPtr(b bool) *bool { return &b }
