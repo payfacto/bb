@@ -17,6 +17,9 @@ const (
 
 // CommentFilter selects the comments WaitFor reports. Zero fields don't filter.
 type CommentFilter struct {
+	// AuthorID matches the author's account ID exactly. Prefer it over
+	// AuthorContains for automation: display names are user-editable.
+	AuthorID string
 	// AuthorContains matches a case-insensitive substring of the author's
 	// display name or nickname.
 	AuthorContains string
@@ -26,9 +29,13 @@ type CommentFilter struct {
 	After time.Time
 }
 
-// matches reports whether c passes every set filter field.
+// matches reports whether c passes every set filter field. Deleted comments
+// never match.
 func (f CommentFilter) matches(c Comment) bool {
-	if c.ID <= f.AfterID {
+	if c.Deleted || c.ID <= f.AfterID {
+		return false
+	}
+	if f.AuthorID != "" && c.User.AccountID != f.AuthorID {
 		return false
 	}
 	if !f.After.IsZero() {
@@ -80,6 +87,7 @@ func (r *CommentResource) WaitFor(ctx context.Context, opts WaitCommentsOptions)
 	filter := opts.Filter
 	needBaseline := opts.NewOnly
 	var matched []Comment
+	seen := make(map[int]bool) // IDs of comments already matched
 	var lastNewMatch time.Time
 	err := pollUntil(ctx, opts.Interval, func(ctx context.Context) (bool, error) {
 		comments, err := r.List(ctx)
@@ -91,11 +99,13 @@ func (r *CommentResource) WaitFor(ctx context.Context, opts WaitCommentsOptions)
 			needBaseline = false
 			return false, nil
 		}
-		current := filterComments(comments, filter)
-		if len(current) > len(matched) {
-			lastNewMatch = time.Now()
+		matched = filterComments(comments, filter)
+		for _, c := range matched {
+			if !seen[c.ID] {
+				seen[c.ID] = true
+				lastNewMatch = time.Now()
+			}
 		}
-		matched = current
 		return len(matched) > 0 && time.Since(lastNewMatch) >= opts.Settle, nil
 	})
 	if err != nil && !errors.Is(err, context.DeadlineExceeded) {

@@ -4518,6 +4518,11 @@
           "required": false
         },
         {
+          "name": "author-id",
+          "type": "string",
+          "required": false
+        },
+        {
           "name": "config",
           "type": "string",
           "required": false

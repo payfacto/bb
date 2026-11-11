@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/signal"
 	"regexp"
 	"strings"
 	"time"
@@ -546,7 +545,7 @@ var pipelineWatchCmd = &cobra.Command{
 		// A watch can run for a long time; make Ctrl-C cancel it cleanly rather
 		// than hard-killing the process, so the poll loop unwinds and we exit
 		// with a controlled code.
-		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		ctx, stop := interruptibleContext()
 		defer stop()
 		res := client.Pipelines(ws, repo)
 		sel := pipelineSelector{uuid: pipelineWatchUUID, build: pipelineWatchBuild,
@@ -570,7 +569,7 @@ var pipelineWatchCmd = &cobra.Command{
 		}
 		exitCode = watchExitCode(result.Status)
 		if pipelineWatchEvents {
-			fmt.Fprintln(os.Stdout, pipelineOutcomeEvent(result, res.WebURL(result.Pipeline.BuildNumber)))
+			fmt.Fprintln(os.Stdout, pipelineOutcomeEvent(result, target.BuildNumber, res.WebURL(target.BuildNumber)))
 			return nil
 		}
 		return printOutput(result, func() { render.PipelineWatch(result) })

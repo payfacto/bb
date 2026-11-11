@@ -754,3 +754,18 @@ func TestPipelines_AwaitCommit_GivesUp(t *testing.T) {
 		t.Errorf("expected ErrNoPipelines after giving up, got %v", err)
 	}
 }
+
+// TestPipelines_AwaitCommit_ZeroWaitLooksOnce proves a zero wait does a single
+// lookup rather than failing before the first request.
+func TestPipelines_AwaitCommit_ZeroWaitLooksOnce(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.Pipeline{commitPipeline(7, "abcdef1234")}})
+	}))
+	got, err := client.Pipelines("testws", "testrepo").AwaitCommit(context.Background(), "abcdef1", time.Millisecond, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.BuildNumber != 7 {
+		t.Errorf("expected build 7, got %d", got.BuildNumber)
+	}
+}

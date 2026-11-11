@@ -106,3 +106,29 @@ func TestComments_WaitFor_Timeout(t *testing.T) {
 		t.Errorf("expected timeout, got %s", got.Status)
 	}
 }
+
+func TestComments_WaitFor_SkipsDeleted(t *testing.T) {
+	deleted := comment(2, "Petra", "")
+	deleted.Deleted = true
+	h := commentsHandler(t, func(int32) []bitbucket.Comment {
+		return []bitbucket.Comment{deleted, comment(3, "Petra", "")}
+	})
+	got := waitComments(t, h, bitbucket.WaitCommentsOptions{})
+	if len(got.Comments) != 1 || got.Comments[0].ID != 3 {
+		t.Errorf("expected only comment 3, got %+v", got.Comments)
+	}
+}
+
+// TestComments_WaitFor_AuthorIDIsExact proves --author-id matches the account
+// id exactly, so a look-alike display name cannot satisfy it.
+func TestComments_WaitFor_AuthorIDIsExact(t *testing.T) {
+	impostor := comment(4, "PETRA", "")
+	impostor.User.AccountID = "999:fake"
+	real := comment(5, "PETRA", "")
+	real.User.AccountID = "712020:petra"
+	h := commentsHandler(t, func(int32) []bitbucket.Comment { return []bitbucket.Comment{impostor, real} })
+	got := waitComments(t, h, bitbucket.WaitCommentsOptions{Filter: bitbucket.CommentFilter{AuthorID: "712020:petra"}})
+	if len(got.Comments) != 1 || got.Comments[0].ID != 5 {
+		t.Errorf("expected only comment 5, got %+v", got.Comments)
+	}
+}

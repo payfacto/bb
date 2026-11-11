@@ -54,13 +54,13 @@ func TestPipelineOutcomeEvent(t *testing.T) {
 		Status:     bitbucket.WatchBlocked,
 		ManualGate: &bitbucket.ManualGate{Step: "Deploy to prod", URL: "https://x/77"},
 	}
-	got := pipelineOutcomeEvent(result, "https://x/77")
+	got := pipelineOutcomeEvent(result, 77, "https://x/77")
 	want := `pipeline=77 outcome=blocked gate="Deploy to prod" url=https://x/77`
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 	result = bitbucket.PipelineWatchResult{Pipeline: bitbucket.Pipeline{BuildNumber: 5}, Status: bitbucket.WatchSuccess}
-	if got := pipelineOutcomeEvent(result, "https://x/5"); got != "pipeline=5 outcome=success url=https://x/5" {
+	if got := pipelineOutcomeEvent(result, 5, "https://x/5"); got != "pipeline=5 outcome=success url=https://x/5" {
 		t.Errorf("got %q", got)
 	}
 }
@@ -90,5 +90,15 @@ func TestChecksExitCode(t *testing.T) {
 		if got := checksExitCode(status); got != want {
 			t.Errorf("checksExitCode(%q) = %d, want %d", status, got, want)
 		}
+	}
+}
+
+// TestPipelineOutcomeEvent_FallsBackToTarget proves a timeout before the first
+// successful poll still names the watched pipeline, not pipeline=0.
+func TestPipelineOutcomeEvent_FallsBackToTarget(t *testing.T) {
+	result := bitbucket.PipelineWatchResult{Status: bitbucket.WatchTimeout}
+	got := pipelineOutcomeEvent(result, 42, "https://x/42")
+	if got != "pipeline=42 outcome=timeout url=https://x/42" {
+		t.Errorf("got %q", got)
 	}
 }

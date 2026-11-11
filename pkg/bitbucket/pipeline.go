@@ -190,8 +190,11 @@ func (r *PipelineResource) FindByCommit(ctx context.Context, sha string) (Pipeli
 
 // AwaitCommit polls FindByCommit every interval until the commit's pipeline
 // exists - right after a merge it can take a while to be created - or until
-// wait elapses, in which case it returns ErrNoPipelines.
+// wait elapses, in which case it returns ErrNoPipelines. A wait <= 0 looks once.
 func (r *PipelineResource) AwaitCommit(ctx context.Context, sha string, interval, wait time.Duration) (Pipeline, error) {
+	if wait <= 0 {
+		return r.FindByCommit(ctx, sha)
+	}
 	ctx, cancel := context.WithTimeout(ctx, wait)
 	defer cancel()
 	var found Pipeline

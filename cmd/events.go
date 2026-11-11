@@ -100,14 +100,16 @@ func stepEventLine(s bitbucket.PipelineStep) string {
 	return formatEvent(fields...)
 }
 
-// pipelineOutcomeEvent is the final --events line of `pipeline watch`.
-func pipelineOutcomeEvent(r bitbucket.PipelineWatchResult, url string) string {
+// pipelineOutcomeEvent is the final --events line of `pipeline watch`. build is
+// the watched pipeline's number, which the result lacks when the watch timed
+// out before its first successful poll.
+func pipelineOutcomeEvent(r bitbucket.PipelineWatchResult, build int, url string) string {
 	gate := ""
 	if r.ManualGate != nil {
 		gate = r.ManualGate.Step
 	}
 	return formatEvent(
-		eventField{"pipeline", strconv.Itoa(r.Pipeline.BuildNumber)},
+		eventField{"pipeline", strconv.Itoa(build)},
 		eventField{"outcome", string(r.Status)},
 		eventField{"gate", gate},
 		eventField{"url", url},

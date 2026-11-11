@@ -84,6 +84,8 @@ type Comment struct {
 	UpdatedOn string  `json:"updated_on,omitempty"`
 	// Resolution is set when the comment thread is resolved; nil means open.
 	Resolution *CommentResolution `json:"resolution,omitempty"`
+	// Deleted is true for a deleted comment, which Bitbucket keeps in the list.
+	Deleted bool `json:"deleted,omitempty"`
 }
 
 // CommentResolution records who resolved a comment thread and when.

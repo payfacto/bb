@@ -141,7 +141,7 @@ bb pr checks -p ID      # mergeability checks -> {mergeable, checks[{type,status
 bb pr conflicts -p ID   # file conflicts -> [{path,scenario,message}]; empty list when none
 bb pr add-reviewer -p ID --account-id ACCOUNT_ID
 bb pr wait-checks -p ID [--appear-timeout 600] [--events] [--interval 10] [--timeout 0]
-bb pr wait-comments -p ID [--author-contains TEXT] [--since ID|RFC3339] [--settle 0] [--events] [--interval 15] [--timeout 0]
+bb pr wait-comments -p ID [--author-id ACCOUNT_ID] [--author-contains TEXT] [--since ID|RFC3339] [--settle 0] [--events] [--interval 15] [--timeout 0]
 ```
 
 # every command infers --workspace/--repo from the git origin of cwd (bitbucket.org or ssh.bitbucket.org only) when not passed explicitly, OVERRIDING a differing ~/.bbcloud.yaml default (an explicit flag still wins over both); pr create additionally infers --from-branch from the current branch when omitted; notes go to stderr.
@@ -205,7 +205,8 @@ polling loops. Add `--events` for one stdout line per change plus a final line
                     exit 0 all green, 1 any failed/stopped, 3 timeout, 4 no status within --appear-timeout
   pr wait-comments: comment=ID author=NAME [parent=ID] [path=FILE] ... then pr=ID outcome=found|timeout count=N
                     exit 0 found, 3 timeout; default = only comments posted after start;
-                    --since ID (0 = any) | RFC3339; --author-contains (case-insensitive);
+                    --since ID (0 = any) | RFC3339; --author-id ACCOUNT_ID (exact, spoof-proof,
+                    prefer for automation) | --author-contains (case-insensitive substring);
                     --settle N waits until no new match for N s
 Values with spaces are quoted. All exit 130 on Ctrl-C.
 `pipeline trigger` needs exactly one of --branch/--tag/--commit. --custom NAME

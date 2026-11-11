@@ -192,7 +192,7 @@ bb pr checks -p ID      # mergeability checks; BLOCKING marks what prevents merg
 bb pr conflicts -p ID   # files conflicting between source and destination
 bb pr add-reviewer -p ID --account-id ACCOUNT_ID
 bb pr wait-checks -p ID [--appear-timeout 600] [--events] [--interval 10] [--timeout 0]
-bb pr wait-comments -p ID [--author-contains TEXT] [--since ID|RFC3339] [--settle 0] [--events] [--interval 15] [--timeout 0]
+bb pr wait-comments -p ID [--author-id ACCOUNT_ID] [--author-contains TEXT] [--since ID|RFC3339] [--settle 0] [--events] [--interval 15] [--timeout 0]
 ```
 
 Every `bb` command auto-detects `--workspace`/`--repo` from the current
@@ -283,7 +283,9 @@ All three exit 130 on Ctrl-C. `pr wait-checks` waits until every build status
 is terminal. `pr wait-comments` counts only comments posted after it starts,
 unless `--since` gives a comment ID (`0` = any) or an RFC3339 time.
 `--author-contains` matches the author's display name or nickname,
-case-insensitively. `--settle N` keeps waiting until no new match has arrived
+case-insensitively. Anyone can edit their display name, so automation that acts
+on a comment should use `--author-id ACCOUNT_ID`, which matches the account ID
+exactly. `--settle N` keeps waiting until no new match has arrived
 for N seconds, so a reviewer's burst of comments comes back together.
 
 `bb pipeline test-report` shows test counts (total, passed, failed, error,

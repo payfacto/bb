@@ -80,6 +80,7 @@ var prWaitChecksCmd = &cobra.Command{
 var (
 	prWaitCommentsID       int
 	prWaitCommentsAuthor   string
+	prWaitCommentsAuthorID string
 	prWaitCommentsSince    string
 	prWaitCommentsSettle   int
 	prWaitCommentsInterval int
@@ -94,7 +95,9 @@ var prWaitCommentsCmd = &cobra.Command{
 		"By default only comments posted after the wait starts count. --since ID counts " +
 		"comments with a larger ID (--since 0 = any existing comment); --since TIME " +
 		"(RFC3339) counts comments created after that time. --author-contains matches a " +
-		"case-insensitive substring of the author's display name or nickname (e.g. PETRA). " +
+		"case-insensitive substring of the author's display name or nickname (e.g. PETRA); " +
+		"display names are user-editable, so automation that acts on a comment should " +
+		"prefer --author-id (exact account ID). " +
 		"--settle N keeps waiting until no new match has arrived for N seconds, so a " +
 		"reviewer's burst of comments comes back together.\n\n" +
 		"Exit codes: 0 found, 3 timeout, 130 interrupted.\n\n" +
@@ -111,7 +114,10 @@ var prWaitCommentsCmd = &cobra.Command{
 			Interval: time.Duration(prWaitCommentsInterval) * time.Second,
 			Timeout:  time.Duration(prWaitCommentsTimeout) * time.Second,
 			Settle:   time.Duration(prWaitCommentsSettle) * time.Second,
-			Filter:   bitbucket.CommentFilter{AuthorContains: prWaitCommentsAuthor},
+			Filter: bitbucket.CommentFilter{
+				AuthorID:       prWaitCommentsAuthorID,
+				AuthorContains: prWaitCommentsAuthor,
+			},
 		}
 		if err := applySince(&opts, prWaitCommentsSince); err != nil {
 			return err
@@ -210,6 +216,8 @@ func init() {
 	prWaitCommentsCmd.MarkFlagRequired("pr-id")
 	prWaitCommentsCmd.Flags().StringVar(&prWaitCommentsAuthor, "author-contains", "",
 		"only comments whose author display name or nickname contains this (case-insensitive)")
+	prWaitCommentsCmd.Flags().StringVar(&prWaitCommentsAuthorID, "author-id", "",
+		"only comments by this exact account ID (spoof-proof; prefer over --author-contains for automation)")
 	prWaitCommentsCmd.Flags().StringVar(&prWaitCommentsSince, "since", "",
 		"comment ID or RFC3339 time to count comments after (default: only comments posted after the wait starts)")
 	prWaitCommentsCmd.Flags().IntVar(&prWaitCommentsSettle, "settle", 0,
