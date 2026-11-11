@@ -1,10 +1,8 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"os/signal"
 	"strconv"
 	"time"
 
@@ -13,20 +11,6 @@ import (
 	"github.com/payfacto/bb/cmd/render"
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
-
-// Exit codes shared by the wait commands; they match `pipeline watch` where the
-// meaning overlaps (0 success, 1 failed, 3 timeout).
-const (
-	exitWaitFailed  = 1
-	exitWaitTimeout = 3
-	exitNoChecks    = 4
-)
-
-// interruptibleContext returns a context cancelled by Ctrl-C, so a long wait
-// unwinds cleanly and exits through watchErr's interrupt path.
-func interruptibleContext() (context.Context, context.CancelFunc) {
-	return signal.NotifyContext(context.Background(), os.Interrupt)
-}
 
 var (
 	prWaitChecksID       int
@@ -67,10 +51,7 @@ var prWaitChecksCmd = &cobra.Command{
 		}
 		exitCode = checksExitCode(result.Status)
 		if prWaitChecksEvents {
-			fmt.Fprintln(os.Stdout, formatEvent(
-				eventField{"pr", strconv.Itoa(prWaitChecksID)},
-				eventField{"outcome", string(result.Status)},
-			))
+			fmt.Fprintln(os.Stdout, prOutcomeEvent(prWaitChecksID, string(result.Status)))
 			return nil
 		}
 		return printOutput(result, func() { render.PRStatuses(result.Statuses) })
@@ -133,11 +114,8 @@ var prWaitCommentsCmd = &cobra.Command{
 			for _, c := range result.Comments {
 				fmt.Fprintln(os.Stdout, commentEventLine(c))
 			}
-			fmt.Fprintln(os.Stdout, formatEvent(
-				eventField{"pr", strconv.Itoa(prWaitCommentsID)},
-				eventField{"outcome", string(result.Status)},
-				eventField{"count", strconv.Itoa(len(result.Comments))},
-			))
+			fmt.Fprintln(os.Stdout, prOutcomeEvent(prWaitCommentsID, string(result.Status),
+				eventField{"count", strconv.Itoa(len(result.Comments))}))
 			return nil
 		}
 		return printOutput(result, func() { render.CommentList(result.Comments) })

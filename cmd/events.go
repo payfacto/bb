@@ -116,7 +116,8 @@ func pipelineOutcomeEvent(r bitbucket.PipelineWatchResult, build int, url string
 	)
 }
 
-// waitInsteadOfLoops is the help-text guidance shared by every wait/watch
-// command, so agents reach for them instead of hand-rolled polling loops.
-const waitInsteadOfLoops = "To wait on a pipeline, PR build checks, or PR comments, use " +
-	"`bb pipeline watch`, `bb pr wait-checks`, or `bb pr wait-comments`; do not write polling loops."
+// prOutcomeEvent is the final --events line of the PR wait commands.
+func prOutcomeEvent(prID int, outcome string, extra ...eventField) string {
+	fields := append([]eventField{{"pr", strconv.Itoa(prID)}, {"outcome", outcome}}, extra...)
+	return formatEvent(fields...)
+}

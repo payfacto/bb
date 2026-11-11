@@ -79,11 +79,8 @@ type CommentsWaitResult struct {
 // after a match still reports what was found. An external cancellation such as
 // Ctrl-C is returned as the error.
 func (r *CommentResource) WaitFor(ctx context.Context, opts WaitCommentsOptions) (CommentsWaitResult, error) {
-	if opts.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
-		defer cancel()
-	}
+	ctx, cancel := withOptionalTimeout(ctx, opts.Timeout)
+	defer cancel()
 	filter := opts.Filter
 	needBaseline := opts.NewOnly
 	var matched []Comment

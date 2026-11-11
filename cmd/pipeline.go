@@ -131,11 +131,11 @@ func (s pipelineSelector) resolveWatchPipeline(ctx context.Context, res *bitbuck
 func watchExitCode(status bitbucket.PipelineWatchStatus) int {
 	switch status {
 	case bitbucket.WatchFailed:
-		return 1
+		return exitWaitFailed
 	case bitbucket.WatchBlocked:
-		return 2
+		return exitManualGate
 	case bitbucket.WatchTimeout:
-		return 3
+		return exitWaitTimeout
 	default:
 		return 0
 	}
@@ -510,15 +510,15 @@ var pipelineTestCasesCmd = &cobra.Command{
 }
 
 var (
-	pipelineWatchUUID     string
-	pipelineWatchBuild    int
-	pipelineWatchBranch   string
-	pipelineWatchTailLog  bool
-	pipelineWatchInterval int
-	pipelineWatchTimeout  int
-	pipelineWatchEvents   bool
-	pipelineWatchCommit   string
-	pipelineWatchStart    int
+	pipelineWatchUUID         string
+	pipelineWatchBuild        int
+	pipelineWatchBranch       string
+	pipelineWatchTailLog      bool
+	pipelineWatchInterval     int
+	pipelineWatchTimeout      int
+	pipelineWatchEvents       bool
+	pipelineWatchCommit       string
+	pipelineWatchStartTimeout int
 )
 
 var pipelineWatchCmd = &cobra.Command{
@@ -551,7 +551,7 @@ var pipelineWatchCmd = &cobra.Command{
 		sel := pipelineSelector{uuid: pipelineWatchUUID, build: pipelineWatchBuild,
 			branch: pipelineWatchBranch, commit: pipelineWatchCommit}
 		interval := time.Duration(pipelineWatchInterval) * time.Second
-		target, err := sel.resolveWatchPipeline(ctx, res, interval, time.Duration(pipelineWatchStart)*time.Second)
+		target, err := sel.resolveWatchPipeline(ctx, res, interval, time.Duration(pipelineWatchStartTimeout)*time.Second)
 		if err != nil {
 			return watchErr(err)
 		}
@@ -676,7 +676,7 @@ func init() {
 	pipelineWatchCmd.Flags().IntVar(&pipelineWatchInterval, "interval", 5, "seconds between polls")
 	pipelineWatchCmd.Flags().IntVar(&pipelineWatchTimeout, "timeout", 0, "seconds before giving up (0 = no timeout)")
 	pipelineWatchCmd.Flags().StringVar(&pipelineWatchCommit, "commit", "", "watch the newest pipeline triggered by this commit SHA (7+ hex chars)")
-	pipelineWatchCmd.Flags().IntVar(&pipelineWatchStart, "start-timeout", 300, "with --commit, seconds to wait for the pipeline to appear")
+	pipelineWatchCmd.Flags().IntVar(&pipelineWatchStartTimeout, "start-timeout", 300, "with --commit, seconds to wait for the pipeline to appear")
 	pipelineWatchCmd.Flags().BoolVar(&pipelineWatchEvents, "events", false,
 		"print one stdout line per step state change and a final outcome line instead of the JSON result")
 

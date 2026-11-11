@@ -44,11 +44,8 @@ type PRChecksWaitResult struct {
 // or Timeout elapses. A timeout is an outcome (ChecksTimeout, nil error); an
 // external cancellation such as Ctrl-C is returned as the error.
 func (r *PRResource) WaitChecks(ctx context.Context, prID int, opts WaitChecksOptions) (PRChecksWaitResult, error) {
-	if opts.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
-		defer cancel()
-	}
+	ctx, cancel := withOptionalTimeout(ctx, opts.Timeout)
+	defer cancel()
 	start := time.Now()
 	var result PRChecksWaitResult
 	err := pollUntil(ctx, opts.Interval, func(ctx context.Context) (bool, error) {

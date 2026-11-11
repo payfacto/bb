@@ -269,11 +269,8 @@ func (r *PipelineResource) Watch(ctx context.Context, pipelineUUID string, opts 
 	if interval <= 0 {
 		interval = 5 * time.Second
 	}
-	if opts.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
-		defer cancel()
-	}
+	ctx, cancel := withOptionalTimeout(ctx, opts.Timeout)
+	defer cancel()
 	// A single ticker drives the poll cadence for the whole watch, rather than a
 	// fresh time.After per iteration (which leaks a timer until it fires).
 	ticker := time.NewTicker(interval)

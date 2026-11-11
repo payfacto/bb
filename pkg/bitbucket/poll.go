@@ -8,6 +8,16 @@ import (
 // defaultPollInterval is used when a caller passes a non-positive interval.
 const defaultPollInterval = 5 * time.Second
 
+// withOptionalTimeout bounds ctx by timeout when timeout > 0; otherwise it
+// returns ctx unchanged with a no-op cancel. Waits treat timeout <= 0 as
+// "wait indefinitely".
+func withOptionalTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if timeout <= 0 {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, timeout)
+}
+
 // pollUntil runs check immediately and then once per interval until check
 // reports done, returns an error, or ctx ends (returning ctx.Err()). Callers
 // bound the wait with context.WithTimeout and treat DeadlineExceeded as their
