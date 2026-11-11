@@ -37,6 +37,7 @@ var commandRegistry = map[string]commandSpec{
 	"pr statuses":        {Action: actionRead, OutputType: "[]PRStatus", Example: "bb pr statuses --pr-id 42"},
 	"pr checks":          {Action: actionRead, OutputType: "PRMergeability", Example: "bb pr checks --pr-id 42"},
 	"pr conflicts":       {Action: actionRead, OutputType: "[]FileConflict", Example: "bb pr conflicts --pr-id 42"},
+	"pr wait-comments":   {Action: actionRead, OutputType: "CommentsWaitResult", Example: "bb pr wait-comments --pr-id 42 --author-contains PETRA --settle 120"},
 	"pr wait-checks":     {Action: actionRead, OutputType: "PRChecksWaitResult", Example: "bb pr wait-checks --pr-id 42 --events"},
 
 	// pr comment / pr task --------------------------------------------
@@ -217,6 +218,7 @@ var typeRegistry = map[string]any{
 	"[]Activity":         []bitbucket.Activity{},
 	"PRStatus":           bitbucket.PRStatus{},
 	"PRChecksWaitResult": bitbucket.PRChecksWaitResult{},
+	"CommentsWaitResult": bitbucket.CommentsWaitResult{},
 	"[]PRStatus":         []bitbucket.PRStatus{},
 
 	"PRMergeability": bitbucket.PRMergeability{},
