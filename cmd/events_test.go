@@ -33,12 +33,12 @@ func step(uuid, name, state string, manual bool) bitbucket.PipelineStep {
 
 func TestStepEvents_EmitsOnlyOnChange(t *testing.T) {
 	var out bytes.Buffer
-	ev := newStepEvents(&out)
-	ev.poll([]bitbucket.PipelineStep{step("{1}", "build", "IN_PROGRESS", false), step("{2}", "Deploy to prod", "PENDING", true)})
-	ev.poll([]bitbucket.PipelineStep{step("{1}", "build", "IN_PROGRESS", false), step("{2}", "Deploy to prod", "PENDING", true)})
+	ev := newChangeEvents(&out)
+	ev.steps([]bitbucket.PipelineStep{step("{1}", "build", "IN_PROGRESS", false), step("{2}", "Deploy to prod", "PENDING", true)})
+	ev.steps([]bitbucket.PipelineStep{step("{1}", "build", "IN_PROGRESS", false), step("{2}", "Deploy to prod", "PENDING", true)})
 	done := step("{1}", "build", "COMPLETED", false)
 	done.State.Result = &bitbucket.PipelineResult{Name: "SUCCESSFUL"}
-	ev.poll([]bitbucket.PipelineStep{done, step("{2}", "Deploy to prod", "PENDING", true)})
+	ev.steps([]bitbucket.PipelineStep{done, step("{2}", "Deploy to prod", "PENDING", true)})
 
 	want := "step=build state=IN_PROGRESS\n" +
 		`step="Deploy to prod" state=PENDING manual=true` + "\n" +
@@ -62,5 +62,33 @@ func TestPipelineOutcomeEvent(t *testing.T) {
 	result = bitbucket.PipelineWatchResult{Pipeline: bitbucket.Pipeline{BuildNumber: 5}, Status: bitbucket.WatchSuccess}
 	if got := pipelineOutcomeEvent(result, "https://x/5"); got != "pipeline=5 outcome=success url=https://x/5" {
 		t.Errorf("got %q", got)
+	}
+}
+
+func TestCheckEvents_EmitsOnlyOnChange(t *testing.T) {
+	var out bytes.Buffer
+	ev := newChangeEvents(&out)
+	ev.checks([]bitbucket.PRStatus{{Key: "k1", Name: "Pipeline #12", State: "INPROGRESS"}})
+	ev.checks([]bitbucket.PRStatus{{Key: "k1", Name: "Pipeline #12", State: "INPROGRESS"}})
+	ev.checks([]bitbucket.PRStatus{{Key: "k1", Name: "Pipeline #12", State: "SUCCESSFUL"}, {Key: "k2", State: "FAILED"}})
+	want := `check="Pipeline #12" state=INPROGRESS` + "\n" +
+		`check="Pipeline #12" state=SUCCESSFUL` + "\n" +
+		"check=k2 state=FAILED\n"
+	if out.String() != want {
+		t.Errorf("events =\n%s\nwant\n%s", out.String(), want)
+	}
+}
+
+func TestChecksExitCode(t *testing.T) {
+	cases := map[bitbucket.ChecksWaitStatus]int{
+		bitbucket.ChecksSuccess: 0,
+		bitbucket.ChecksFailed:  1,
+		bitbucket.ChecksTimeout: 3,
+		bitbucket.ChecksNone:    4,
+	}
+	for status, want := range cases {
+		if got := checksExitCode(status); got != want {
+			t.Errorf("checksExitCode(%q) = %d, want %d", status, got, want)
+		}
 	}
 }

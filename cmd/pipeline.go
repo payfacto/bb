@@ -558,7 +558,7 @@ var pipelineWatchCmd = &cobra.Command{
 		}
 		onPoll := watchProgress(ctx, res, pipelineWatchTailLog)
 		if pipelineWatchEvents {
-			onPoll = withStepEvents(onPoll, newStepEvents(os.Stdout))
+			onPoll = withStepEvents(onPoll, newChangeEvents(os.Stdout))
 		}
 		result, err := res.Watch(ctx, target.UUID, bitbucket.WatchOptions{
 			Interval: interval,
@@ -612,12 +612,12 @@ func watchProgress(ctx context.Context, res *bitbucket.PipelineResource, tailLog
 }
 
 // withStepEvents chains a step-event emitter after an optional poll callback.
-func withStepEvents(next func(bitbucket.Pipeline, []bitbucket.PipelineStep), ev *stepEvents) func(bitbucket.Pipeline, []bitbucket.PipelineStep) {
+func withStepEvents(next func(bitbucket.Pipeline, []bitbucket.PipelineStep), ev *changeEvents) func(bitbucket.Pipeline, []bitbucket.PipelineStep) {
 	return func(p bitbucket.Pipeline, steps []bitbucket.PipelineStep) {
 		if next != nil {
 			next(p, steps)
 		}
-		ev.poll(steps)
+		ev.steps(steps)
 	}
 }
 

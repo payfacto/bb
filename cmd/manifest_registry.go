@@ -37,6 +37,7 @@ var commandRegistry = map[string]commandSpec{
 	"pr statuses":        {Action: actionRead, OutputType: "[]PRStatus", Example: "bb pr statuses --pr-id 42"},
 	"pr checks":          {Action: actionRead, OutputType: "PRMergeability", Example: "bb pr checks --pr-id 42"},
 	"pr conflicts":       {Action: actionRead, OutputType: "[]FileConflict", Example: "bb pr conflicts --pr-id 42"},
+	"pr wait-checks":     {Action: actionRead, OutputType: "PRChecksWaitResult", Example: "bb pr wait-checks --pr-id 42 --events"},
 
 	// pr comment / pr task --------------------------------------------
 	"pr comment list":    {Action: actionRead, OutputType: "[]Comment", Example: "bb pr comment list --pr-id 42"},
@@ -56,7 +57,7 @@ var commandRegistry = map[string]commandSpec{
 	"pipeline stop":        {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline stop -n 42"},
 	"pipeline steps":       {Action: actionRead, OutputType: "[]PipelineStep", Example: "bb pipeline steps -n 42"},
 	"pipeline log":         {Action: actionRead, OutputType: "string", Example: "bb pipeline log -n 42 --step-uuid '{step}'"},
-	"pipeline watch":       {Action: actionRead, OutputType: "PipelineWatchResult", Example: "bb pipeline watch -n 42"},
+	"pipeline watch":       {Action: actionRead, OutputType: "PipelineWatchResult", Example: "bb pipeline watch -n 42 --events"},
 	"pipeline test-report": {Action: actionRead, OutputType: "[]StepTestReport", Example: "bb pipeline test-report -n 42"},
 	"pipeline test-cases":  {Action: actionRead, OutputType: "[]StepTestCase", Example: "bb pipeline test-cases -n 42 --failed --reasons"},
 
@@ -208,14 +209,15 @@ var typeRegistry = map[string]any{
 	"string":    "",
 	"ResultMap": map[string]any{},
 
-	"PR":            bitbucket.PR{},
-	"[]PR":          []bitbucket.PR{},
-	"CreatePRInput": bitbucket.CreatePRInput{},
-	"UpdatePRInput": bitbucket.UpdatePRInput{},
-	"Activity":      bitbucket.Activity{},
-	"[]Activity":    []bitbucket.Activity{},
-	"PRStatus":      bitbucket.PRStatus{},
-	"[]PRStatus":    []bitbucket.PRStatus{},
+	"PR":                 bitbucket.PR{},
+	"[]PR":               []bitbucket.PR{},
+	"CreatePRInput":      bitbucket.CreatePRInput{},
+	"UpdatePRInput":      bitbucket.UpdatePRInput{},
+	"Activity":           bitbucket.Activity{},
+	"[]Activity":         []bitbucket.Activity{},
+	"PRStatus":           bitbucket.PRStatus{},
+	"PRChecksWaitResult": bitbucket.PRChecksWaitResult{},
+	"[]PRStatus":         []bitbucket.PRStatus{},
 
 	"PRMergeability": bitbucket.PRMergeability{},
 	"[]FileConflict": []bitbucket.FileConflict{},

@@ -40,35 +40,50 @@ func quoteEventValue(v string) string {
 	return v
 }
 
-// writeEvent writes one formatted event line to w.
-func writeEvent(w io.Writer, fields ...eventField) {
-	fmt.Fprintln(w, formatEvent(fields...))
-}
-
-// stepEvents emits a step line whenever a pipeline step's state changes
-// between polls (and once for every step on the first poll).
-type stepEvents struct {
+// changeEvents emits a line for an item (a pipeline step, a build check)
+// whenever its rendered line differs from the last one emitted for it, so every
+// item is reported once on the first poll and then only on change.
+type changeEvents struct {
 	w    io.Writer
-	last map[string]string // step key -> last emitted line
+	last map[string]string // item key -> last emitted line
 }
 
-func newStepEvents(w io.Writer) *stepEvents {
-	return &stepEvents{w: w, last: make(map[string]string)}
+func newChangeEvents(w io.Writer) *changeEvents {
+	return &changeEvents{w: w, last: make(map[string]string)}
 }
 
-func (e *stepEvents) poll(steps []bitbucket.PipelineStep) {
-	for _, s := range steps {
-		line := stepEventLine(s)
-		key := s.UUID
-		if key == "" {
-			key = s.Name
-		}
-		if e.last[key] == line {
-			continue
-		}
-		e.last[key] = line
-		fmt.Fprintln(e.w, line)
+func (e *changeEvents) emit(key, line string) {
+	if e.last[key] == line {
+		return
 	}
+	e.last[key] = line
+	fmt.Fprintln(e.w, line)
+}
+
+// steps reports pipeline step state changes.
+func (e *changeEvents) steps(steps []bitbucket.PipelineStep) {
+	for _, s := range steps {
+		e.emit(firstNonEmpty(s.UUID, s.Name), stepEventLine(s))
+	}
+}
+
+// checks reports PR build status changes.
+func (e *changeEvents) checks(statuses []bitbucket.PRStatus) {
+	for _, s := range statuses {
+		e.emit(firstNonEmpty(s.Key, s.Name), formatEvent(
+			eventField{"check", firstNonEmpty(s.Name, s.Key)},
+			eventField{"state", s.State},
+		))
+	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func stepEventLine(s bitbucket.PipelineStep) string {
