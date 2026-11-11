@@ -329,11 +329,21 @@ var prMergeCmd = &cobra.Command{
 		if err := ensureMergeable(pr); err != nil {
 			return err
 		}
-		if err := prAPI.Merge(context.Background(), prMergeID, prMergeStrategy); err != nil {
+		merged, err := prAPI.Merge(context.Background(), prMergeID, prMergeStrategy)
+		if err != nil {
 			return err
 		}
-		return printOutput(map[string]string{"result": "merged"}, func() {
-			fmt.Println("Merged.")
+		result := map[string]string{"result": "merged"}
+		mergeHash := merged.MergeCommitHash()
+		if mergeHash != "" {
+			result["merge_commit"] = mergeHash
+		}
+		return printOutput(result, func() {
+			if mergeHash == "" {
+				fmt.Println("Merged.")
+				return
+			}
+			fmt.Printf("Merged as %s.\n", mergeHash)
 		})
 	},
 }

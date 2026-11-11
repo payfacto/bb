@@ -1,6 +1,7 @@
 package bitbucket
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/url"
@@ -155,10 +156,18 @@ func (r *PRResource) requestChangesPath(prID int) string {
 
 // Merge merges the pull request using the given strategy.
 // strategy: "merge_commit", "squash", or "fast_forward".
-func (r *PRResource) Merge(ctx context.Context, prID int, strategy string) error {
+// It returns the merged PR, whose MergeCommit holds the resulting commit;
+// an empty response body yields a zero PR rather than an error.
+func (r *PRResource) Merge(ctx context.Context, prID int, strategy string) (PR, error) {
 	body := map[string]string{"type": "pullrequest", "merge_strategy": strategy}
-	_, err := r.client.do(ctx, "POST", r.prPath(prID)+"/merge", body, nil)
-	return err
+	data, err := r.client.do(ctx, "POST", r.prPath(prID)+"/merge", body, nil)
+	if err != nil {
+		return PR{}, err
+	}
+	if len(bytes.TrimSpace(data)) == 0 {
+		return PR{}, nil
+	}
+	return decode[PR](data)
 }
 
 // Decline declines the pull request.

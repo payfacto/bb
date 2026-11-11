@@ -142,6 +142,7 @@ client.PRs(workspace, repo).List(ctx, bitbucket.PRListOptions{State, SourceBranc
 client.PRs(workspace, repo).MergeabilityChecks(ctx, prID) // PRMergeability{Mergeable, Checks}
 client.PRs(workspace, repo).Conflicts(ctx, prID)          // follows the 302 to file-conflicts
 client.PRs(workspace, repo).Get(ctx, prID)               // PR.Source.Commit / Destination.Commit: head hashes (nil in request bodies)
+client.PRs(workspace, repo).Merge(ctx, prID, strategy)   // merged PR; MergeCommit holds the merge SHA (zero PR on empty body)
 client.PRs(workspace, repo).Update(ctx, prID, bitbucket.UpdatePRInput{Title, Description, Draft, Destination}) // nil = keep
 client.Repos(workspace).List(ctx, sort)
 client.Branches(workspace, repo).List(ctx, sort)

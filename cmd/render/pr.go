@@ -112,6 +112,9 @@ func PRDetailString(pr bitbucket.PR) string {
 		sb.WriteString(fmt.Sprintf("%s  %s → %s\n", label("Commit"),
 			endpointHash(pr.Source), endpointHash(pr.Destination)))
 	}
+	if mergeHash := pr.MergeCommitHash(); mergeHash != "" {
+		sb.WriteString(fmt.Sprintf("%s  %s\n", label("Merge"), mergeHash))
+	}
 
 	if pr.Description != "" {
 		sb.WriteString(sep + "\n")

@@ -221,9 +221,9 @@ func TestPRDetailString_draftMarker(t *testing.T) {
 
 func TestPRDetailString_showsCommitHashes(t *testing.T) {
 	source := ep("feat/x")
-	source.Commit = &bitbucket.EndpointCommit{Hash: "abc123def456"}
+	source.Commit = &bitbucket.CommitRef{Hash: "abc123def456"}
 	destination := ep("main")
-	destination.Commit = &bitbucket.EndpointCommit{Hash: "0123456789ab"}
+	destination.Commit = &bitbucket.CommitRef{Hash: "0123456789ab"}
 	out := render.PRDetailString(bitbucket.PR{ID: 5, Title: "t", Source: source, Destination: destination})
 	if !strings.Contains(out, "abc123def456") {
 		t.Errorf("expected source commit hash in output, got: %q", out)
@@ -237,5 +237,21 @@ func TestPRDetailString_omitsCommitLineWithoutHashes(t *testing.T) {
 	out := render.PRDetailString(bitbucket.PR{ID: 5, Title: "t", Source: ep("feat/x"), Destination: ep("main")})
 	if strings.Contains(out, "Commit") {
 		t.Errorf("expected no Commit line when hashes are absent, got: %q", out)
+	}
+}
+
+func TestPRDetailString_showsMergeCommit(t *testing.T) {
+	pr := bitbucket.PR{ID: 5, Title: "t", State: "MERGED", Source: ep("feat/x"), Destination: ep("main"),
+		MergeCommit: &bitbucket.CommitRef{Hash: "fedcba987654"}}
+	out := render.PRDetailString(pr)
+	if !strings.Contains(out, "Merge") || !strings.Contains(out, "fedcba987654") {
+		t.Errorf("expected Merge line with hash, got: %q", out)
+	}
+}
+
+func TestPRDetailString_omitsMergeLineWhenUnmerged(t *testing.T) {
+	out := render.PRDetailString(bitbucket.PR{ID: 5, Title: "t", Source: ep("feat/x"), Destination: ep("main")})
+	if strings.Contains(out, "Merge ") {
+		t.Errorf("expected no Merge line for an unmerged PR, got: %q", out)
 	}
 }
