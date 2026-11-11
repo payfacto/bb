@@ -1718,7 +1718,8 @@ func newPRDetailView(client *bitbucket.Client, ws, repo string, pr bitbucket.PR,
 					return tea.Sequence(
 						popView,
 						executeAction(func() error {
-							return client.PRs(ws, repo).Merge(context.Background(), pr.ID, "merge_commit")
+							_, err := client.PRs(ws, repo).Merge(context.Background(), pr.ID, "merge_commit")
+							return err
 						}, fmt.Sprintf("PR #%d merged", pr.ID)),
 					)
 				},

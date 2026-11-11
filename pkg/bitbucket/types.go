@@ -4,20 +4,21 @@ import "encoding/json"
 
 // PR represents a Bitbucket pull request.
 type PR struct {
-	ID           int      `json:"id"`
-	Title        string   `json:"title"`
-	State        string   `json:"state"`
-	Draft        bool     `json:"draft"`
-	Description  string   `json:"description"`
-	Source       Endpoint `json:"source"`
-	Destination  Endpoint `json:"destination"`
-	Author       Actor    `json:"author"`
-	Reviewers    []Actor  `json:"reviewers"`
-	CommentCount int      `json:"comment_count,omitempty"`
-	TaskCount    int      `json:"task_count,omitempty"`
-	CreatedOn    string   `json:"created_on,omitempty"`
-	UpdatedOn    string   `json:"updated_on,omitempty"`
-	Links        Links    `json:"links"`
+	ID           int        `json:"id"`
+	Title        string     `json:"title"`
+	State        string     `json:"state"`
+	Draft        bool       `json:"draft"`
+	Description  string     `json:"description"`
+	Source       Endpoint   `json:"source"`
+	Destination  Endpoint   `json:"destination"`
+	MergeCommit  *CommitRef `json:"merge_commit,omitempty"`
+	Author       Actor      `json:"author"`
+	Reviewers    []Actor    `json:"reviewers"`
+	CommentCount int        `json:"comment_count,omitempty"`
+	TaskCount    int        `json:"task_count,omitempty"`
+	CreatedOn    string     `json:"created_on,omitempty"`
+	UpdatedOn    string     `json:"updated_on,omitempty"`
+	Links        Links      `json:"links"`
 }
 
 // PRListOptions holds the filters for listing pull requests. All fields are
@@ -45,12 +46,22 @@ type Endpoint struct {
 	Branch struct {
 		Name string `json:"name"`
 	} `json:"branch"`
-	Commit *EndpointCommit `json:"commit,omitempty"`
+	Commit *CommitRef `json:"commit,omitempty"`
 }
 
-// EndpointCommit is the commit a PR source or destination branch points at.
-type EndpointCommit struct {
+// CommitRef is a bare commit reference: a PR endpoint's head commit or a
+// PR's merge commit.
+type CommitRef struct {
 	Hash string `json:"hash"`
+}
+
+// MergeCommitHash returns the hash of the commit that merged the PR, or ""
+// when the PR is not merged or the API did not report one.
+func (pr PR) MergeCommitHash() string {
+	if pr.MergeCommit == nil {
+		return ""
+	}
+	return pr.MergeCommit.Hash
 }
 
 // NewEndpoint builds an Endpoint from a branch name.

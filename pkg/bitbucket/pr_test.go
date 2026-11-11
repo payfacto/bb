@@ -411,7 +411,7 @@ func TestPRs_Merge(t *testing.T) {
 		}
 		mustEncodeJSON(t, w, map[string]string{"state": "MERGED"})
 	}))
-	if err := c.PRs("ws", "repo").Merge(context.Background(), 1, "squash"); err != nil {
+	if _, err := c.PRs("ws", "repo").Merge(context.Background(), 1, "squash"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if receivedBody["merge_strategy"] != "squash" {
@@ -746,7 +746,7 @@ func assertEndpointHashes(t *testing.T, pr bitbucket.PR) {
 	}
 }
 
-func TestPRs_Get_DecodesEndpointCommitHashes(t *testing.T) {
+func TestPRs_Get_DecodesCommitRefHashes(t *testing.T) {
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(prWithCommitsJSON))
 	}))
@@ -757,7 +757,7 @@ func TestPRs_Get_DecodesEndpointCommitHashes(t *testing.T) {
 	assertEndpointHashes(t, got)
 }
 
-func TestPRs_List_DecodesEndpointCommitHashes(t *testing.T) {
+func TestPRs_List_DecodesCommitRefHashes(t *testing.T) {
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"values":[` + prWithCommitsJSON + `]}`))
 	}))
@@ -771,9 +771,9 @@ func TestPRs_List_DecodesEndpointCommitHashes(t *testing.T) {
 	assertEndpointHashes(t, got[0])
 }
 
-// assertNoEndpointCommit fails when a request-body endpoint carries a
+// assertNoCommitRef fails when a request-body endpoint carries a
 // "commit" key: NewEndpoint must address a branch only.
-func assertNoEndpointCommit(t *testing.T, body map[string]any, field string) {
+func assertNoCommitRef(t *testing.T, body map[string]any, field string) {
 	t.Helper()
 	endpoint, ok := body[field].(map[string]any)
 	if !ok {
@@ -784,7 +784,7 @@ func assertNoEndpointCommit(t *testing.T, body map[string]any, field string) {
 	}
 }
 
-func TestPRs_Create_SendsNoEndpointCommit(t *testing.T) {
+func TestPRs_Create_SendsNoCommitRef(t *testing.T) {
 	var receivedBody map[string]any
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := json.NewDecoder(r.Body).Decode(&receivedBody); err != nil {
@@ -801,8 +801,8 @@ func TestPRs_Create_SendsNoEndpointCommit(t *testing.T) {
 	if _, err := c.PRs("ws", "repo").Create(context.Background(), input); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	assertNoEndpointCommit(t, receivedBody, "source")
-	assertNoEndpointCommit(t, receivedBody, "destination")
+	assertNoCommitRef(t, receivedBody, "source")
+	assertNoCommitRef(t, receivedBody, "destination")
 }
 
 func TestPRs_Update_DestinationSendsNoCommit(t *testing.T) {
@@ -824,5 +824,52 @@ func TestPRs_Update_DestinationSendsNoCommit(t *testing.T) {
 	if _, err := c.PRs("ws", "repo").Update(context.Background(), 7, bitbucket.UpdatePRInput{Destination: &destination}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	assertNoEndpointCommit(t, putBody, "destination")
+	assertNoCommitRef(t, putBody, "destination")
+}
+
+const (
+	mergeHash    = "fedcba9876543210fedcba9876543210fedcba98"
+	mergedPRJSON = `{"id":1,"state":"MERGED","merge_commit":{"hash":"` + mergeHash + `"}}`
+)
+
+func TestPRs_Merge_ReturnsMergedPRWithMergeCommit(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(mergedPRJSON))
+	}))
+	got, err := c.PRs("ws", "repo").Merge(context.Background(), 1, "merge_commit")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.State != "MERGED" {
+		t.Errorf("state: got %q, want MERGED", got.State)
+	}
+	if got.MergeCommit == nil || got.MergeCommit.Hash != mergeHash {
+		t.Errorf("merge commit: got %+v, want hash %s", got.MergeCommit, mergeHash)
+	}
+}
+
+func TestPRs_Merge_EmptyBodyIsNotAnError(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	got, err := c.PRs("ws", "repo").Merge(context.Background(), 1, "merge_commit")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.MergeCommit != nil {
+		t.Errorf("merge commit: got %+v, want nil", got.MergeCommit)
+	}
+}
+
+func TestPRs_Get_DecodesMergeCommit(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(mergedPRJSON))
+	}))
+	got, err := c.PRs("ws", "repo").Get(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.MergeCommit == nil || got.MergeCommit.Hash != mergeHash {
+		t.Errorf("merge commit: got %+v, want hash %s", got.MergeCommit, mergeHash)
+	}
 }
