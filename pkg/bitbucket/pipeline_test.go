@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -630,5 +631,141 @@ func TestPipelines_Latest_Branch_MatchesPRSourceBranch(t *testing.T) {
 	}
 	if got.BuildNumber != 31 || got.PRID != 14 {
 		t.Errorf("want PR run build 31 (pr 14), got build %d pr %d", got.BuildNumber, got.PRID)
+	}
+}
+
+// TestPipelineStep_ManualFromTrigger proves a step's manual flag is derived from
+// the API's trigger.type, so callers never have to guess a gate from PENDING.
+func TestPipelineStep_ManualFromTrigger(t *testing.T) {
+	body := `{"values":[
+		{"uuid":"{s1}","name":"build","state":{"name":"COMPLETED"},"trigger":{"type":"pipeline_step_trigger_automatic"}},
+		{"uuid":"{s2}","name":"Deploy to prod","state":{"name":"PENDING"},"trigger":{"type":"pipeline_step_trigger_manual"}},
+		{"uuid":"{s3}","name":"no trigger","state":{"name":"PENDING"}}
+	]}`
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(body))
+	}))
+	steps, err := client.Pipelines("testws", "testrepo").Steps(context.Background(), "{p1}")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []bool{false, true, false}
+	for i, s := range steps {
+		if s.Manual != want[i] {
+			t.Errorf("step %q manual = %v, want %v", s.Name, s.Manual, want[i])
+		}
+	}
+	out, err := json.Marshal(steps[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out), `"manual":true`) {
+		t.Errorf("expected manual:true in step JSON, got %s", out)
+	}
+}
+
+// TestPipelines_Watch_BlockedGatePrefersManualStep proves the reported gate is
+// the first incomplete manual step, not merely the first incomplete step.
+func TestPipelines_Watch_BlockedGatePrefersManualStep(t *testing.T) {
+	steps := []bitbucket.PipelineStep{
+		{Name: "build", State: bitbucket.PipelineState{Name: "COMPLETED"}},
+		{Name: "notify", State: bitbucket.PipelineState{Name: "PENDING"}},
+		{Name: "Deploy to prod", State: bitbucket.PipelineState{Name: "PENDING"},
+			Trigger: &bitbucket.StepTrigger{Type: bitbucket.StepTriggerManual}},
+	}
+	handler := watchPipelineHandler(t, 9, steps, func(poll int32) bitbucket.PipelineState {
+		return bitbucket.PipelineState{Name: "IN_PROGRESS", Stage: &bitbucket.PipelineStage{Name: "PAUSED"}}
+	})
+	client := newTestClient(t, handler)
+	res, err := client.Pipelines("testws", "testrepo").Watch(context.Background(), "{p1}", bitbucket.WatchOptions{Interval: time.Millisecond})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.ManualGate == nil || res.ManualGate.Step != "Deploy to prod" {
+		t.Errorf("expected gate step 'Deploy to prod', got %+v", res.ManualGate)
+	}
+}
+
+func commitPipeline(build int, hash string) bitbucket.Pipeline {
+	return bitbucket.Pipeline{UUID: fmt.Sprintf("{p%d}", build), BuildNumber: build,
+		Target: bitbucket.PipelineTarget{RefName: "main", Commit: &bitbucket.PipelineCommit{Hash: hash}}}
+}
+
+// TestPipelines_FindByCommit_PrefixAcrossPages proves a short SHA matches the
+// newest pipeline whose commit hash starts with it, following pagination.
+func TestPipelines_FindByCommit_PrefixAcrossPages(t *testing.T) {
+	var srvURL string
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("page") == "2" {
+			mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.Pipeline{commitPipeline(40, "abcdef1234567890")}})
+			return
+		}
+		srvURL = "http://" + r.Host
+		mustEncodeJSON(t, w, map[string]any{
+			"values": []bitbucket.Pipeline{commitPipeline(42, "1111111"), commitPipeline(41, "2222222")},
+			"next":   srvURL + r.URL.Path + "?page=2",
+		})
+	}))
+	got, err := client.Pipelines("testws", "testrepo").FindByCommit(context.Background(), "ABCDEF1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.BuildNumber != 40 {
+		t.Errorf("expected build 40, got %d", got.BuildNumber)
+	}
+}
+
+func TestPipelines_FindByCommit_NotFound(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.Pipeline{commitPipeline(1, "1111111")}})
+	}))
+	_, err := client.Pipelines("testws", "testrepo").FindByCommit(context.Background(), "abcdef1")
+	if !errors.Is(err, bitbucket.ErrNoPipelines) {
+		t.Errorf("expected ErrNoPipelines, got %v", err)
+	}
+}
+
+// TestPipelines_AwaitCommit_AppearsLater proves AwaitCommit keeps polling until
+// the merge's pipeline shows up, instead of failing on the first empty list.
+func TestPipelines_AwaitCommit_AppearsLater(t *testing.T) {
+	var polls atomic.Int32
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if polls.Add(1) < 3 {
+			mustEncodeJSON(t, w, map[string]any{"values": []any{}})
+			return
+		}
+		mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.Pipeline{commitPipeline(7, "abcdef1234")}})
+	}))
+	got, err := client.Pipelines("testws", "testrepo").AwaitCommit(context.Background(), "abcdef1", time.Millisecond, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.BuildNumber != 7 {
+		t.Errorf("expected build 7, got %d", got.BuildNumber)
+	}
+}
+
+func TestPipelines_AwaitCommit_GivesUp(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mustEncodeJSON(t, w, map[string]any{"values": []any{}})
+	}))
+	_, err := client.Pipelines("testws", "testrepo").AwaitCommit(context.Background(), "abcdef1", time.Millisecond, 20*time.Millisecond)
+	if !errors.Is(err, bitbucket.ErrNoPipelines) {
+		t.Errorf("expected ErrNoPipelines after giving up, got %v", err)
+	}
+}
+
+// TestPipelines_AwaitCommit_ZeroWaitLooksOnce proves a zero wait does a single
+// lookup rather than failing before the first request.
+func TestPipelines_AwaitCommit_ZeroWaitLooksOnce(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.Pipeline{commitPipeline(7, "abcdef1234")}})
+	}))
+	got, err := client.Pipelines("testws", "testrepo").AwaitCommit(context.Background(), "abcdef1", time.Millisecond, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.BuildNumber != 7 {
+		t.Errorf("expected build 7, got %d", got.BuildNumber)
 	}
 }

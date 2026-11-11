@@ -2128,8 +2128,18 @@
           "required": false
         },
         {
+          "name": "commit",
+          "type": "string",
+          "required": false
+        },
+        {
           "name": "config",
           "type": "string",
+          "required": false
+        },
+        {
+          "name": "events",
+          "type": "bool",
           "required": false
         },
         {
@@ -2153,6 +2163,11 @@
           "name": "repo",
           "short": "r",
           "type": "string",
+          "required": false
+        },
+        {
+          "name": "start-timeout",
+          "type": "int",
           "required": false
         },
         {
@@ -4420,6 +4435,159 @@
         "behavior": "replaces_flags"
       },
       "output_type": "PR"
+    },
+    {
+      "path": [
+        "pr",
+        "wait-checks"
+      ],
+      "action": "read",
+      "flags": [
+        {
+          "name": "appear-timeout",
+          "type": "int",
+          "required": false
+        },
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "events",
+          "type": "bool",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "interval",
+          "type": "int",
+          "required": false
+        },
+        {
+          "name": "pr-id",
+          "short": "p",
+          "type": "int",
+          "required": true
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "timeout",
+          "type": "int",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "PRChecksWaitResult"
+    },
+    {
+      "path": [
+        "pr",
+        "wait-comments"
+      ],
+      "action": "read",
+      "flags": [
+        {
+          "name": "author-contains",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "author-id",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "events",
+          "type": "bool",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "interval",
+          "type": "int",
+          "required": false
+        },
+        {
+          "name": "pr-id",
+          "short": "p",
+          "type": "int",
+          "required": true
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "settle",
+          "type": "int",
+          "required": false
+        },
+        {
+          "name": "since",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "timeout",
+          "type": "int",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "CommentsWaitResult"
     },
     {
       "path": [

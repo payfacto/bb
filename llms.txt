@@ -140,6 +140,8 @@ bb pr statuses -p ID
 bb pr checks -p ID      # mergeability checks -> {mergeable, checks[{type,status,required,blocking,...}]}; mergeable = no check blocking
 bb pr conflicts -p ID   # file conflicts -> [{path,scenario,message}]; empty list when none
 bb pr add-reviewer -p ID --account-id ACCOUNT_ID
+bb pr wait-checks -p ID [--appear-timeout 600] [--events] [--interval 10] [--timeout 0]
+bb pr wait-comments -p ID [--author-id ACCOUNT_ID] [--author-contains TEXT] [--since ID|RFC3339] [--settle 0] [--events] [--interval 15] [--timeout 0]
 ```
 
 # every command infers --workspace/--repo from the git origin of cwd (bitbucket.org or ssh.bitbucket.org only) when not passed explicitly, OVERRIDING a differing ~/.bbcloud.yaml default (an explicit flag still wins over both); pr create additionally infers --from-branch from the current branch when omitted; notes go to stderr.
@@ -172,7 +174,7 @@ bb pipeline trigger (-b BRANCH | --tag TAG | --commit SHA) [--custom NAME] [--va
 bb pipeline stop (-u UUID | -n BUILD)
 bb pipeline steps (-u UUID | -n BUILD)
 bb pipeline log (-u UUID | -n BUILD) --step-uuid UUID
-bb pipeline watch [-n BUILD | -u UUID | -b BRANCH] [--tail-log] [--interval 5] [--timeout 0]
+bb pipeline watch [-n BUILD | -u UUID | -b BRANCH | --commit SHA] [--start-timeout 300] [--events] [--tail-log] [--interval 5] [--timeout 0]
 bb pipeline test-report (-u UUID | -n BUILD) [--step-uuid UUID]
 bb pipeline test-cases (-u UUID | -n BUILD) [--step-uuid UUID] [--failed] [--reasons]
 ```
@@ -188,7 +190,25 @@ within the fetched page (newest 25), so an older run may not appear.
 codes: 0 success, 1 failed, 2 blocked on a manual gate (result has `manual_gate`
 with resume URL), 3 timeout, 130 interrupted (Ctrl-C). No selector watches the
 latest pipeline. Progress and `--tail-log` go to stderr; stdout carries only the
-final result.
+final result. `--commit SHA` (7+ hex) watches the newest pipeline that commit
+triggered (e.g. a merge), waiting up to --start-timeout s for it to appear.
+Steps carry `manual: true` when they wait for a manual trigger.
+
+WAITING: to wait on a pipeline, PR build checks, or PR comments, use
+`bb pipeline watch`, `bb pr wait-checks`, or `bb pr wait-comments`. Do NOT write
+polling loops. Add `--events` for one stdout line per change plus a final line
+(feed it to a line monitor):
+  pipeline watch:   step=NAME state=S [stage=..] [result=..] [manual=true]
+                    pipeline=N outcome=success|failed|blocked|timeout [gate=STEP] url=URL
+                    exit 0 success, 1 failed, 2 manual gate, 3 timeout
+  pr wait-checks:   check=NAME state=S ... then pr=ID outcome=success|failed|timeout|none
+                    exit 0 all green, 1 any failed/stopped, 3 timeout, 4 no status within --appear-timeout
+  pr wait-comments: comment=ID author=NAME [parent=ID] [path=FILE] ... then pr=ID outcome=found|timeout count=N
+                    exit 0 found, 3 timeout; default = only comments posted after start;
+                    --since ID (0 = any) | RFC3339; --author-id ACCOUNT_ID (exact, spoof-proof,
+                    prefer for automation) | --author-contains (case-insensitive substring);
+                    --settle N waits until no new match for N s
+Values with spaces are quoted. All exit 130 on Ctrl-C.
 `pipeline trigger` needs exactly one of --branch/--tag/--commit. --custom NAME
 runs a named custom pipeline (also how you target a deployment environment).
 --var K=V sets per-run variables (repeatable, unsecured).

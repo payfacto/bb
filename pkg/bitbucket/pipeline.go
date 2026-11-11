@@ -5,12 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 )
 
 // Pipeline and step state/stage names as reported by the Bitbucket Pipelines
 // API. Hoisted to consts so the state vocabulary is defined once and shared by
-// classifyPipelineState, firstIncompleteStep, and the cmd-layer step helpers,
+// classifyPipelineState, gateStepName, and the cmd-layer step helpers,
 // preventing typos and drift across call sites.
 const (
 	StateInProgress  = "IN_PROGRESS"
@@ -122,22 +123,29 @@ func classifyPipelineState(p Pipeline, steps []PipelineStep) (status PipelineWat
 		if p.State.Stage != nil {
 			switch p.State.Stage.Name {
 			case stagePaused, stageHalted:
-				return WatchBlocked, firstIncompleteStep(steps), true
+				return WatchBlocked, gateStepName(steps), true
 			}
 		}
 	}
 	return "", "", false
 }
 
-// firstIncompleteStep returns the name of the first step not yet COMPLETED, or
-// "" when every step is complete or there are none.
-func firstIncompleteStep(steps []PipelineStep) string {
+// gateStepName names the step a paused pipeline waits on: the first incomplete
+// manual step, else the first incomplete step, else "" when all are complete.
+func gateStepName(steps []PipelineStep) string {
+	firstIncomplete := ""
 	for _, s := range steps {
-		if s.State.Name != stateCompleted {
+		if s.State.Name == stateCompleted {
+			continue
+		}
+		if s.Manual {
 			return s.Name
 		}
+		if firstIncomplete == "" {
+			firstIncomplete = s.Name
+		}
 	}
-	return ""
+	return firstIncomplete
 }
 
 // Latest returns the most recent pipeline in the repository, or the most recent
@@ -150,9 +158,67 @@ func firstIncompleteStep(steps []PipelineStep) string {
 // pipeline (first item of the first page) is returned without a full scan.
 // It returns ErrNoPipelines (wrapped with branch context) when nothing matches.
 func (r *PipelineResource) Latest(ctx context.Context, branch string) (Pipeline, error) {
+	p, err := r.findNewest(ctx, unlimitedPages, func(p Pipeline) bool {
+		return branch == "" || p.Target.BranchName() == branch
+	})
+	if errors.Is(err, ErrNoPipelines) && branch != "" {
+		return Pipeline{}, fmt.Errorf("%w for branch %q", err, branch)
+	}
+	return p, err
+}
+
+// commitScanPages bounds FindByCommit's newest-first scan. The pipeline a
+// commit triggered is almost always recent; 4 pages is 100 pipelines.
+const commitScanPages = 4
+
+// unlimitedPages makes findNewest follow every "next" link.
+const unlimitedPages = 0
+
+// FindByCommit returns the newest pipeline whose target commit hash starts with
+// sha (case-insensitive, so a short SHA works). It scans the newest pipelines
+// only (commitScanPages) and returns ErrNoPipelines when none matches.
+func (r *PipelineResource) FindByCommit(ctx context.Context, sha string) (Pipeline, error) {
+	prefix := strings.ToLower(sha)
+	p, err := r.findNewest(ctx, commitScanPages, func(p Pipeline) bool {
+		return p.Target.Commit != nil && strings.HasPrefix(strings.ToLower(p.Target.Commit.Hash), prefix)
+	})
+	if errors.Is(err, ErrNoPipelines) {
+		return Pipeline{}, fmt.Errorf("%w for commit %q", err, sha)
+	}
+	return p, err
+}
+
+// AwaitCommit polls FindByCommit every interval until the commit's pipeline
+// exists - right after a merge it can take a while to be created - or until
+// wait elapses, in which case it returns ErrNoPipelines. A wait <= 0 looks once.
+func (r *PipelineResource) AwaitCommit(ctx context.Context, sha string, interval, wait time.Duration) (Pipeline, error) {
+	if wait <= 0 {
+		return r.FindByCommit(ctx, sha)
+	}
+	ctx, cancel := context.WithTimeout(ctx, wait)
+	defer cancel()
+	var found Pipeline
+	err := pollUntil(ctx, interval, func(ctx context.Context) (bool, error) {
+		p, err := r.FindByCommit(ctx, sha)
+		if errors.Is(err, ErrNoPipelines) {
+			return false, nil
+		}
+		found = p
+		return err == nil, err
+	})
+	if errors.Is(err, context.DeadlineExceeded) {
+		return Pipeline{}, fmt.Errorf("%w for commit %q after waiting %s", ErrNoPipelines, sha, wait)
+	}
+	return found, err
+}
+
+// findNewest scans the -created_on (newest-first) pipeline list one page at a
+// time and returns the first pipeline match accepts. maxPages bounds the scan
+// (unlimitedPages = follow every page). It returns ErrNoPipelines on no match.
+func (r *PipelineResource) findNewest(ctx context.Context, maxPages int, match func(Pipeline) bool) (Pipeline, error) {
 	q := url.Values{"sort": {"-created_on"}, "pagelen": {pagelenSmall}}
 	nextURL := ""
-	for {
+	for pages := 1; ; pages++ {
 		var data []byte
 		var err error
 		if nextURL != "" {
@@ -168,19 +234,15 @@ func (r *PipelineResource) Latest(ctx context.Context, branch string) (Pipeline,
 			return Pipeline{}, err
 		}
 		for _, p := range page.Values {
-			if branch == "" || p.Target.BranchName() == branch {
+			if match(p) {
 				return p, nil
 			}
 		}
-		if page.Next == "" {
-			break
+		if page.Next == "" || pages == maxPages {
+			return Pipeline{}, ErrNoPipelines
 		}
 		nextURL = page.Next
 	}
-	if branch != "" {
-		return Pipeline{}, fmt.Errorf("%w for branch %q", ErrNoPipelines, branch)
-	}
-	return Pipeline{}, ErrNoPipelines
 }
 
 // WatchOptions configures Watch. Interval defaults to 5s when <= 0. Timeout <= 0
@@ -207,11 +269,8 @@ func (r *PipelineResource) Watch(ctx context.Context, pipelineUUID string, opts 
 	if interval <= 0 {
 		interval = 5 * time.Second
 	}
-	if opts.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
-		defer cancel()
-	}
+	ctx, cancel := withOptionalTimeout(ctx, opts.Timeout)
+	defer cancel()
 	// A single ticker drives the poll cadence for the whole watch, rather than a
 	// fresh time.After per iteration (which leaks a timer until it fires).
 	ticker := time.NewTicker(interval)
@@ -233,7 +292,7 @@ func (r *PipelineResource) Watch(ctx context.Context, pipelineUUID string, opts 
 		if status, gateStep, terminal := classifyPipelineState(p, steps); terminal {
 			result := PipelineWatchResult{Pipeline: p, Steps: steps, Status: status}
 			if status == WatchBlocked {
-				result.ManualGate = &ManualGate{Step: gateStep, URL: r.pipelineWebURL(p.BuildNumber)}
+				result.ManualGate = &ManualGate{Step: gateStep, URL: r.WebURL(p.BuildNumber)}
 			}
 			return result, nil
 		}
@@ -257,9 +316,9 @@ func (r *PipelineResource) watchCtxResult(ctx context.Context, last PipelineWatc
 	return PipelineWatchResult{}, err
 }
 
-// pipelineWebURL builds the Bitbucket web URL for a pipeline's result page.
+// WebURL builds the Bitbucket web URL for a pipeline's result page.
 // Workspace/repo are path-escaped for consistency with the API path builders.
-func (r *PipelineResource) pipelineWebURL(buildNumber int) string {
+func (r *PipelineResource) WebURL(buildNumber int) string {
 	return fmt.Sprintf("https://bitbucket.org/%s/%s/pipelines/results/%d",
 		url.PathEscape(r.workspace), url.PathEscape(r.repo), buildNumber)
 }
