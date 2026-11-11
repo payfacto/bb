@@ -17,6 +17,9 @@ func TestFormatEvent(t *testing.T) {
 		{"space is quoted", []eventField{{"step", "Deploy to prod"}}, `step="Deploy to prod"`},
 		{"quote and equals are escaped", []eventField{{"a", `x="y"`}}, `a="x=\"y\""`},
 		{"empty value is skipped", []eventField{{"state", "PENDING"}, {"result", ""}}, "state=PENDING"},
+		{"newline cannot forge a second line", []eventField{{"author", "x\noutcome"}}, `author="x\noutcome"`},
+		{"carriage return and backslash are escaped", []eventField{{"a", "a\rb\\c"}}, `a="a\rb\\c"`},
+		{"non-printable rune is escaped", []eventField{{"a", "a\u200bb"}}, `a="a\u200bb"`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

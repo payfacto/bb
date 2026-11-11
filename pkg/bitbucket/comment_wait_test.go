@@ -132,3 +132,17 @@ func TestComments_WaitFor_AuthorIDIsExact(t *testing.T) {
 		t.Errorf("expected only comment 5, got %+v", got.Comments)
 	}
 }
+
+// TestComments_WaitFor_NewOnlyKeepsCommentsPostedDuringBaseline proves a
+// comment created after the wait started but already present in the first
+// (baseline) response is reported, not silently absorbed into the baseline.
+func TestComments_WaitFor_NewOnlyKeepsCommentsPostedDuringBaseline(t *testing.T) {
+	fresh := comment(8, "Petra", time.Now().Add(2*time.Second).UTC().Format(time.RFC3339Nano))
+	h := commentsHandler(t, func(int32) []bitbucket.Comment {
+		return []bitbucket.Comment{comment(7, "Petra", "2020-01-01T00:00:00Z"), fresh}
+	})
+	got := waitComments(t, h, bitbucket.WaitCommentsOptions{NewOnly: true, Timeout: time.Second})
+	if got.Status != bitbucket.CommentsFound || len(got.Comments) != 1 || got.Comments[0].ID != 8 {
+		t.Errorf("expected comment 8 found, got %s %+v", got.Status, got.Comments)
+	}
+}
