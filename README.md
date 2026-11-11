@@ -191,6 +191,8 @@ bb pr statuses -p ID
 bb pr checks -p ID      # mergeability checks; BLOCKING marks what prevents merging
 bb pr conflicts -p ID   # files conflicting between source and destination
 bb pr add-reviewer -p ID --account-id ACCOUNT_ID
+bb pr wait-checks -p ID [--appear-timeout 600] [--events] [--interval 10] [--timeout 0]
+bb pr wait-comments -p ID [--author-contains TEXT] [--since ID|RFC3339] [--settle 0] [--events] [--interval 15] [--timeout 0]
 ```
 
 Every `bb` command auto-detects `--workspace`/`--repo` from the current
@@ -230,7 +232,7 @@ bb pipeline trigger (-b BRANCH | --tag TAG | --commit SHA) [--custom NAME] [--va
 bb pipeline stop (-u UUID | -n BUILD)
 bb pipeline steps (-u UUID | -n BUILD)
 bb pipeline log (-u UUID | -n BUILD) --step-uuid UUID
-bb pipeline watch [-n BUILD | -u UUID | -b BRANCH] [--tail-log] [--interval 5] [--timeout 0]
+bb pipeline watch [-n BUILD | -u UUID | -b BRANCH | --commit SHA] [--start-timeout 300] [--events] [--tail-log] [--interval 5] [--timeout 0]
 bb pipeline test-report (-u UUID | -n BUILD) [--step-uuid UUID]
 bb pipeline test-cases (-u UUID | -n BUILD) [--step-uuid UUID] [--failed] [--reasons]
 ```
@@ -249,6 +251,40 @@ result carries `manual_gate` with the web URL to resume it), `3` timeout, `130`
 interrupted (Ctrl-C cancels the watch cleanly). This makes `bb pipeline watch -n 42
 && deploy` proceed only on success. Progress and `--tail-log` output go to stderr;
 stdout carries only the final result.
+
+`--commit SHA` (7+ hex characters) watches the newest pipeline that commit
+triggered, such as a merge commit, waiting up to `--start-timeout` seconds for it
+to be created. `pipeline steps` and the watch result mark each step that waits
+for a manual trigger with `"manual": true`, and a blocked watch names the first
+pending manual step as the gate.
+
+### Waiting instead of polling
+
+To wait on a pipeline, PR build checks, or PR comments, use `bb pipeline watch`,
+`bb pr wait-checks`, or `bb pr wait-comments`. Do not write polling loops. With
+`--events`, each command prints one `key=value` line to stdout per state change
+and one final outcome line instead of the JSON result. That suits line-oriented
+tools such as an agent's monitor. Values with spaces are quoted.
+
+```
+$ bb pipeline watch --commit abc1234 --events
+step=build state=COMPLETED result=SUCCESSFUL
+step="Deploy to prod" state=PENDING manual=true
+pipeline=77 outcome=blocked gate="Deploy to prod" url=https://bitbucket.org/ws/repo/pipelines/results/77
+```
+
+| Command | Outcome line | Exit codes |
+|---|---|---|
+| `pipeline watch` | `pipeline=N outcome=success\|failed\|blocked\|timeout [gate=STEP] url=URL` | 0 success, 1 failed, 2 manual gate, 3 timeout |
+| `pr wait-checks` | `pr=ID outcome=success\|failed\|timeout\|none` | 0 all successful, 1 any failed/stopped, 3 timeout, 4 no status appeared within `--appear-timeout` |
+| `pr wait-comments` | `pr=ID outcome=found\|timeout count=N` | 0 found, 3 timeout |
+
+All three exit 130 on Ctrl-C. `pr wait-checks` waits until every build status
+is terminal. `pr wait-comments` counts only comments posted after it starts,
+unless `--since` gives a comment ID (`0` = any) or an RFC3339 time.
+`--author-contains` matches the author's display name or nickname,
+case-insensitively. `--settle N` keeps waiting until no new match has arrived
+for N seconds, so a reviewer's burst of comments comes back together.
 
 `bb pipeline test-report` shows test counts (total, passed, failed, error,
 skipped) for every step, or one step with `--step-uuid`. A step that published
