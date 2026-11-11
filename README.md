@@ -177,7 +177,7 @@ bb pr list --workspace myws --repo myrepo
 
 ```
 bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED] [--source-branch BRANCH] [--sort FIELD] [--since TS] [--until TS] [--draft | --no-draft]
-bb pr get -p ID
+bb pr get -p ID   # source.commit.hash / destination.commit.hash = branch heads (12-char)
 bb pr create --title "..." --from-branch BRANCH --to-branch BRANCH [-d "..." | --description-file PATH] [--close-source-branch] [--draft]
 bb pr update -p ID [-T "..."] [-d "..." | --description-file PATH] [--draft | --ready] [--to-branch BRANCH]   # --to-branch retargets the PR
 bb pr diff -p ID
@@ -287,6 +287,11 @@ case-insensitively. Anyone can edit their display name, so automation that acts
 on a comment should use `--author-id ACCOUNT_ID`, which matches the account ID
 exactly. `--settle N` keeps waiting until no new match has arrived
 for N seconds, so a reviewer's burst of comments comes back together.
+
+Before merging right after a push, confirm the PR head is your push:
+`bb pr get -p ID -f json | jq -r .source.commit.hash` (a 12-character hash)
+must be a prefix of `git rev-parse HEAD`. Bitbucket can briefly report the
+previous head, and `bb pr merge` merges whatever head it reports.
 
 `bb pipeline test-report` shows test counts (total, passed, failed, error,
 skipped) for every step, or one step with `--step-uuid`. A step that published

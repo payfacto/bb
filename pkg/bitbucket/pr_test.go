@@ -725,3 +725,104 @@ func TestPRs_Update_NoDestinationOmitsField(t *testing.T) {
 		t.Errorf("destination must be omitted when not provided, got %v", putBody["destination"])
 	}
 }
+
+// Bitbucket reports PR endpoint commits as 12-character short hashes.
+const (
+	sourceHash        = "abc123def456"
+	destinationHash   = "0123456789ab"
+	prWithCommitsJSON = `{"id":5,` +
+		`"source":{"branch":{"name":"feat/x"},"commit":{"hash":"` + sourceHash + `"}},` +
+		`"destination":{"branch":{"name":"main"},"commit":{"hash":"` + destinationHash + `"}}}`
+)
+
+// assertEndpointHashes fails unless pr carries the hashes in prWithCommitsJSON.
+func assertEndpointHashes(t *testing.T, pr bitbucket.PR) {
+	t.Helper()
+	if pr.Source.Commit == nil || pr.Source.Commit.Hash != sourceHash {
+		t.Errorf("source commit: got %+v, want hash %s", pr.Source.Commit, sourceHash)
+	}
+	if pr.Destination.Commit == nil || pr.Destination.Commit.Hash != destinationHash {
+		t.Errorf("destination commit: got %+v, want hash %s", pr.Destination.Commit, destinationHash)
+	}
+}
+
+func TestPRs_Get_DecodesEndpointCommitHashes(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(prWithCommitsJSON))
+	}))
+	got, err := c.PRs("ws", "repo").Get(context.Background(), 5)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertEndpointHashes(t, got)
+}
+
+func TestPRs_List_DecodesEndpointCommitHashes(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"values":[` + prWithCommitsJSON + `]}`))
+	}))
+	got, err := c.PRs("ws", "repo").List(context.Background(), bitbucket.PRListOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 PR, got %d", len(got))
+	}
+	assertEndpointHashes(t, got[0])
+}
+
+// assertNoEndpointCommit fails when a request-body endpoint carries a
+// "commit" key: NewEndpoint must address a branch only.
+func assertNoEndpointCommit(t *testing.T, body map[string]any, field string) {
+	t.Helper()
+	endpoint, ok := body[field].(map[string]any)
+	if !ok {
+		t.Fatalf("%s: expected an object in request body, got %v", field, body[field])
+	}
+	if _, present := endpoint["commit"]; present {
+		t.Errorf("%s: request body must not send commit, got %v", field, endpoint["commit"])
+	}
+}
+
+func TestPRs_Create_SendsNoEndpointCommit(t *testing.T) {
+	var receivedBody map[string]any
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&receivedBody); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		w.WriteHeader(http.StatusCreated)
+		mustEncodeJSON(t, w, bitbucket.PR{ID: 1})
+	}))
+	input := bitbucket.CreatePRInput{
+		Title:       "t",
+		Source:      bitbucket.NewEndpoint("feature/foo"),
+		Destination: bitbucket.NewEndpoint("main"),
+	}
+	if _, err := c.PRs("ws", "repo").Create(context.Background(), input); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertNoEndpointCommit(t, receivedBody, "source")
+	assertNoEndpointCommit(t, receivedBody, "destination")
+}
+
+func TestPRs_Update_DestinationSendsNoCommit(t *testing.T) {
+	var putBody map[string]any
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			_, _ = w.Write([]byte(prWithCommitsJSON))
+		case http.MethodPut:
+			if err := json.NewDecoder(r.Body).Decode(&putBody); err != nil {
+				t.Fatalf("decode body: %v", err)
+			}
+			mustEncodeJSON(t, w, bitbucket.PR{ID: 7})
+		default:
+			t.Fatalf("unexpected method %s", r.Method)
+		}
+	}))
+	destination := bitbucket.NewEndpoint("release")
+	if _, err := c.PRs("ws", "repo").Update(context.Background(), 7, bitbucket.UpdatePRInput{Destination: &destination}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertNoEndpointCommit(t, putBody, "destination")
+}

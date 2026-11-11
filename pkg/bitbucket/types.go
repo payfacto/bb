@@ -39,10 +39,18 @@ type UpdatePRReviewersInput struct {
 }
 
 // Endpoint is a branch reference used in PR source/destination.
+// Commit is set on responses only (Bitbucket returns a 12-character hash);
+// request bodies built with NewEndpoint leave it nil so no commit is sent.
 type Endpoint struct {
 	Branch struct {
 		Name string `json:"name"`
 	} `json:"branch"`
+	Commit *EndpointCommit `json:"commit,omitempty"`
+}
+
+// EndpointCommit is the commit a PR source or destination branch points at.
+type EndpointCommit struct {
+	Hash string `json:"hash"`
 }
 
 // NewEndpoint builds an Endpoint from a branch name.
