@@ -239,6 +239,30 @@ type PipelineStep struct {
 	State       PipelineState `json:"state"`
 	StartedOn   string        `json:"started_on"`
 	CompletedOn string        `json:"completed_on"`
+	Trigger     *StepTrigger  `json:"trigger,omitempty"`
+	// Manual is derived from Trigger on decode: true when the step only runs
+	// after someone triggers it by hand (a manual deploy gate).
+	Manual bool `json:"manual"`
+}
+
+// StepTriggerManual is the trigger type of a step that waits for a manual run.
+const StepTriggerManual = "pipeline_step_trigger_manual"
+
+// StepTrigger is how a pipeline step starts: automatically or manually.
+type StepTrigger struct {
+	Type string `json:"type"`
+}
+
+// UnmarshalJSON decodes a step and derives Manual from its trigger type.
+func (s *PipelineStep) UnmarshalJSON(data []byte) error {
+	type plain PipelineStep
+	var raw plain
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*s = PipelineStep(raw)
+	s.Manual = s.Trigger != nil && s.Trigger.Type == StepTriggerManual
+	return nil
 }
 
 // PipelineWatchStatus is the terminal outcome reported by `pipeline watch`.

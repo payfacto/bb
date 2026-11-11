@@ -10,7 +10,7 @@ import (
 
 // Pipeline and step state/stage names as reported by the Bitbucket Pipelines
 // API. Hoisted to consts so the state vocabulary is defined once and shared by
-// classifyPipelineState, firstIncompleteStep, and the cmd-layer step helpers,
+// classifyPipelineState, gateStepName, and the cmd-layer step helpers,
 // preventing typos and drift across call sites.
 const (
 	StateInProgress  = "IN_PROGRESS"
@@ -122,22 +122,29 @@ func classifyPipelineState(p Pipeline, steps []PipelineStep) (status PipelineWat
 		if p.State.Stage != nil {
 			switch p.State.Stage.Name {
 			case stagePaused, stageHalted:
-				return WatchBlocked, firstIncompleteStep(steps), true
+				return WatchBlocked, gateStepName(steps), true
 			}
 		}
 	}
 	return "", "", false
 }
 
-// firstIncompleteStep returns the name of the first step not yet COMPLETED, or
-// "" when every step is complete or there are none.
-func firstIncompleteStep(steps []PipelineStep) string {
+// gateStepName names the step a paused pipeline waits on: the first incomplete
+// manual step, else the first incomplete step, else "" when all are complete.
+func gateStepName(steps []PipelineStep) string {
+	firstIncomplete := ""
 	for _, s := range steps {
-		if s.State.Name != stateCompleted {
+		if s.State.Name == stateCompleted {
+			continue
+		}
+		if s.Manual {
 			return s.Name
 		}
+		if firstIncomplete == "" {
+			firstIncomplete = s.Name
+		}
 	}
-	return ""
+	return firstIncomplete
 }
 
 // Latest returns the most recent pipeline in the repository, or the most recent

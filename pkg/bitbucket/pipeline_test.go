@@ -632,3 +632,55 @@ func TestPipelines_Latest_Branch_MatchesPRSourceBranch(t *testing.T) {
 		t.Errorf("want PR run build 31 (pr 14), got build %d pr %d", got.BuildNumber, got.PRID)
 	}
 }
+
+// TestPipelineStep_ManualFromTrigger proves a step's manual flag is derived from
+// the API's trigger.type, so callers never have to guess a gate from PENDING.
+func TestPipelineStep_ManualFromTrigger(t *testing.T) {
+	body := `{"values":[
+		{"uuid":"{s1}","name":"build","state":{"name":"COMPLETED"},"trigger":{"type":"pipeline_step_trigger_automatic"}},
+		{"uuid":"{s2}","name":"Deploy to prod","state":{"name":"PENDING"},"trigger":{"type":"pipeline_step_trigger_manual"}},
+		{"uuid":"{s3}","name":"no trigger","state":{"name":"PENDING"}}
+	]}`
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(body))
+	}))
+	steps, err := client.Pipelines("testws", "testrepo").Steps(context.Background(), "{p1}")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []bool{false, true, false}
+	for i, s := range steps {
+		if s.Manual != want[i] {
+			t.Errorf("step %q manual = %v, want %v", s.Name, s.Manual, want[i])
+		}
+	}
+	out, err := json.Marshal(steps[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out), `"manual":true`) {
+		t.Errorf("expected manual:true in step JSON, got %s", out)
+	}
+}
+
+// TestPipelines_Watch_BlockedGatePrefersManualStep proves the reported gate is
+// the first incomplete manual step, not merely the first incomplete step.
+func TestPipelines_Watch_BlockedGatePrefersManualStep(t *testing.T) {
+	steps := []bitbucket.PipelineStep{
+		{Name: "build", State: bitbucket.PipelineState{Name: "COMPLETED"}},
+		{Name: "notify", State: bitbucket.PipelineState{Name: "PENDING"}},
+		{Name: "Deploy to prod", State: bitbucket.PipelineState{Name: "PENDING"},
+			Trigger: &bitbucket.StepTrigger{Type: bitbucket.StepTriggerManual}},
+	}
+	handler := watchPipelineHandler(t, 9, steps, func(poll int32) bitbucket.PipelineState {
+		return bitbucket.PipelineState{Name: "IN_PROGRESS", Stage: &bitbucket.PipelineStage{Name: "PAUSED"}}
+	})
+	client := newTestClient(t, handler)
+	res, err := client.Pipelines("testws", "testrepo").Watch(context.Background(), "{p1}", bitbucket.WatchOptions{Interval: time.Millisecond})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.ManualGate == nil || res.ManualGate.Step != "Deploy to prod" {
+		t.Errorf("expected gate step 'Deploy to prod', got %+v", res.ManualGate)
+	}
+}
