@@ -2128,6 +2128,11 @@
           "required": false
         },
         {
+          "name": "commit",
+          "type": "string",
+          "required": false
+        },
+        {
           "name": "config",
           "type": "string",
           "required": false
@@ -2158,6 +2163,11 @@
           "name": "repo",
           "short": "r",
           "type": "string",
+          "required": false
+        },
+        {
+          "name": "start-timeout",
+          "type": "int",
           "required": false
         },
         {

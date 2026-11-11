@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -682,5 +683,74 @@ func TestPipelines_Watch_BlockedGatePrefersManualStep(t *testing.T) {
 	}
 	if res.ManualGate == nil || res.ManualGate.Step != "Deploy to prod" {
 		t.Errorf("expected gate step 'Deploy to prod', got %+v", res.ManualGate)
+	}
+}
+
+func commitPipeline(build int, hash string) bitbucket.Pipeline {
+	return bitbucket.Pipeline{UUID: fmt.Sprintf("{p%d}", build), BuildNumber: build,
+		Target: bitbucket.PipelineTarget{RefName: "main", Commit: &bitbucket.PipelineCommit{Hash: hash}}}
+}
+
+// TestPipelines_FindByCommit_PrefixAcrossPages proves a short SHA matches the
+// newest pipeline whose commit hash starts with it, following pagination.
+func TestPipelines_FindByCommit_PrefixAcrossPages(t *testing.T) {
+	var srvURL string
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("page") == "2" {
+			mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.Pipeline{commitPipeline(40, "abcdef1234567890")}})
+			return
+		}
+		srvURL = "http://" + r.Host
+		mustEncodeJSON(t, w, map[string]any{
+			"values": []bitbucket.Pipeline{commitPipeline(42, "1111111"), commitPipeline(41, "2222222")},
+			"next":   srvURL + r.URL.Path + "?page=2",
+		})
+	}))
+	got, err := client.Pipelines("testws", "testrepo").FindByCommit(context.Background(), "ABCDEF1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.BuildNumber != 40 {
+		t.Errorf("expected build 40, got %d", got.BuildNumber)
+	}
+}
+
+func TestPipelines_FindByCommit_NotFound(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.Pipeline{commitPipeline(1, "1111111")}})
+	}))
+	_, err := client.Pipelines("testws", "testrepo").FindByCommit(context.Background(), "abcdef1")
+	if !errors.Is(err, bitbucket.ErrNoPipelines) {
+		t.Errorf("expected ErrNoPipelines, got %v", err)
+	}
+}
+
+// TestPipelines_AwaitCommit_AppearsLater proves AwaitCommit keeps polling until
+// the merge's pipeline shows up, instead of failing on the first empty list.
+func TestPipelines_AwaitCommit_AppearsLater(t *testing.T) {
+	var polls atomic.Int32
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if polls.Add(1) < 3 {
+			mustEncodeJSON(t, w, map[string]any{"values": []any{}})
+			return
+		}
+		mustEncodeJSON(t, w, map[string]any{"values": []bitbucket.Pipeline{commitPipeline(7, "abcdef1234")}})
+	}))
+	got, err := client.Pipelines("testws", "testrepo").AwaitCommit(context.Background(), "abcdef1", time.Millisecond, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.BuildNumber != 7 {
+		t.Errorf("expected build 7, got %d", got.BuildNumber)
+	}
+}
+
+func TestPipelines_AwaitCommit_GivesUp(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mustEncodeJSON(t, w, map[string]any{"values": []any{}})
+	}))
+	_, err := client.Pipelines("testws", "testrepo").AwaitCommit(context.Background(), "abcdef1", time.Millisecond, 20*time.Millisecond)
+	if !errors.Is(err, bitbucket.ErrNoPipelines) {
+		t.Errorf("expected ErrNoPipelines after giving up, got %v", err)
 	}
 }

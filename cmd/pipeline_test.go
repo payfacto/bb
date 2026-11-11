@@ -230,3 +230,26 @@ func TestSelectSteps(t *testing.T) {
 		t.Fatalf("unknown step must be a not_found CLIError, got %v", err)
 	}
 }
+
+func TestValidateWatchSelector_Commit(t *testing.T) {
+	tests := []struct {
+		name    string
+		sel     pipelineSelector
+		wantErr bool
+	}{
+		{name: "short sha", sel: pipelineSelector{commit: "abc1234"}},
+		{name: "full sha", sel: pipelineSelector{commit: "abc1234def5678abc1234def5678abc1234def56"}},
+		{name: "too short", sel: pipelineSelector{commit: "abc12"}, wantErr: true},
+		{name: "not hex", sel: pipelineSelector{commit: "main-branch"}, wantErr: true},
+		{name: "commit and build", sel: pipelineSelector{commit: "abc1234", build: 5}, wantErr: true},
+		{name: "commit and branch", sel: pipelineSelector{commit: "abc1234", branch: "main"}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.sel.validateWatchSelector()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateWatchSelector() err = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

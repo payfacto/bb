@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"regexp"
 	"strings"
 	"time"
 
@@ -22,13 +23,21 @@ var pipelineCmd = &cobra.Command{
 }
 
 // pipelineSelector identifies a pipeline by its UUID, its integer build number,
-// or (watch only) its branch. get/stop/steps/log require exactly one of
-// uuid/build; watch allows at most one of uuid/build/branch (none = latest).
+// or (watch only) its branch or commit. get/stop/steps/log require exactly one
+// of uuid/build; watch allows at most one of uuid/build/branch/commit (none =
+// latest).
 type pipelineSelector struct {
 	uuid   string
 	build  int
 	branch string
+	commit string
 }
+
+// minCommitPrefix is the shortest commit SHA prefix --commit accepts, matching
+// git's default abbreviation so a prefix is very unlikely to be ambiguous.
+const minCommitPrefix = 7
+
+var hexSHA = regexp.MustCompile(`^[0-9a-fA-F]+$`)
 
 // validate enforces that exactly one of the UUID / build-number selectors is
 // set. A build number counts as "set" when it is > 0: Bitbucket build numbers
@@ -77,29 +86,31 @@ func (s pipelineSelector) resolveUUID(ctx context.Context, res *bitbucket.Pipeli
 	return p.UUID, nil
 }
 
-// validateWatchSelector allows at most one of uuid/build/branch. When none is
+// validateWatchSelector allows at most one of uuid/build/branch/commit, and a
+// commit must be a hex SHA of at least minCommitPrefix characters. When none is
 // set, watch targets the most recent pipeline in the repository.
 func (s pipelineSelector) validateWatchSelector() error {
 	set := 0
-	if s.uuid != "" {
-		set++
-	}
-	if s.build > 0 {
-		set++
-	}
-	if s.branch != "" {
-		set++
+	for _, isSet := range []bool{s.uuid != "", s.build > 0, s.branch != "", s.commit != ""} {
+		if isSet {
+			set++
+		}
 	}
 	if set > 1 {
 		return newCLIError(ErrCodeValidationFailed,
-			"--pipeline-uuid, --build-number, and --branch are mutually exclusive", nil)
+			"--pipeline-uuid, --build-number, --branch, and --commit are mutually exclusive", nil)
+	}
+	if s.commit != "" && (len(s.commit) < minCommitPrefix || !hexSHA.MatchString(s.commit)) {
+		return newCLIError(ErrCodeValidationFailed,
+			fmt.Sprintf("--commit must be a hex commit SHA of at least %d characters", minCommitPrefix), nil)
 	}
 	return nil
 }
 
 // resolveWatchPipeline picks the pipeline to watch: build/uuid address one
-// directly, otherwise the latest pipeline (on branch, if set; repo-wide if not).
-func (s pipelineSelector) resolveWatchPipeline(ctx context.Context, res *bitbucket.PipelineResource) (bitbucket.Pipeline, error) {
+// directly, a commit waits up to startWait for its pipeline to appear, otherwise
+// the latest pipeline (on branch, if set; repo-wide if not).
+func (s pipelineSelector) resolveWatchPipeline(ctx context.Context, res *bitbucket.PipelineResource, interval, startWait time.Duration) (bitbucket.Pipeline, error) {
 	if err := s.validateWatchSelector(); err != nil {
 		return bitbucket.Pipeline{}, err
 	}
@@ -108,6 +119,8 @@ func (s pipelineSelector) resolveWatchPipeline(ctx context.Context, res *bitbuck
 		return res.GetByBuildNumber(ctx, s.build)
 	case s.uuid != "":
 		return res.Get(ctx, s.uuid)
+	case s.commit != "":
+		return res.AwaitCommit(ctx, s.commit, interval, startWait)
 	default:
 		return res.Latest(ctx, s.branch)
 	}
@@ -505,14 +518,19 @@ var (
 	pipelineWatchInterval int
 	pipelineWatchTimeout  int
 	pipelineWatchEvents   bool
+	pipelineWatchCommit   string
+	pipelineWatchStart    int
 )
 
 var pipelineWatchCmd = &cobra.Command{
 	Use:   "watch",
 	Short: "Watch a pipeline until it reaches a terminal state",
 	Long: "Watch a pipeline until it reaches a terminal state.\n\n" +
-		"At most one of --pipeline-uuid/-u, --build-number/-n, or --branch/-b may " +
-		"be set; with none, watch targets the latest pipeline in the repository.\n\n" +
+		"At most one of --pipeline-uuid/-u, --build-number/-n, --branch/-b, or " +
+		"--commit may be set; with none, watch targets the latest pipeline in the " +
+		"repository. --commit SHA (7+ hex chars) watches the newest pipeline that " +
+		"commit triggered, e.g. a merge commit, waiting up to --start-timeout for it " +
+		"to appear.\n\n" +
 		"Exit codes: 0 success, 1 failed, 2 blocked on a manual gate, 3 timeout, " +
 		"130 interrupted.\n\n" +
 		"With --events, stdout carries one line per step state change " +
@@ -531,8 +549,10 @@ var pipelineWatchCmd = &cobra.Command{
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
 		res := client.Pipelines(ws, repo)
-		sel := pipelineSelector{uuid: pipelineWatchUUID, build: pipelineWatchBuild, branch: pipelineWatchBranch}
-		target, err := sel.resolveWatchPipeline(ctx, res)
+		sel := pipelineSelector{uuid: pipelineWatchUUID, build: pipelineWatchBuild,
+			branch: pipelineWatchBranch, commit: pipelineWatchCommit}
+		interval := time.Duration(pipelineWatchInterval) * time.Second
+		target, err := sel.resolveWatchPipeline(ctx, res, interval, time.Duration(pipelineWatchStart)*time.Second)
 		if err != nil {
 			return watchErr(err)
 		}
@@ -541,7 +561,7 @@ var pipelineWatchCmd = &cobra.Command{
 			onPoll = withStepEvents(onPoll, newStepEvents(os.Stdout))
 		}
 		result, err := res.Watch(ctx, target.UUID, bitbucket.WatchOptions{
-			Interval: time.Duration(pipelineWatchInterval) * time.Second,
+			Interval: interval,
 			Timeout:  time.Duration(pipelineWatchTimeout) * time.Second,
 			OnPoll:   onPoll,
 		})
@@ -656,6 +676,8 @@ func init() {
 		"stream the running step's log to stderr while polling; re-fetches the active step's log each poll (best-effort, can be expensive on long, chatty steps)")
 	pipelineWatchCmd.Flags().IntVar(&pipelineWatchInterval, "interval", 5, "seconds between polls")
 	pipelineWatchCmd.Flags().IntVar(&pipelineWatchTimeout, "timeout", 0, "seconds before giving up (0 = no timeout)")
+	pipelineWatchCmd.Flags().StringVar(&pipelineWatchCommit, "commit", "", "watch the newest pipeline triggered by this commit SHA (7+ hex chars)")
+	pipelineWatchCmd.Flags().IntVar(&pipelineWatchStart, "start-timeout", 300, "with --commit, seconds to wait for the pipeline to appear")
 	pipelineWatchCmd.Flags().BoolVar(&pipelineWatchEvents, "events", false,
 		"print one stdout line per step state change and a final outcome line instead of the JSON result")
 
