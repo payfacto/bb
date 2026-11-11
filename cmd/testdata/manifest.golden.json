@@ -2133,6 +2133,11 @@
           "required": false
         },
         {
+          "name": "events",
+          "type": "bool",
+          "required": false
+        },
+        {
           "name": "format",
           "short": "f",
           "type": "string",

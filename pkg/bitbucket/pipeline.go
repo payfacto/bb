@@ -240,7 +240,7 @@ func (r *PipelineResource) Watch(ctx context.Context, pipelineUUID string, opts 
 		if status, gateStep, terminal := classifyPipelineState(p, steps); terminal {
 			result := PipelineWatchResult{Pipeline: p, Steps: steps, Status: status}
 			if status == WatchBlocked {
-				result.ManualGate = &ManualGate{Step: gateStep, URL: r.pipelineWebURL(p.BuildNumber)}
+				result.ManualGate = &ManualGate{Step: gateStep, URL: r.WebURL(p.BuildNumber)}
 			}
 			return result, nil
 		}
@@ -264,9 +264,9 @@ func (r *PipelineResource) watchCtxResult(ctx context.Context, last PipelineWatc
 	return PipelineWatchResult{}, err
 }
 
-// pipelineWebURL builds the Bitbucket web URL for a pipeline's result page.
+// WebURL builds the Bitbucket web URL for a pipeline's result page.
 // Workspace/repo are path-escaped for consistency with the API path builders.
-func (r *PipelineResource) pipelineWebURL(buildNumber int) string {
+func (r *PipelineResource) WebURL(buildNumber int) string {
 	return fmt.Sprintf("https://bitbucket.org/%s/%s/pipelines/results/%d",
 		url.PathEscape(r.workspace), url.PathEscape(r.repo), buildNumber)
 }

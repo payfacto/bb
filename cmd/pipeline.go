@@ -504,6 +504,7 @@ var (
 	pipelineWatchTailLog  bool
 	pipelineWatchInterval int
 	pipelineWatchTimeout  int
+	pipelineWatchEvents   bool
 )
 
 var pipelineWatchCmd = &cobra.Command{
@@ -513,7 +514,12 @@ var pipelineWatchCmd = &cobra.Command{
 		"At most one of --pipeline-uuid/-u, --build-number/-n, or --branch/-b may " +
 		"be set; with none, watch targets the latest pipeline in the repository.\n\n" +
 		"Exit codes: 0 success, 1 failed, 2 blocked on a manual gate, 3 timeout, " +
-		"130 interrupted.",
+		"130 interrupted.\n\n" +
+		"With --events, stdout carries one line per step state change " +
+		"(step=NAME state=STATE [stage=..] [result=..] [manual=true]) and a final " +
+		"`pipeline=N outcome=success|failed|blocked|timeout [gate=STEP] url=URL` line " +
+		"instead of the JSON result - suited to line-oriented monitors.\n\n" +
+		waitInsteadOfLoops,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, repo, err := workspaceAndRepo()
 		if err != nil {
@@ -530,15 +536,23 @@ var pipelineWatchCmd = &cobra.Command{
 		if err != nil {
 			return watchErr(err)
 		}
+		onPoll := watchProgress(ctx, res, pipelineWatchTailLog)
+		if pipelineWatchEvents {
+			onPoll = withStepEvents(onPoll, newStepEvents(os.Stdout))
+		}
 		result, err := res.Watch(ctx, target.UUID, bitbucket.WatchOptions{
 			Interval: time.Duration(pipelineWatchInterval) * time.Second,
 			Timeout:  time.Duration(pipelineWatchTimeout) * time.Second,
-			OnPoll:   watchProgress(ctx, res, pipelineWatchTailLog),
+			OnPoll:   onPoll,
 		})
 		if err != nil {
 			return watchErr(err)
 		}
 		exitCode = watchExitCode(result.Status)
+		if pipelineWatchEvents {
+			fmt.Fprintln(os.Stdout, pipelineOutcomeEvent(result, res.WebURL(result.Pipeline.BuildNumber)))
+			return nil
+		}
 		return printOutput(result, func() { render.PipelineWatch(result) })
 	},
 }
@@ -574,6 +588,16 @@ func watchProgress(ctx context.Context, res *bitbucket.PipelineResource, tailLog
 			fmt.Fprint(os.Stderr, log[n:])
 			printed[step.UUID] = len(log)
 		}
+	}
+}
+
+// withStepEvents chains a step-event emitter after an optional poll callback.
+func withStepEvents(next func(bitbucket.Pipeline, []bitbucket.PipelineStep), ev *stepEvents) func(bitbucket.Pipeline, []bitbucket.PipelineStep) {
+	return func(p bitbucket.Pipeline, steps []bitbucket.PipelineStep) {
+		if next != nil {
+			next(p, steps)
+		}
+		ev.poll(steps)
 	}
 }
 
@@ -632,6 +656,8 @@ func init() {
 		"stream the running step's log to stderr while polling; re-fetches the active step's log each poll (best-effort, can be expensive on long, chatty steps)")
 	pipelineWatchCmd.Flags().IntVar(&pipelineWatchInterval, "interval", 5, "seconds between polls")
 	pipelineWatchCmd.Flags().IntVar(&pipelineWatchTimeout, "timeout", 0, "seconds before giving up (0 = no timeout)")
+	pipelineWatchCmd.Flags().BoolVar(&pipelineWatchEvents, "events", false,
+		"print one stdout line per step state change and a final outcome line instead of the JSON result")
 
 	pipelineTestReportCmd.Flags().StringVarP(&pipelineTestReportUUID, "pipeline-uuid", "u", "", "pipeline UUID (alternative to --build-number)")
 	pipelineTestReportCmd.Flags().IntVarP(&pipelineTestReportBuild, "build-number", "n", 0, "pipeline build number (alternative to --pipeline-uuid)")
