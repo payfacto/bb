@@ -126,7 +126,7 @@ bb pr comment reply -p 42 -c 7 --text-file /tmp/reply.md
 
 ```
 bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED] [--source-branch BRANCH] [--sort FIELD] [--since TS] [--until TS] [--draft | --no-draft]
-bb pr get -p ID
+bb pr get -p ID   # source.commit.hash / destination.commit.hash = branch heads (12-char)
 bb pr create -T "..." --from-branch BRANCH --to-branch BRANCH [-d "..." | --description-file PATH] [--close-source-branch] [--draft]
 bb pr update -p ID [-T "..."] [-d "..." | --description-file PATH] [--draft | --ready] [--to-branch BRANCH]   # --to-branch retargets the PR
 bb pr diff -p ID
@@ -145,6 +145,8 @@ bb pr wait-comments -p ID [--author-id ACCOUNT_ID] [--author-contains TEXT] [--s
 ```
 
 # every command infers --workspace/--repo from the git origin of cwd (bitbucket.org or ssh.bitbucket.org only) when not passed explicitly, OVERRIDING a differing ~/.bbcloud.yaml default (an explicit flag still wins over both); pr create additionally infers --from-branch from the current branch when omitted; notes go to stderr.
+
+# before `bb pr merge` right after a push, check the PR head is your push: `bb pr get -p ID -f json | jq -r .source.commit.hash` must be a prefix of `git rev-parse HEAD` (Bitbucket can briefly report the previous head).
 
 ### PR Comments
 

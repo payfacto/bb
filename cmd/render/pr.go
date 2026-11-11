@@ -108,6 +108,10 @@ func PRDetailString(pr bitbucket.PR) string {
 		BranchStyle.Render(pr.Source.Branch.Name),
 		BranchStyle.Render(pr.Destination.Branch.Name),
 	))
+	if pr.Source.Commit != nil || pr.Destination.Commit != nil {
+		sb.WriteString(fmt.Sprintf("%s  %s → %s\n", label("Commit"),
+			endpointHash(pr.Source), endpointHash(pr.Destination)))
+	}
 
 	if pr.Description != "" {
 		sb.WriteString(sep + "\n")
@@ -115,6 +119,15 @@ func PRDetailString(pr bitbucket.PR) string {
 	}
 
 	return sb.String()
+}
+
+// endpointHash returns the commit hash an endpoint points at, or a dash
+// when the API did not report one.
+func endpointHash(e bitbucket.Endpoint) string {
+	if e.Commit == nil || e.Commit.Hash == "" {
+		return "-"
+	}
+	return e.Commit.Hash
 }
 
 // PRDetail prints the formatted PR detail to stdout, paging if the output

@@ -218,3 +218,24 @@ func TestPRDetailString_draftMarker(t *testing.T) {
 		t.Errorf("non-draft PR must not show DRAFT, got:\n%s", ready)
 	}
 }
+
+func TestPRDetailString_showsCommitHashes(t *testing.T) {
+	source := ep("feat/x")
+	source.Commit = &bitbucket.EndpointCommit{Hash: "abc123def456"}
+	destination := ep("main")
+	destination.Commit = &bitbucket.EndpointCommit{Hash: "0123456789ab"}
+	out := render.PRDetailString(bitbucket.PR{ID: 5, Title: "t", Source: source, Destination: destination})
+	if !strings.Contains(out, "abc123def456") {
+		t.Errorf("expected source commit hash in output, got: %q", out)
+	}
+	if !strings.Contains(out, "0123456789ab") {
+		t.Errorf("expected destination commit hash in output, got: %q", out)
+	}
+}
+
+func TestPRDetailString_omitsCommitLineWithoutHashes(t *testing.T) {
+	out := render.PRDetailString(bitbucket.PR{ID: 5, Title: "t", Source: ep("feat/x"), Destination: ep("main")})
+	if strings.Contains(out, "Commit") {
+		t.Errorf("expected no Commit line when hashes are absent, got: %q", out)
+	}
+}
