@@ -5,6 +5,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/payfacto/bb/pkg/bitbucket"
 )
@@ -20,8 +21,8 @@ type eventField struct {
 	value string
 }
 
-// formatEvent renders fields as a logfmt line. Empty values are skipped, and a
-// value containing a space, quote, or '=' is quoted so the line stays parseable.
+// formatEvent renders fields as a single logfmt line. Empty values are skipped
+// and ambiguous values are quoted (see quoteEventValue).
 func formatEvent(fields ...eventField) string {
 	parts := make([]string, 0, len(fields))
 	for _, f := range fields {
@@ -33,11 +34,18 @@ func formatEvent(fields ...eventField) string {
 	return strings.Join(parts, " ")
 }
 
+// quoteEventValue Go-quotes a value that would otherwise be ambiguous: one
+// with a space, quote, '=' or backslash, or any control or non-printable rune.
+// Quoting escapes \n and \r, so API text can never split one event into two.
 func quoteEventValue(v string) string {
-	if strings.ContainsAny(v, " \t\"=") {
+	if strings.IndexFunc(v, needsEventQuoting) >= 0 {
 		return strconv.Quote(v)
 	}
 	return v
+}
+
+func needsEventQuoting(r rune) bool {
+	return r == ' ' || r == '"' || r == '=' || r == '\\' || !unicode.IsPrint(r)
 }
 
 // changeEvents emits a line for an item (a pipeline step, a build check)
