@@ -55,8 +55,8 @@ func (f CommentFilter) matches(c Comment) bool {
 }
 
 // WaitCommentsOptions configures WaitFor. Timeout <= 0 waits indefinitely.
-// NewOnly ignores every comment that already exists when the wait starts (it
-// raises Filter.AfterID to the newest existing comment). Settle > 0 keeps
+// NewOnly ignores every comment created before the wait starts (it
+// raises Filter.AfterID to the newest such comment). Settle > 0 keeps
 // polling after the first match until no new match has arrived for Settle, so
 // a reviewer's burst of comments comes back together.
 type WaitCommentsOptions struct {
@@ -83,6 +83,7 @@ func (r *CommentResource) WaitFor(ctx context.Context, opts WaitCommentsOptions)
 	defer cancel()
 	filter := opts.Filter
 	needBaseline := opts.NewOnly
+	waitStart := time.Now() // captured before the first request (see baselineID)
 	var matched []Comment
 	seen := make(map[int]bool) // IDs of comments already matched
 	var lastNewMatch time.Time
@@ -92,9 +93,8 @@ func (r *CommentResource) WaitFor(ctx context.Context, opts WaitCommentsOptions)
 			return false, err
 		}
 		if needBaseline {
-			filter.AfterID = max(filter.AfterID, newestCommentID(comments))
+			filter.AfterID = max(filter.AfterID, baselineID(comments, waitStart))
 			needBaseline = false
-			return false, nil
 		}
 		matched = filterComments(comments, filter)
 		for _, c := range matched {
@@ -114,9 +114,17 @@ func (r *CommentResource) WaitFor(ctx context.Context, opts WaitCommentsOptions)
 	return CommentsWaitResult{Status: CommentsFound, Comments: matched}, nil
 }
 
-func newestCommentID(comments []Comment) int {
+// baselineID is the newest ID among comments created before the wait started.
+// Comments created after waitStart stay eligible even though they arrived in
+// the first (baseline) response. A comment whose time cannot be parsed counts
+// as pre-existing.
+func baselineID(comments []Comment, waitStart time.Time) int {
 	newest := 0
 	for _, c := range comments {
+		created, err := time.Parse(time.RFC3339Nano, c.CreatedOn)
+		if err == nil && !created.Before(waitStart) {
+			continue
+		}
 		newest = max(newest, c.ID)
 	}
 	return newest
