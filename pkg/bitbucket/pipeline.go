@@ -120,11 +120,8 @@ func classifyPipelineState(p Pipeline, steps []PipelineStep) (status PipelineWat
 		}
 		return WatchFailed, "", true
 	case StateInProgress:
-		if p.State.Stage != nil {
-			switch p.State.Stage.Name {
-			case stagePaused, stageHalted:
-				return WatchBlocked, gateStepName(steps), true
-			}
+		if isGated(p.State) {
+			return WatchBlocked, gateStepName(steps), true
 		}
 	}
 	return "", "", false
@@ -365,10 +362,16 @@ func buildTriggerTarget(opts TriggerOptions) (TriggerTarget, error) {
 	return t, nil
 }
 
-// Stop requests cancellation of a running pipeline.
+// Stop requests cancellation of a pipeline, including its pending steps.
+//
+// includePendingSteps=true is what the Bitbucket web UI sends for "Close". Without
+// it the API answers 204 but leaves a pipeline paused on a manual step untouched,
+// because that step is pending rather than running. Stop is asynchronous: the
+// pipeline reaches COMPLETED/STOPPED some seconds later (see StopAndConfirm).
 func (r *PipelineResource) Stop(ctx context.Context, pipelineUUID string) error {
 	path := fmt.Sprintf("%s%s/stopPipeline", r.basePath(), url.PathEscape(pipelineUUID))
-	_, err := r.client.do(ctx, "POST", path, nil, nil)
+	q := url.Values{"includePendingSteps": {"true"}}
+	_, err := r.client.do(ctx, "POST", path, nil, q)
 	return err
 }
 

@@ -469,6 +469,11 @@ func TestPipelines_Stop(t *testing.T) {
 		if !strings.HasSuffix(r.URL.Path, "/stopPipeline") {
 			t.Errorf("expected path to end with /stopPipeline, got %s", r.URL.Path)
 		}
+		// Without includePendingSteps=true Bitbucket accepts the stop (204) but
+		// leaves a pipeline paused on a manual step untouched.
+		if got := r.URL.Query().Get("includePendingSteps"); got != "true" {
+			t.Errorf("includePendingSteps = %q, want \"true\"", got)
+		}
 		stopped = true
 		w.WriteHeader(http.StatusNoContent)
 	}))

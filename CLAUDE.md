@@ -156,6 +156,7 @@ client.Comments(workspace, repo, prID).Add(ctx, input)
 client.Comments(workspace, repo, prID).WaitFor(ctx, bitbucket.WaitCommentsOptions{Filter, NewOnly, Settle, Interval, Timeout})
 client.PRs(workspace, repo).WaitChecks(ctx, prID, bitbucket.WaitChecksOptions{Interval, Timeout, AppearTimeout, OnPoll})
 client.Pipelines(workspace, repo).AwaitCommit(ctx, sha, interval, wait) // FindByCommit = one bounded scan
+client.Pipelines(workspace, repo).StopAndConfirm(ctx, uuid, bitbucket.StopOptions{Interval, Timeout}) // Stop sends includePendingSteps=true
 client.Comments(workspace, repo, prID).Resolve(ctx, commentID)   // Reopen(ctx, commentID) undoes it; Comment.Resolution is nil when open
 client.PRs(workspace, repo).RequestChanges(ctx, prID)             // WithdrawRequestChanges(ctx, prID) undoes it
 client.Tasks(workspace, repo, prID).SetState(ctx, taskID, resolved)
