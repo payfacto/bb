@@ -229,7 +229,10 @@ bb pr task reopen -p ID --task-id ID
 bb pipeline list [--branch BRANCH] [--sort FIELD]
 bb pipeline get (-u UUID | -n BUILD)
 bb pipeline trigger (-b BRANCH | --tag TAG | --commit SHA) [--custom NAME] [--var K=V ...]
-bb pipeline stop (-u UUID | -n BUILD)
+bb pipeline stop (-u UUID | -n BUILD) [--wait 30s]
+                    also closes a pipeline paused on a manual step; result "stopped" only
+                    once Bitbucket shows it COMPLETED, else "stop_requested"; still paused
+                    or already completed = conflict error
 bb pipeline steps (-u UUID | -n BUILD)
 bb pipeline log (-u UUID | -n BUILD) --step-uuid UUID
 bb pipeline watch [-n BUILD | -u UUID | -b BRANCH | --commit SHA] [--start-timeout 300] [--events] [--tail-log] [--interval 5] [--timeout 0]

@@ -87,6 +87,8 @@ func mapError(err error) *CLIError {
 	case errors.Is(err, bitbucket.ErrNoPipelines):
 		// A domain "not found" (no matching pipeline): render like a real 404.
 		return &CLIError{Code: ErrCodeNotFound, Message: err.Error(), cause: err}
+	case errors.Is(err, bitbucket.ErrPipelineAlreadyCompleted):
+		return &CLIError{Code: ErrCodeConflict, Message: err.Error(), cause: err}
 	}
 
 	// Cobra's required-flag check returns a plain *errors.errorString; pattern

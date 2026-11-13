@@ -20,6 +20,7 @@ func TestMapError_Sentinels(t *testing.T) {
 		{"repo", fmt.Errorf("%w — hint", config.ErrNoRepo), ErrCodeConfigMissing},
 		{"username", fmt.Errorf("%w — hint", config.ErrNoUsername), ErrCodeConfigMissing},
 		{"credentials", fmt.Errorf("%w — hint", config.ErrNoCredentials), ErrCodeAuthFailed},
+		{"pipeline already completed", fmt.Errorf("%w (result SUCCESSFUL)", bitbucket.ErrPipelineAlreadyCompleted), ErrCodeConflict},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

@@ -313,13 +313,18 @@ func parseTriggerVars(pairs []string) ([]bitbucket.TriggerVariable, error) {
 var (
 	pipelineStopUUID  string
 	pipelineStopBuild int
+	pipelineStopWait  time.Duration
 )
 
 var pipelineStopCmd = &cobra.Command{
 	Use:   "stop",
-	Short: "Stop a running pipeline",
-	Long: "Stop a running pipeline.\n\n" +
-		"Exactly one of --pipeline-uuid/-u or --build-number/-n is required.",
+	Short: "Stop a pipeline, including a pipeline paused on a manual step",
+	Long: "Stop a pipeline and its pending steps (the web UI's Close), then re-read its\n" +
+		"state until it completes or --wait passes.\n\n" +
+		"Exactly one of --pipeline-uuid/-u or --build-number/-n is required.\n" +
+		"result is \"stopped\" once Bitbucket shows the pipeline COMPLETED, or\n" +
+		"\"stop_requested\" when it is still winding down (or --wait 0). A pipeline\n" +
+		"that has already completed, or is still paused after --wait, is a conflict error.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, repo, err := workspaceAndRepo()
 		if err != nil {
@@ -332,13 +337,43 @@ var pipelineStopCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := res.Stop(ctx, uuid); err != nil {
+		opts := bitbucket.StopOptions{Interval: stopPollInterval, Timeout: pipelineStopWait}
+		result, err := res.StopAndConfirm(ctx, uuid, opts)
+		if err != nil {
 			return err
 		}
-		return printOutput(map[string]string{"result": "stopped", "uuid": uuid}, func() {
-			fmt.Printf("Pipeline %s stopped.\n", uuid)
+		if err := stopOutcomeError(result, res.WebURL(result.BuildNumber)); err != nil {
+			return err
+		}
+		if result.Result == bitbucket.StopRequested {
+			fmt.Fprintln(os.Stderr, "note: stop accepted; completion not confirmed (re-check with: bb pipeline get)")
+		}
+		return printOutput(result, func() {
+			fmt.Printf("Pipeline #%d %s (%s).\n", result.BuildNumber, result.Result, result.State.Name)
 		})
 	},
+}
+
+const (
+	// stopPollInterval is how often pipeline stop re-reads the pipeline state.
+	stopPollInterval = 3 * time.Second
+	// defaultStopWait bounds how long pipeline stop waits for COMPLETED.
+	defaultStopWait = 30 * time.Second
+)
+
+// stopOutcomeError turns a stop that had no visible effect into a conflict
+// error that links to the pipeline page, where it can be closed by hand.
+// Confirmed and merely requested stops are not errors.
+func stopOutcomeError(result bitbucket.StopResult, webURL string) error {
+	if result.Result != bitbucket.StopStillPaused {
+		return nil
+	}
+	return &CLIError{
+		Code: ErrCodeConflict,
+		Message: "Bitbucket accepted the stop but the pipeline is still paused; close it in the UI: " +
+			webURL,
+		Details: map[string]any{"result": result.Result, "uuid": result.UUID, "url": webURL},
+	}
 }
 
 var (
@@ -659,6 +694,7 @@ func init() {
 
 	pipelineStopCmd.Flags().StringVarP(&pipelineStopUUID, "pipeline-uuid", "u", "", "pipeline UUID (alternative to --build-number)")
 	pipelineStopCmd.Flags().IntVarP(&pipelineStopBuild, "build-number", "n", 0, "pipeline build number (alternative to --pipeline-uuid)")
+	pipelineStopCmd.Flags().DurationVar(&pipelineStopWait, "wait", defaultStopWait, "how long to wait for the pipeline to complete (0 = do not wait)")
 
 	pipelineStepsCmd.Flags().StringVarP(&pipelineStepsUUID, "pipeline-uuid", "u", "", "pipeline UUID (alternative to --build-number)")
 	pipelineStepsCmd.Flags().IntVarP(&pipelineStepsBuild, "build-number", "n", 0, "pipeline build number (alternative to --pipeline-uuid)")

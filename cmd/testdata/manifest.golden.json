@@ -1901,13 +1901,18 @@
           "required": false
         },
         {
+          "name": "wait",
+          "type": "duration",
+          "required": false
+        },
+        {
           "name": "workspace",
           "short": "w",
           "type": "string",
           "required": false
         }
       ],
-      "output_type": "ResultMap"
+      "output_type": "StopResult"
     },
     {
       "path": [
