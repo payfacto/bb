@@ -346,7 +346,7 @@ var pipelineStopCmd = &cobra.Command{
 			return err
 		}
 		if result.Result == bitbucket.StopRequested {
-			fmt.Fprintln(os.Stderr, "note: stop accepted; the pipeline has not completed yet")
+			fmt.Fprintln(os.Stderr, "note: stop accepted; completion not confirmed (re-check with: bb pipeline get)")
 		}
 		return printOutput(result, func() {
 			fmt.Printf("Pipeline #%d %s (%s).\n", result.BuildNumber, result.Result, result.State.Name)
