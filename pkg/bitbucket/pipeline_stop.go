@@ -27,11 +27,19 @@ const (
 // stop request, when the pipeline has already finished.
 var ErrPipelineAlreadyCompleted = errors.New("pipeline already completed")
 
+// ErrPipelineNotPaused is returned by StopAndConfirm, without sending a stop
+// request, when StopOptions.RequireGated is set and the pipeline is no longer
+// held at a manual or system gate (for example someone resumed it).
+var ErrPipelineNotPaused = errors.New("pipeline is no longer paused")
+
 // StopOptions bounds the confirmation poll. A zero Timeout skips confirmation
 // and reports StopRequested straight after the stop request is accepted.
+// RequireGated refuses to stop a pipeline that is not paused or halted when it
+// is re-read just before the stop request.
 type StopOptions struct {
-	Interval time.Duration
-	Timeout  time.Duration
+	Interval     time.Duration
+	Timeout      time.Duration
+	RequireGated bool
 }
 
 // StopResult is the outcome of StopAndConfirm and the last state it saw.
@@ -54,6 +62,10 @@ func (r *PipelineResource) StopAndConfirm(ctx context.Context, pipelineUUID stri
 	if before.State.Name == stateCompleted {
 		return StopResult{UUID: pipelineUUID, BuildNumber: before.BuildNumber, State: before.State},
 			fmt.Errorf("%w (result %s)", ErrPipelineAlreadyCompleted, resultName(before.State))
+	}
+	if opts.RequireGated && !isGated(before.State) {
+		return StopResult{UUID: pipelineUUID, BuildNumber: before.BuildNumber, State: before.State},
+			fmt.Errorf("%w (state %s)", ErrPipelineNotPaused, before.State.Name)
 	}
 	if err := r.Stop(ctx, pipelineUUID); err != nil {
 		return StopResult{}, err

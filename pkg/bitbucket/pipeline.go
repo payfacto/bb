@@ -213,30 +213,55 @@ func (r *PipelineResource) AwaitCommit(ctx context.Context, sha string, interval
 // time and returns the first pipeline match accepts. maxPages bounds the scan
 // (unlimitedPages = follow every page). It returns ErrNoPipelines on no match.
 func (r *PipelineResource) findNewest(ctx context.Context, maxPages int, match func(Pipeline) bool) (Pipeline, error) {
+	var found Pipeline
+	matched := false
+	_, err := r.scanNewest(ctx, maxPages, func(p Pipeline) bool {
+		if match(p) {
+			found, matched = p, true
+			return false
+		}
+		return true
+	})
+	if err != nil {
+		return Pipeline{}, err
+	}
+	if !matched {
+		return Pipeline{}, ErrNoPipelines
+	}
+	return found, nil
+}
+
+// scanNewest walks the -created_on (newest-first) pipeline list one page at a
+// time, calling visit for each pipeline until visit returns false or maxPages
+// pages have been read (unlimitedPages = follow every page). truncated reports
+// that the page limit stopped the walk while more pages remained.
+func (r *PipelineResource) scanNewest(ctx context.Context, maxPages int, visit func(Pipeline) bool) (truncated bool, err error) {
 	q := url.Values{"sort": {"-created_on"}, "pagelen": {pagelenSmall}}
 	nextURL := ""
 	for pages := 1; ; pages++ {
 		var data []byte
-		var err error
 		if nextURL != "" {
 			data, err = r.client.fetchPage(ctx, nextURL)
 		} else {
 			data, err = r.client.do(ctx, "GET", r.basePath(), nil, q)
 		}
 		if err != nil {
-			return Pipeline{}, err
+			return false, err
 		}
 		page, err := decode[paged[Pipeline]](data)
 		if err != nil {
-			return Pipeline{}, err
+			return false, err
 		}
 		for _, p := range page.Values {
-			if match(p) {
-				return p, nil
+			if !visit(p) {
+				return false, nil
 			}
 		}
-		if page.Next == "" || pages == maxPages {
-			return Pipeline{}, ErrNoPipelines
+		if page.Next == "" {
+			return false, nil
+		}
+		if pages == maxPages {
+			return true, nil
 		}
 		nextURL = page.Next
 	}

@@ -177,6 +177,12 @@ bb pipeline stop (-u UUID | -n BUILD) [--wait 30s]
                     also closes a pipeline paused on a manual step; result "stopped" only
                     once Bitbucket shows it COMPLETED, else "stop_requested"; still paused
                     or already completed = conflict error
+bb pipeline stop-paused [--dry-run] [--yes] [--wait 30s]
+                    keeps the newest not-completed pipeline (any branch) and the newest
+                    paused one, stops every older one paused at a manual/system gate; never
+                    touches running or completed
+                    ones; scans the newest 250; prompts unless --yes (required off a TTY);
+                    exit 1 if any failed
 bb pipeline steps (-u UUID | -n BUILD)
 bb pipeline log (-u UUID | -n BUILD) --step-uuid UUID
 bb pipeline watch [-n BUILD | -u UUID | -b BRANCH | --commit SHA] [--start-timeout 300] [--events] [--tail-log] [--interval 5] [--timeout 0]

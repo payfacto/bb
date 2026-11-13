@@ -88,7 +88,7 @@ bb                    (no args → launches TUI)
 │   ├── comment list / get / add / reply / resolve / reopen
 │   └── task list / complete / reopen
 ├── default-reviewer list [--effective]
-├── pipeline list / get / trigger / stop / steps / log / watch [--commit SHA] [--events] / test-report / test-cases
+├── pipeline list / get / trigger / stop / stop-paused / steps / log / watch [--commit SHA] [--events] / test-report / test-cases
 ├── pipeline-var list / get / create / update / delete
 ├── pipeline-schedule list / get / create / update / delete / executions
 ├── workspace-var list / get / create / update / delete
@@ -156,7 +156,9 @@ client.Comments(workspace, repo, prID).Add(ctx, input)
 client.Comments(workspace, repo, prID).WaitFor(ctx, bitbucket.WaitCommentsOptions{Filter, NewOnly, Settle, Interval, Timeout})
 client.PRs(workspace, repo).WaitChecks(ctx, prID, bitbucket.WaitChecksOptions{Interval, Timeout, AppearTimeout, OnPoll})
 client.Pipelines(workspace, repo).AwaitCommit(ctx, sha, interval, wait) // FindByCommit = one bounded scan
-client.Pipelines(workspace, repo).StopAndConfirm(ctx, uuid, bitbucket.StopOptions{Interval, Timeout}) // Stop sends includePendingSteps=true
+client.Pipelines(workspace, repo).StopAndConfirm(ctx, uuid, bitbucket.StopOptions{Interval, Timeout, RequireGated}) // Stop sends includePendingSteps=true
+client.Pipelines(workspace, repo).FindSupersededPaused(ctx, bitbucket.SupersededScanPages) // Kept, KeptPaused, older gated Targets
+client.Pipelines(workspace, repo).StopPaused(ctx, targets, opts) // StopPausedBatch{Stopped, Skipped, Failed}; never aborts
 client.Comments(workspace, repo, prID).Resolve(ctx, commentID)   // Reopen(ctx, commentID) undoes it; Comment.Resolution is nil when open
 client.PRs(workspace, repo).RequestChanges(ctx, prID)             // WithdrawRequestChanges(ctx, prID) undoes it
 client.Tasks(workspace, repo, prID).SetState(ctx, taskID, resolved)

@@ -165,3 +165,32 @@ func TestStopAndConfirm_PausedWithNoReadAfterStopIsNotReportedStillPaused(t *tes
 		t.Errorf("Result = %q, want %q: no read after the stop, so paused is unproven", got.Result, bitbucket.StopRequested)
 	}
 }
+
+func runStopRequiringGated(t *testing.T, srv *stopServer) (bitbucket.StopResult, error) {
+	t.Helper()
+	client := newTestClient(t, srv.handler(t))
+	opts := bitbucket.StopOptions{Interval: time.Millisecond, Timeout: time.Second, RequireGated: true}
+	return client.Pipelines("ws", "repo").StopAndConfirm(context.Background(), stopTestUUID, opts)
+}
+
+func TestStopAndConfirm_RequireGatedRefusesARunningPipelineWithoutStopping(t *testing.T) {
+	srv := &stopServer{before: stateRunning, after: stateStopped}
+	_, err := runStopRequiringGated(t, srv)
+	if !errors.Is(err, bitbucket.ErrPipelineNotPaused) {
+		t.Fatalf("err = %v, want ErrPipelineNotPaused", err)
+	}
+	if srv.posts != 0 {
+		t.Errorf("sent %d stop requests, want 0", srv.posts)
+	}
+}
+
+func TestStopAndConfirm_RequireGatedStopsAPausedPipeline(t *testing.T) {
+	srv := &stopServer{before: statePaused, after: stateStopped}
+	got, err := runStopRequiringGated(t, srv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Result != bitbucket.StopConfirmed {
+		t.Errorf("Result = %q, want %q", got.Result, bitbucket.StopConfirmed)
+	}
+}
