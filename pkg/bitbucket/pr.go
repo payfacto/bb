@@ -26,7 +26,7 @@ func (r *PRResource) prPath(prID int) string {
 // "q" expression (Since/Until bound created_on). Sort optionally orders the
 // results ("-" prefix for descending, e.g. "-updated_on").
 func (r *PRResource) List(ctx context.Context, opts PRListOptions) ([]PR, error) {
-	q := url.Values{"pagelen": {pagelenDefault}}
+	q := url.Values{"pagelen": {pagelenDefault}, "fields": {prListExtraFields}}
 	if opts.State != "" {
 		q.Set("state", opts.State)
 	}
@@ -52,11 +52,75 @@ func (r *PRResource) List(ctx context.Context, opts PRListOptions) ([]PR, error)
 	if opts.Query != "" {
 		clauses = append(clauses, fmt.Sprintf(`(title ~ %s OR description ~ %s)`, bbqlQuote(opts.Query), bbqlQuote(opts.Query)))
 	}
+	if opts.Reviewer != "" {
+		clauses = append(clauses, fmt.Sprintf(`%s=%s`, reviewerField(opts.Reviewer), bbqlQuote(opts.Reviewer)))
+	}
 	if len(clauses) > 0 {
 		q.Set("q", strings.Join(clauses, " AND "))
 	}
 
-	return fetchPagesLimit[PR](ctx, r.client, repoPath(r.workspace, r.repo)+"/pullrequests", q, opts.Limit)
+	path := repoPath(r.workspace, r.repo) + "/pullrequests"
+	if opts.Participant == "" {
+		return fetchPagesLimit[PR](ctx, r.client, path, q, opts.Limit)
+	}
+	// The limit applies to matching PRs, so every page is fetched first.
+	prs, err := fetchAllPages[PR](ctx, r.client, path, q)
+	if err != nil {
+		return nil, err
+	}
+	return firstN(filterByParticipant(prs, opts.Participant), opts.Limit), nil
+}
+
+// prListExtraFields asks the list endpoint for the two per-PR arrays it omits
+// by default, so one list call answers "who reviews / takes part in each PR".
+const prListExtraFields = "+values.reviewers,+values.participants"
+
+// isUUIDRef reports whether a user reference is a Bitbucket UUID (curly
+// braces) rather than an account ID.
+func isUUIDRef(ref string) bool {
+	return strings.HasPrefix(ref, "{")
+}
+
+// reviewerField names the BBQL field matching a user reference. Both forms
+// are accepted by the pull request list endpoint.
+func reviewerField(ref string) string {
+	if isUUIDRef(ref) {
+		return "reviewers.uuid"
+	}
+	return "reviewers.account_id"
+}
+
+// filterByParticipant keeps the PRs that have the referenced user among
+// their participants.
+func filterByParticipant(prs []PR, ref string) []PR {
+	kept := make([]PR, 0, len(prs))
+	for _, pr := range prs {
+		if hasParticipant(pr, ref) {
+			kept = append(kept, pr)
+		}
+	}
+	return kept
+}
+
+func hasParticipant(pr PR, ref string) bool {
+	byUUID := isUUIDRef(ref)
+	for _, p := range pr.Participants {
+		if byUUID && strings.EqualFold(p.User.UUID, ref) {
+			return true
+		}
+		if !byUUID && p.User.AccountID == ref {
+			return true
+		}
+	}
+	return false
+}
+
+// firstN returns at most limit items; limit <= 0 means no cap.
+func firstN[T any](items []T, limit int) []T {
+	if limit > 0 && len(items) > limit {
+		return items[:limit]
+	}
+	return items
 }
 
 // ListByAuthor returns all pull requests authored by the given nickname,

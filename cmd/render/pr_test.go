@@ -255,3 +255,30 @@ func TestPRDetailString_omitsMergeLineWhenUnmerged(t *testing.T) {
 		t.Errorf("expected no Merge line for an unmerged PR, got: %q", out)
 	}
 }
+
+func TestPRDetailString_participants(t *testing.T) {
+	approved := "approved"
+	changes := "changes_requested"
+	var pr bitbucket.PR
+	pr.ID = 2
+	pr.Participants = []bitbucket.Participant{
+		{User: bitbucket.Actor{DisplayName: "Petra"}, Role: "PARTICIPANT"},
+		{User: bitbucket.Actor{DisplayName: "Rev"}, Role: "REVIEWER", Approved: true, State: &approved},
+		{User: bitbucket.Actor{DisplayName: "Blocker"}, Role: "REVIEWER", State: &changes},
+	}
+
+	out := render.PRDetailString(pr)
+	for _, want := range []string{"People", "Petra (participant)", "Rev (reviewer, approved)", "Blocker (reviewer, changes requested)"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q in PRDetail output, got:\n%s", want, out)
+		}
+	}
+}
+
+func TestPRDetailString_noParticipantsOmitsPeople(t *testing.T) {
+	var pr bitbucket.PR
+	pr.ID = 2
+	if out := render.PRDetailString(pr); strings.Contains(out, "People") {
+		t.Errorf("People line should be omitted without participants, got:\n%s", out)
+	}
+}

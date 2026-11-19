@@ -25,6 +25,8 @@ var (
 	prListSort         string
 	prListSince        string
 	prListUntil        string
+	prListReviewer     string
+	prListParticipant  string
 	prListDraft        bool
 	prListNoDraft      bool
 )
@@ -37,12 +39,23 @@ var prListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		fetchMe := fetchCurrentUser()
+		reviewer, err := resolveUserRef(prListReviewer, fetchMe)
+		if err != nil {
+			return err
+		}
+		participant, err := resolveUserRef(prListParticipant, fetchMe)
+		if err != nil {
+			return err
+		}
 		prs, err := client.PRs(ws, r).List(context.Background(), bitbucket.PRListOptions{
 			State:        prListState,
 			SourceBranch: prListSourceBranch,
 			Sort:         prListSort,
 			Since:        prListSince,
 			Until:        prListUntil,
+			Reviewer:     reviewer,
+			Participant:  participant,
 		})
 		if err != nil {
 			return err
@@ -504,6 +517,10 @@ func init() {
 		"only PRs created on or after this ISO-8601 timestamp (e.g. 2023-01-01T00:00:00+00:00)")
 	prListCmd.Flags().StringVar(&prListUntil, "until", "",
 		"only PRs created on or before this ISO-8601 timestamp")
+	prListCmd.Flags().StringVar(&prListReviewer, "reviewer", "",
+		"only PRs with this formal reviewer: me, an account ID, or a {uuid} (filtered by Bitbucket)")
+	prListCmd.Flags().StringVar(&prListParticipant, "participant", "",
+		"only PRs this user takes part in (reviewer, commenter, approver): me, an account ID, or a {uuid} (filtered client-side)")
 	prListCmd.Flags().BoolVar(&prListDraft, "draft", false, "only draft PRs (filtered client-side)")
 	prListCmd.Flags().BoolVar(&prListNoDraft, "no-draft", false, "exclude draft PRs (filtered client-side)")
 	prListCmd.MarkFlagsMutuallyExclusive("draft", "no-draft")

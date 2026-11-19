@@ -115,6 +115,9 @@ func PRDetailString(pr bitbucket.PR) string {
 	if mergeHash := pr.MergeCommitHash(); mergeHash != "" {
 		sb.WriteString(fmt.Sprintf("%s  %s\n", label("Merge"), mergeHash))
 	}
+	if len(pr.Participants) > 0 {
+		sb.WriteString(fmt.Sprintf("%s  %s\n", label("People"), participantsSummary(pr.Participants)))
+	}
 
 	if pr.Description != "" {
 		sb.WriteString(sep + "\n")
@@ -122,6 +125,19 @@ func PRDetailString(pr bitbucket.PR) string {
 	}
 
 	return sb.String()
+}
+
+// participantsSummary lists each participant as "Name (role[, review state])".
+func participantsSummary(participants []bitbucket.Participant) string {
+	parts := make([]string, 0, len(participants))
+	for _, p := range participants {
+		detail := strings.ToLower(p.Role)
+		if p.State != nil && *p.State != "" {
+			detail += ", " + strings.ReplaceAll(*p.State, "_", " ")
+		}
+		parts = append(parts, fmt.Sprintf("%s (%s)", p.User.DisplayName, detail))
+	}
+	return strings.Join(parts, ", ")
 }
 
 // endpointHash returns the commit hash an endpoint points at, or a dash
