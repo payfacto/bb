@@ -93,7 +93,7 @@ On failure, `bb` writes a single JSON object to **stderr** and exits non-zero. s
 {"error": {"code": "not_found", "message": "HTTP 404: ...", "details": {"http_status": 404, "response_body": "..."}}}
 ```
 
-Codes are a fixed enum: `config_missing`, `auth_failed`, `not_found`, `validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`.
+Codes are a fixed enum: `config_missing`, `auth_failed`, `not_found`, `validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`. API-error messages include Bitbucket's `detail` and per-field validation reasons when it sends them.
 
 For API errors, `details.response_body` is **redacted by default** (only `details.response_body_redacted: true` appears) because Bitbucket 4xx responses sometimes echo back request fragments. Set `BB_DEBUG=1` to include the raw response body for local troubleshooting. For required-flag failures, `details.missing_flags` is a `[]string` of the flags Cobra is complaining about.
 
@@ -350,7 +350,25 @@ delete removes all versions of the named cache (destructive). url returns {uri} 
 bb pipeline-config get
 bb pipeline-config enable
 bb pipeline-config disable
+bb pipeline-config ssh-key get                # public key only; Bitbucket never returns the private key
+bb pipeline-config ssh-key set --private-key-file PATH --public-key-file PATH
+bb pipeline-config ssh-key delete
+bb pipeline-config known-host list
+bb pipeline-config known-host add --hostname HOST [--port N] [--key-type TYPE] [--public-key "TYPE BASE64"]
+bb pipeline-config known-host delete --uuid UUID
 ```
+
+`ssh-key set` reads both keys from files, checks that the private key is
+unencrypted and that the two files are one key pair, and never prints the
+private key. `known-host add` connects to the host over SSH, takes the host key
+it presents (restrict the type with `--key-type ssh-ed25519`, `ssh-rsa`, ...)
+and prints its SHA256 fingerprint to stderr; the key is trusted on first use, so
+compare the fingerprint with the one the host publishes or pass a known key with
+`--public-key`. Bitbucket rejects hosts it already trusts for every build
+(`github.com`, `bitbucket.org`) with `validation_failed` "SSH for this hostname
+is already configured by Bitbucket": no known host is needed for them.
+`known-host list` is eventually consistent: a host added or deleted a moment ago
+can take a few seconds to show.
 
 Toggles the repo's Pipelines enabled/disabled setting (`pipelines_config`).
 `disable` is `actionDestructive` - it silently breaks CI for the repo.

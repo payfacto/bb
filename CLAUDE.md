@@ -72,6 +72,7 @@ The pattern and runbook, including the filter-repo variant, are in
 - **`pkg/bitbucket/`** — Typed HTTP client. All API interaction lives here. Tests are here (using `httptest`).
 - **`internal/config/`** - Loads the system + user config files, merges env vars and CLI flags. Consumed by `cmd/root.go`.
 - **`internal/auth/`** - Keyring access, the OAuth browser flow, and `Recommend`/`DetectEnv` (which auth method to preselect: OAuth unless SSH, no display, or no keyring). Used by both `bb setup` and the TUI wizard.
+- **`internal/sshhost/`** - Reads SSH host keys for `pipeline-config known-host add` (handshake that stops once the server presents its key, no authentication) and validates key pair files for `ssh-key set`. Errors never include key material.
 - **`internal/session/`** - Credential steps shared by `cmd/` and `cmd/tui/` (`BuildClient`, OAuth token refresh, `StoreOAuthCredentials`, `FetchUsername`). `cmd/tui` cannot import `cmd`, so anything both need lives here.
 
 ### Command wiring
@@ -95,6 +96,8 @@ bb                    (no args → launches TUI)
 ├── runner list / get / delete [--workspace-level]
 ├── pipeline-cache list / delete / url
 ├── pipeline-config get / enable / disable
+│   ├── ssh-key get / set / delete
+│   └── known-host list / add / delete
 ├── branch list / create / delete
 ├── tag list / create / delete
 ├── commit list / get / statuses / reports / report / annotations / merge-base
@@ -167,6 +170,8 @@ client.Search(workspace).Repos(ctx, term, limit)
 client.WorkspaceVariables(workspace).List(ctx)   // same *PipelineVariableResource as PipelineVariables
 client.RepoRunners(workspace, repo).List(ctx)    // or client.WorkspaceRunners(workspace)
 client.PipelineCaches(workspace, repo).DeleteByName(ctx, name)
+client.PipelineSSHKey(workspace, repo).Set(ctx, privateKey, publicKey) // Get / Delete; results never hold the private key
+client.PipelineKnownHosts(workspace, repo).Add(ctx, bitbucket.AddKnownHostInput{Hostname, PublicKey: bitbucket.KnownHostKey{KeyType, Key}}) // List / Delete(uuid)
 client.DefaultReviewers(workspace, repo).Effective(ctx) // or .List(ctx)
 ```
 
@@ -186,7 +191,8 @@ string via `stripControlCharsDeep` (`pkg/bitbucket/sanitize.go`), so API text
 into text output, the TUI, or `jq -r` pipelines. Raw-content endpoints
 (`pipeline log`, `pr diff`) bypass `decode` on purpose to keep build-log
 colours. New JSON decoding must go through `decode[T]`, not `json.Unmarshal`. HTTP errors
-(4xx/5xx) are wrapped into `*bitbucket.APIError{Status, Message, Body}` so
+(4xx/5xx) are wrapped into `*bitbucket.APIError{Status, Message, Body}` (Message
+joins Bitbucket's `message`, `detail`, and `data.arguments` validation reasons) so
 callers (`cmd/errors.go`) can map them to stable CLI error codes.
 
 ### Configuration precedence (low → high)
@@ -296,6 +302,7 @@ Direct dependencies only (`go.mod` `require` block):
 | `gopkg.in/yaml.v3` | Config file parsing |
 | `golang.org/x/term` | Masked password input in `bb setup`; TTY detection for piped stdout/stdin |
 | `github.com/invopop/jsonschema` | JSON Schema reflection for the `--describe` manifest |
+| `golang.org/x/crypto` | SSH handshake and key parsing for the Pipelines SSH commands (`internal/sshhost`) |
 | `github.com/zalando/go-keyring` | OS keyring storage for credentials (macOS Keychain, Windows Credential Manager, Linux libsecret) |
 | `github.com/charmbracelet/bubbletea` | TUI framework (Elm-style model/update/view) |
 | `github.com/charmbracelet/bubbles` | TUI components — list, spinner, viewport, text input, table |

@@ -6,8 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -311,6 +314,17 @@ func (c *Client) PipelineConfig(workspace, repo string) *PipelineConfigResource 
 	return &PipelineConfigResource{client: c, workspace: workspace, repo: repo}
 }
 
+// PipelineSSHKey returns a resource for the repository's Pipelines SSH key pair.
+func (c *Client) PipelineSSHKey(workspace, repo string) *PipelineSSHKeyResource {
+	return &PipelineSSHKeyResource{client: c, workspace: workspace, repo: repo}
+}
+
+// PipelineKnownHosts returns a resource for the repository's Pipelines SSH
+// known hosts.
+func (c *Client) PipelineKnownHosts(workspace, repo string) *PipelineKnownHostResource {
+	return &PipelineKnownHostResource{client: c, workspace: workspace, repo: repo}
+}
+
 // EnvironmentVariables returns a resource for deployment-environment variable
 // operations scoped to the given environment UUID.
 func (c *Client) EnvironmentVariables(workspace, repo, envUUID string) *EnvironmentVariableResource {
@@ -483,15 +497,45 @@ func parseHTTPError(statusCode int, data []byte) error {
 		body = body[:maxBody]
 	}
 	body = stripControlChars(body)
-	var envelope struct {
-		Error struct {
-			Message string `json:"message"`
-		} `json:"error"`
-	}
+	var envelope errorEnvelope
 	if err := json.Unmarshal(data, &envelope); err == nil && envelope.Error.Message != "" {
-		return &APIError{Status: statusCode, Message: stripControlChars(envelope.Error.Message), Body: body}
+		return &APIError{Status: statusCode, Message: stripControlChars(envelope.describe()), Body: body}
 	}
 	return &APIError{Status: statusCode, Body: body}
+}
+
+// errorEnvelope is Bitbucket's JSON error body. Besides the short message,
+// validation failures explain themselves in detail and data.arguments (for
+// example "hostname-not-allowed": "SSH for this hostname is already
+// configured by Bitbucket"), which is often the only actionable part.
+type errorEnvelope struct {
+	Error struct {
+		Message string `json:"message"`
+		Detail  string `json:"detail"`
+		Data    struct {
+			Arguments map[string]any `json:"arguments"`
+		} `json:"data"`
+	} `json:"error"`
+}
+
+// describe joins the message, the detail (unless it only repeats the
+// message), and the string-valued validation arguments in key order:
+// "message: detail (key: reason; key: reason)".
+func (e errorEnvelope) describe() string {
+	text := e.Error.Message
+	if e.Error.Detail != "" && e.Error.Detail != e.Error.Message {
+		text += ": " + e.Error.Detail
+	}
+	var reasons []string
+	for _, key := range slices.Sorted(maps.Keys(e.Error.Data.Arguments)) {
+		if reason, ok := e.Error.Data.Arguments[key].(string); ok && reason != "" {
+			reasons = append(reasons, key+": "+reason)
+		}
+	}
+	if len(reasons) > 0 {
+		text += " (" + strings.Join(reasons, "; ") + ")"
+	}
+	return text
 }
 
 // decode unmarshals JSON data into a typed value T and strips terminal

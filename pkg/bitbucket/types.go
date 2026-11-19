@@ -1028,3 +1028,47 @@ type CodeSearchOptions struct {
 	Project string
 	Limit   int
 }
+
+// Pipelines SSH types
+
+// PipelineSSHKeyPair is the SSH key pair Pipelines builds use. It has no
+// private key field on purpose: Bitbucket never returns the private key, and
+// a value of this type can be printed safely.
+type PipelineSSHKeyPair struct {
+	PublicKey string `json:"public_key"`
+}
+
+// pipelineSSHKeyPairInput is the request body for setting the key pair. It
+// is the only place the private key is held, and it is never decoded into.
+type pipelineSSHKeyPairInput struct {
+	PrivateKey string `json:"private_key"`
+	PublicKey  string `json:"public_key"`
+}
+
+// PipelineKnownHost is a host whose SSH key Pipelines builds trust.
+type PipelineKnownHost struct {
+	UUID      string               `json:"uuid"`
+	Hostname  string               `json:"hostname"`
+	PublicKey PipelineSSHPublicKey `json:"public_key"`
+}
+
+// PipelineSSHPublicKey is a known host's public key as Bitbucket reports it.
+type PipelineSSHPublicKey struct {
+	KeyType           string `json:"key_type"` // e.g. ssh-ed25519
+	Key               string `json:"key"`      // base64, as in a known_hosts line
+	MD5Fingerprint    string `json:"md5_fingerprint,omitempty"`
+	SHA256Fingerprint string `json:"sha256_fingerprint,omitempty"`
+}
+
+// AddKnownHostInput is the request body for registering a known host.
+type AddKnownHostInput struct {
+	Hostname  string       `json:"hostname"`
+	PublicKey KnownHostKey `json:"public_key"`
+}
+
+// KnownHostKey is the key half of AddKnownHostInput: the key type and the
+// base64 key, the second and third fields of a known_hosts line.
+type KnownHostKey struct {
+	KeyType string `json:"key_type"`
+	Key     string `json:"key"`
+}

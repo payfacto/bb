@@ -456,7 +456,25 @@ download URL for one cache version's archive.
 bb pipeline-config get
 bb pipeline-config enable
 bb pipeline-config disable
+bb pipeline-config ssh-key get                # public key only; Bitbucket never returns the private key
+bb pipeline-config ssh-key set --private-key-file PATH --public-key-file PATH
+bb pipeline-config ssh-key delete
+bb pipeline-config known-host list
+bb pipeline-config known-host add --hostname HOST [--port N] [--key-type TYPE] [--public-key "TYPE BASE64"]
+bb pipeline-config known-host delete --uuid UUID
 ```
+
+`ssh-key set` reads both keys from files, checks that the private key is
+unencrypted and that the two files are one key pair, and never prints the
+private key. `known-host add` connects to the host over SSH, takes the host key
+it presents (restrict the type with `--key-type ssh-ed25519`, `ssh-rsa`, ...)
+and prints its SHA256 fingerprint to stderr; the key is trusted on first use, so
+compare the fingerprint with the one the host publishes or pass a known key with
+`--public-key`. Bitbucket rejects hosts it already trusts for every build
+(`github.com`, `bitbucket.org`) with `validation_failed` "SSH for this hostname
+is already configured by Bitbucket": no known host is needed for them.
+`known-host list` is eventually consistent: a host added or deleted a moment ago
+can take a few seconds to show.
 
 Toggles whether Pipelines is enabled for the repository (Bitbucket's
 `pipelines_config` resource). `disable` is a destructive action - it silently
@@ -566,7 +584,7 @@ Key notes:
 - For multi-paragraph text bodies, prefer the `--*-file` variants over shell quoting / heredocs / stdin: `pr create --description-file PATH`, `pr comment add --text-file PATH`, `pr comment reply --text-file PATH`. Each is mutually exclusive with its inline counterpart (`--description` / `--text`). Agents should write the body to a temp file and pass the path - no shell-escaping concerns.
 - IDs are integers for PRs and tasks. UUIDs (with `{}` braces) for pipelines, steps, and environments.
 - `workspace` and `repo` can be omitted from flags if set in `~/.bbcloud.yaml`, or auto-detected from the current directory's git origin (which takes priority over a `~/.bbcloud.yaml` default - see "Pull Requests" above).
-- On failure the CLI exits non-zero and writes to stderr. With `--format json` the error shape is `{"error": {"code": "...", "message": "...", "details": {...}}}`. Codes are a fixed enum: `config_missing`, `auth_failed`, `not_found`, `validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`. stdout is never mixed with errors. API-error details include `http_status`; the raw `response_body` is redacted by default - set `BB_DEBUG=1` to include it. Required-flag failures include `details.missing_flags`.
+- On failure the CLI exits non-zero and writes to stderr. With `--format json` the error shape is `{"error": {"code": "...", "message": "...", "details": {...}}}`. Codes are a fixed enum: `config_missing`, `auth_failed`, `not_found`, `validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`. stdout is never mixed with errors. API-error messages include Bitbucket's `detail` and per-field validation reasons when it sends them. API-error details include `http_status`; the raw `response_body` is redacted by default - set `BB_DEBUG=1` to include it. Required-flag failures include `details.missing_flags`.
 - The manifest exposes `manifest_schema_version` (currently `"1"`) at the top level; bump-detection on this field is cheaper than diffing the whole document. Stdin entries carry `behavior: "replaces_flags"` (the only value today) describing how piped JSON interacts with flags. Stdin is capped at 1 MiB.
 - `--sort` is supported on `pr list`, `pipeline list`, `branch list`, `tag list`, `commit list`, `repo list`, and `deployment list`. Note: the deployments endpoint only accepts a limited set of sort attributes (verified valid: `state.name`, `-state.name`; most others return HTTP 400). List commands without `--sort` use the Bitbucket API's default ordering - sort client-side from the JSON if you need a guaranteed order.
 - List commands follow pagination and return the **full** result set, not just the first page. Bound a large `pr list` with `--since`/`--until` (ISO-8601 timestamps that filter PR `created_on`). PRs carry `created_on`, `updated_on`, `comment_count`, `task_count`, and `draft` (boolean; `--draft`/`--no-draft` filter it client-side); comments carry `created_on` and `updated_on`.

@@ -98,9 +98,15 @@ var commandRegistry = map[string]commandSpec{
 	"default-reviewer list": {Action: actionRead, OutputType: "[]DefaultReviewer", Ordering: "unspecified", Example: "bb default-reviewer list --effective"},
 
 	// pipeline-config ----------------------------------------------------
-	"pipeline-config get":     {Action: actionRead, OutputType: "PipelineConfig", Example: "bb pipeline-config get"},
-	"pipeline-config enable":  {Action: actionWrite, OutputType: "PipelineConfig", Example: "bb pipeline-config enable"},
-	"pipeline-config disable": {Action: actionDestructive, OutputType: "PipelineConfig", Example: "bb pipeline-config disable"},
+	"pipeline-config get":               {Action: actionRead, OutputType: "PipelineConfig", Example: "bb pipeline-config get"},
+	"pipeline-config enable":            {Action: actionWrite, OutputType: "PipelineConfig", Example: "bb pipeline-config enable"},
+	"pipeline-config disable":           {Action: actionDestructive, OutputType: "PipelineConfig", Example: "bb pipeline-config disable"},
+	"pipeline-config ssh-key get":       {Action: actionRead, OutputType: "PipelineSSHKeyPair", Example: "bb pipeline-config ssh-key get"},
+	"pipeline-config ssh-key set":       {Action: actionWrite, OutputType: "PipelineSSHKeyPair", Example: "bb pipeline-config ssh-key set --private-key-file id_ed25519 --public-key-file id_ed25519.pub"},
+	"pipeline-config ssh-key delete":    {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline-config ssh-key delete"},
+	"pipeline-config known-host list":   {Action: actionRead, OutputType: "[]PipelineKnownHost", Example: "bb pipeline-config known-host list"},
+	"pipeline-config known-host add":    {Action: actionWrite, OutputType: "PipelineKnownHost", Example: "bb pipeline-config known-host add --hostname github.com"},
+	"pipeline-config known-host delete": {Action: actionDestructive, OutputType: "ResultMap", Example: "bb pipeline-config known-host delete --uuid '{uuid}'"},
 
 	// branch -----------------------------------------------------------
 	"branch list":   {Action: actionRead, OutputType: "[]Branch", Example: "bb branch list"},
@@ -243,6 +249,7 @@ var typeRegistry = map[string]any{
 	"[]StepTestCase":              []bitbucket.StepTestCase{},
 	"PipelineVariable":            bitbucket.PipelineVariable{},
 	"[]PipelineVariable":          []bitbucket.PipelineVariable{},
+	"[]PipelineKnownHost":         []bitbucket.PipelineKnownHost{},
 	"CreatePipelineVariableInput": bitbucket.CreatePipelineVariableInput{},
 	"PipelineSchedule":            bitbucket.PipelineSchedule{},
 	"[]PipelineSchedule":          []bitbucket.PipelineSchedule{},
@@ -250,6 +257,8 @@ var typeRegistry = map[string]any{
 	"UpdatePipelineScheduleInput": bitbucket.UpdatePipelineScheduleInput{},
 	"[]PipelineScheduleExecution": []bitbucket.PipelineScheduleExecution{},
 	"PipelineConfig":              bitbucket.PipelineConfig{},
+	"PipelineSSHKeyPair":          bitbucket.PipelineSSHKeyPair{},
+	"PipelineKnownHost":           bitbucket.PipelineKnownHost{},
 	"PipelineRunner":              bitbucket.PipelineRunner{},
 	"[]PipelineRunner":            []bitbucket.PipelineRunner{},
 	"[]PipelineCache":             []bitbucket.PipelineCache{},
