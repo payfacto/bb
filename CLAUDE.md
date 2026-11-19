@@ -193,6 +193,12 @@ colours. New JSON decoding must go through `decode[T]`, not `json.Unmarshal`. HT
 (4xx/5xx) are wrapped into `*bitbucket.APIError{Status, Message, Body}` so
 callers (`cmd/errors.go`) can map them to stable CLI error codes.
 
+`Client.send` retries a GET answered with HTTP 429 up to 3 times
+(`pkg/bitbucket/rate_limit.go`): it waits `Retry-After` when given, otherwise
+1s/2s/4s, and never more than 60s in total per request. Writes are never retried. A 429 that survives carries
+`APIError.RetryAfter`, surfaced as `details.retry_after_seconds` on the
+`rate_limited` CLI error.
+
 ### Configuration precedence (low → high)
 
 0. Machine-wide `/etc/bbcloud.yaml` (`%ProgramData%\bb\bbcloud.yaml` on

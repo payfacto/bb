@@ -41,6 +41,10 @@ type Client struct {
 	// refresher call. It is held across the refresh I/O, but does not block
 	// token reads (those use tokenMu).
 	refreshMu sync.Mutex
+
+	// sleep waits between rate-limit retries; nil means sleepContext. Tests
+	// replace it to record the waits instead of sleeping.
+	sleep func(ctx context.Context, d time.Duration) error
 }
 
 // New creates a Client from cfg using the live Bitbucket API.
@@ -110,7 +114,16 @@ func (c *Client) setAuth(req *http.Request) {
 // HTTP 401 and a refresher is installed, it refreshes the access token once and
 // retries the request. Requests whose body cannot be replayed (e.g. streamed
 // uploads) are not retried; the 401 is returned to the caller instead.
+//
+// A GET answered with HTTP 429 is retried a bounded number of times first; see
+// sendWithRateLimitRetry.
 func (c *Client) send(req *http.Request) (*http.Response, error) {
+	return c.sendWithRateLimitRetry(req, c.sendAuthenticated)
+}
+
+// sendAuthenticated is one attempt of send: the request plus its single
+// token-refresh retry.
+func (c *Client) sendAuthenticated(req *http.Request) (*http.Response, error) {
 	tokenUsed, refresher := c.authState()
 
 	c.setAuth(req)
@@ -371,7 +384,7 @@ func (c *Client) do(ctx context.Context, method, path string, body any, query ur
 	}
 
 	if resp.StatusCode >= 400 {
-		return nil, parseHTTPError(resp.StatusCode, data)
+		return nil, httpError(resp, data)
 	}
 
 	return data, nil
@@ -398,7 +411,7 @@ func (c *Client) doText(ctx context.Context, path string) ([]byte, error) {
 	}
 
 	if resp.StatusCode >= 400 {
-		return nil, parseHTTPError(resp.StatusCode, data)
+		return nil, httpError(resp, data)
 	}
 	return data, nil
 }
@@ -425,7 +438,7 @@ func (c *Client) doStream(ctx context.Context, path string) (io.ReadCloser, erro
 	if resp.StatusCode >= 400 {
 		data, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		return nil, parseHTTPError(resp.StatusCode, data)
+		return nil, httpError(resp, data)
 	}
 	return resp.Body, nil
 }
@@ -453,7 +466,7 @@ func (c *Client) doMultipart(ctx context.Context, path string, body io.Reader, c
 	}
 
 	if resp.StatusCode >= 400 {
-		return nil, parseHTTPError(resp.StatusCode, data)
+		return nil, httpError(resp, data)
 	}
 
 	return data, nil
@@ -465,6 +478,9 @@ type APIError struct {
 	Status  int    // HTTP status code (e.g. 404, 429)
 	Message string // extracted from the API's JSON error envelope when present
 	Body    string // raw response body (truncated to 4KB to bound memory)
+	// RetryAfter is how long a rate-limited (429) response asked the caller to
+	// wait. Zero when the server gave no Retry-After header.
+	RetryAfter time.Duration
 }
 
 func (e *APIError) Error() string {
@@ -526,7 +542,7 @@ func (c *Client) fetchPage(ctx context.Context, rawURL string) ([]byte, error) {
 	}
 
 	if resp.StatusCode >= 400 {
-		return nil, parseHTTPError(resp.StatusCode, data)
+		return nil, httpError(resp, data)
 	}
 	return data, nil
 }
