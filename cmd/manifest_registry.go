@@ -45,6 +45,7 @@ var commandRegistry = map[string]commandSpec{
 	"pr comment get":     {Action: actionRead, OutputType: "Comment", Example: "bb pr comment get --pr-id 42 --comment-id 7"},
 	"pr comment add":     {Action: actionWrite, OutputType: "Comment", StdinType: "AddCommentInput", Example: "bb pr comment add --pr-id 42 --text 'LGTM'"},
 	"pr comment reply":   {Action: actionWrite, OutputType: "Comment", Example: "bb pr comment reply --pr-id 42 --parent-id 7 --text 'thanks'"},
+	"pr comment edit":    {Action: actionWrite, OutputType: "Comment", Example: "bb pr comment edit --pr-id 42 --comment-id 7 --text 'updated plan'"},
 	"pr comment resolve": {Action: actionWrite, OutputType: "CommentResolution", Example: "bb pr comment resolve --pr-id 42 --comment-id 7"},
 	"pr comment reopen":  {Action: actionWrite, OutputType: "ResultMap", Example: "bb pr comment reopen --pr-id 42 --comment-id 7"},
 	"pr task list":       {Action: actionRead, OutputType: "[]Task", Example: "bb pr task list --pr-id 42"},

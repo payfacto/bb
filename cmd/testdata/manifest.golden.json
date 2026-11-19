@@ -3409,6 +3409,73 @@
       "path": [
         "pr",
         "comment",
+        "edit"
+      ],
+      "action": "write",
+      "flags": [
+        {
+          "name": "comment-id",
+          "short": "c",
+          "type": "int",
+          "required": true
+        },
+        {
+          "name": "config",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "short": "f",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pr-id",
+          "short": "p",
+          "type": "int",
+          "required": true
+        },
+        {
+          "name": "repo",
+          "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "text",
+          "short": "t",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "text-file",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "workspace",
+          "short": "w",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "output_type": "Comment"
+    },
+    {
+      "path": [
+        "pr",
+        "comment",
         "get"
       ],
       "action": "read",

@@ -116,6 +116,7 @@ For PR descriptions or comment bodies that span multiple paragraphs, **prefer th
 bb pr create -T "..." --from-branch X --to-branch main --description-file /tmp/body.md
 bb pr comment add -p 42 --text-file /tmp/comment.md
 bb pr comment reply -p 42 -c 7 --text-file /tmp/reply.md
+bb pr comment edit -p 42 -c 7 --text-file /tmp/plan.md
 ```
 
 `--description-file` / `--text-file` are mutually exclusive with the inline `--description` / `--text` flags — passing both returns `validation_failed`.
@@ -155,6 +156,7 @@ bb pr comment list -p ID   # resolved threads carry "resolution" {user, created_
 bb pr comment get -p ID -c COMMENT_ID
 bb pr comment add -p ID [-t "..." | --text-file PATH] [--file PATH --line N]
 bb pr comment reply -p ID -c COMMENT_ID [-t "..." | --text-file PATH]
+bb pr comment edit -p ID -c COMMENT_ID [-t "..." | --text-file PATH]   # replaces the text; anchor and thread are kept
 bb pr comment resolve -p ID -c COMMENT_ID   # top-level comments only
 bb pr comment reopen -p ID -c COMMENT_ID
 ```

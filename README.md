@@ -211,6 +211,7 @@ bb pr comment list -p ID   # resolved threads carry "resolution" {user, created_
 bb pr comment get -p ID -c COMMENT_ID
 bb pr comment add -p ID [-t "..." | --text-file PATH] [--file PATH --line N]
 bb pr comment reply -p ID -c COMMENT_ID [-t "..." | --text-file PATH]
+bb pr comment edit -p ID -c COMMENT_ID [-t "..." | --text-file PATH]   # replaces the text; anchor and thread are kept
 bb pr comment resolve -p ID -c COMMENT_ID   # top-level comments only
 bb pr comment reopen -p ID -c COMMENT_ID
 ```
@@ -563,7 +564,7 @@ Key notes:
 - `bb --describe` emits a JSON capability manifest covering every command, its flags, action class (`read | write | destructive`), output Go type, and an auto-generated JSON Schema for both output and stdin input where applicable. Use this for discovery instead of parsing `--help`.
 - Default output is **JSON** (pipe-friendly, works with `jq`). For token-efficient output, pass `-f gcf` or set `BB_FORMAT=gcf` globally. List commands return arrays; single-resource commands return an object.
 - Create and update commands accept a JSON body on stdin (`echo '{...}' | bb pr create`) as an alternative to flags. When stdin is piped and non-empty, it replaces all flag values. Stdin is given 750ms to start producing data; if nothing arrives in that window (e.g. a shell that leaves stdin open with nothing coming), `bb` falls back to flags and notes it on stderr instead of hanging.
-- For multi-paragraph text bodies, prefer the `--*-file` variants over shell quoting / heredocs / stdin: `pr create --description-file PATH`, `pr comment add --text-file PATH`, `pr comment reply --text-file PATH`. Each is mutually exclusive with its inline counterpart (`--description` / `--text`). Agents should write the body to a temp file and pass the path - no shell-escaping concerns.
+- For multi-paragraph text bodies, prefer the `--*-file` variants over shell quoting / heredocs / stdin: `pr create --description-file PATH`, `pr comment add --text-file PATH`, `pr comment reply --text-file PATH`, `pr comment edit --text-file PATH`. Each is mutually exclusive with its inline counterpart (`--description` / `--text`). Agents should write the body to a temp file and pass the path - no shell-escaping concerns.
 - IDs are integers for PRs and tasks. UUIDs (with `{}` braces) for pipelines, steps, and environments.
 - `workspace` and `repo` can be omitted from flags if set in `~/.bbcloud.yaml`, or auto-detected from the current directory's git origin (which takes priority over a `~/.bbcloud.yaml` default - see "Pull Requests" above).
 - On failure the CLI exits non-zero and writes to stderr. With `--format json` the error shape is `{"error": {"code": "...", "message": "...", "details": {...}}}`. Codes are a fixed enum: `config_missing`, `auth_failed`, `not_found`, `validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`. stdout is never mixed with errors. API-error details include `http_status`; the raw `response_body` is redacted by default - set `BB_DEBUG=1` to include it. Required-flag failures include `details.missing_flags`.

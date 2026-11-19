@@ -139,6 +139,39 @@ var commentReplyCmd = &cobra.Command{
 }
 
 var (
+	commentEditPRID      int
+	commentEditCommentID int
+	commentEditText      string
+	commentEditTextFile  string
+)
+
+var commentEditCmd = &cobra.Command{
+	Use:   "edit",
+	Short: "Replace the text of a pull request comment",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, r, err := workspaceAndRepo()
+		if err != nil {
+			return err
+		}
+		text, err := resolveTextBody(commentEditText, commentEditTextFile, "text", "text-file")
+		if err != nil {
+			return err
+		}
+		if err := requireFlag("text", text); err != nil {
+			return err
+		}
+		c, err := client.Comments(ws, r, commentEditPRID).Edit(
+			context.Background(), commentEditCommentID, text)
+		if err != nil {
+			return err
+		}
+		return printOutput(c, func() {
+			fmt.Printf("Comment edited: id=%d\n", c.ID)
+		})
+	},
+}
+
+var (
 	commentResolvePRID      int
 	commentResolveCommentID int
 )
@@ -186,7 +219,15 @@ var commentReopenCmd = &cobra.Command{
 func init() {
 	prCmd.AddCommand(commentCmd)
 	commentCmd.AddCommand(commentListCmd, commentGetCmd, commentAddCmd, commentReplyCmd,
-		commentResolveCmd, commentReopenCmd)
+		commentEditCmd, commentResolveCmd, commentReopenCmd)
+
+	commentEditCmd.Flags().IntVarP(&commentEditPRID, "pr-id", "p", 0, "pull request ID")
+	commentEditCmd.Flags().IntVarP(&commentEditCommentID, "comment-id", "c", 0, "ID of the comment to edit")
+	commentEditCmd.Flags().StringVarP(&commentEditText, "text", "t", "", "new comment text (replaces the old text)")
+	commentEditCmd.Flags().StringVar(&commentEditTextFile, "text-file", "", "path to a file containing the new comment text (mutually exclusive with --text)")
+	commentEditCmd.MarkFlagRequired("pr-id")
+	commentEditCmd.MarkFlagRequired("comment-id")
+	// no MarkFlagRequired on "text" - accepts --text or --text-file.
 
 	commentResolveCmd.Flags().IntVarP(&commentResolvePRID, "pr-id", "p", 0, "pull request ID")
 	commentResolveCmd.Flags().IntVarP(&commentResolveCommentID, "comment-id", "c", 0, "top-level comment ID")
