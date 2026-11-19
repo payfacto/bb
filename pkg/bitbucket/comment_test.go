@@ -211,3 +211,33 @@ func TestComments_Get_UnresolvedHasNilResolution(t *testing.T) {
 		t.Errorf("expected nil Resolution for an open comment, got %+v", *got.Resolution)
 	}
 }
+
+func TestComments_Edit(t *testing.T) {
+	var receivedBody map[string]any
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			t.Errorf("method: got %s, want PUT", r.Method)
+		}
+		if want := "/repositories/ws/repo/pullrequests/42/comments/55"; r.URL.Path != want {
+			t.Errorf("path: got %s, want %s", r.URL.Path, want)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&receivedBody); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		mustEncodeJSON(t, w, bitbucket.Comment{ID: 55, Content: bitbucket.Content{Raw: "new plan"}})
+	}))
+	got, err := c.Comments("ws", "repo", 42).Edit(context.Background(), 55, "new plan")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.ID != 55 || got.Content.Raw != "new plan" {
+		t.Errorf("unexpected comment: %+v", got)
+	}
+	content, ok := receivedBody["content"].(map[string]any)
+	if !ok || content["raw"] != "new plan" {
+		t.Errorf("unexpected content in request body: %v", receivedBody)
+	}
+	if len(receivedBody) != 1 {
+		t.Errorf("only content should be sent, so the comment keeps its place and anchor; got %v", receivedBody)
+	}
+}

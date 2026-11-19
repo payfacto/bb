@@ -45,6 +45,18 @@ func (r *CommentResource) Add(ctx context.Context, input AddCommentInput) (Comme
 	return decode[Comment](data)
 }
 
+// Edit replaces the text of an existing comment and returns the updated
+// comment. Only the content is sent, so an inline comment keeps its anchor
+// and a reply keeps its parent.
+func (r *CommentResource) Edit(ctx context.Context, commentID int, text string) (Comment, error) {
+	input := AddCommentInput{Content: Content{Raw: text}}
+	data, err := r.client.do(ctx, "PUT", fmt.Sprintf("%s/%d", r.basePath(), commentID), input, nil)
+	if err != nil {
+		return Comment{}, err
+	}
+	return decode[Comment](data)
+}
+
 // Resolve marks a top-level comment thread as resolved and returns the
 // resolution details.
 func (r *CommentResource) Resolve(ctx context.Context, commentID int) (CommentResolution, error) {
