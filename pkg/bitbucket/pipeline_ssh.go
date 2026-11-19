@@ -2,7 +2,9 @@ package bitbucket
 
 import (
 	"context"
+	"errors"
 	"net/url"
+	"strings"
 )
 
 // PipelineSSHKeyResource manages the SSH key pair Pipelines builds of a
@@ -29,12 +31,13 @@ func (r *PipelineSSHKeyResource) Get(ctx context.Context) (PipelineSSHKeyPair, e
 }
 
 // Set creates or replaces the repository's Pipelines SSH key pair. The
-// returned value holds the public key only.
+// returned value holds the public key only, and an error never contains
+// private key material even if Bitbucket's response echoes the request.
 func (r *PipelineSSHKeyResource) Set(ctx context.Context, privateKey, publicKey string) (PipelineSSHKeyPair, error) {
 	body := pipelineSSHKeyPairInput{PrivateKey: privateKey, PublicKey: publicKey}
 	data, err := r.client.do(ctx, "PUT", r.path(), body, nil)
 	if err != nil {
-		return PipelineSSHKeyPair{}, err
+		return PipelineSSHKeyPair{}, redactSecret(err, privateKey)
 	}
 	return decode[PipelineSSHKeyPair](data)
 }
@@ -75,5 +78,32 @@ func (r *PipelineKnownHostResource) Add(ctx context.Context, input AddKnownHostI
 // Delete removes a known host by UUID.
 func (r *PipelineKnownHostResource) Delete(ctx context.Context, uuid string) error {
 	_, err := r.client.do(ctx, "DELETE", r.collectionPath()+"/"+url.PathEscape(uuid), nil, nil)
+	return err
+}
+
+const (
+	redactedMarker = "[REDACTED]"
+	// minSecretFragment is the shortest secret line worth redacting; shorter
+	// ones (blank lines, padding tails) would blank out ordinary text.
+	minSecretFragment = 8
+)
+
+// redactSecret removes every line of secret from an *APIError's Message and
+// Body, so an error response that echoes the request cannot leak it. Matching
+// is per line, which also catches a JSON-escaped echo (lines survive between
+// the \n escapes). PEM armor lines are not secret and are left readable.
+func redactSecret(err error, secret string) error {
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		return err
+	}
+	for _, line := range strings.Split(secret, "\n") {
+		line = strings.TrimSpace(line)
+		if len(line) < minSecretFragment || strings.HasPrefix(line, "-----") {
+			continue
+		}
+		apiErr.Message = strings.ReplaceAll(apiErr.Message, line, redactedMarker)
+		apiErr.Body = strings.ReplaceAll(apiErr.Body, line, redactedMarker)
+	}
 	return err
 }

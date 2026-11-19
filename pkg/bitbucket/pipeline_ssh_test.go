@@ -3,6 +3,7 @@ package bitbucket_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -140,5 +141,42 @@ func TestPipelineKnownHosts_Delete(t *testing.T) {
 	}))
 	if err := c.PipelineKnownHosts("ws", "repo").Delete(context.Background(), "{h-1}"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestPipelineSSHKey_Set_ErrorNeverEchoesThePrivateKey(t *testing.T) {
+	const privateKey = "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmU\nQyNTUxOQAAACDjKqp5Fc65tEnRulDqKi\n-----END OPENSSH PRIVATE KEY-----\n"
+	// A hostile or careless error response that echoes the key every way it
+	// can: whole in detail, one line in a validation argument, and
+	// JSON-escaped in an unparsed part of the body.
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		mustEncodeJSON(t, w, map[string]any{"error": map[string]any{
+			"message": "Bad request",
+			"detail":  "invalid key: " + privateKey,
+			"data": map[string]any{
+				"arguments": map[string]any{"private_key": "bad line QyNTUxOQAAACDjKqp5Fc65tEnRulDqKi here"},
+				"echo":      privateKey,
+			},
+		}})
+	}))
+	_, err := c.PipelineSSHKey("ws", "repo").Set(context.Background(), privateKey, "ssh-ed25519 AAAA")
+
+	var apiErr *bitbucket.APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("want an APIError, got %v", err)
+	}
+	for _, fragment := range []string{"b3BlbnNzaC1rZXktdjEAAAAABG5vbmU", "QyNTUxOQAAACDjKqp5Fc65tEnRulDqKi"} {
+		for name, text := range map[string]string{"Message": apiErr.Message, "Body": apiErr.Body, "Error()": apiErr.Error()} {
+			if strings.Contains(text, fragment) {
+				t.Errorf("%s leaks private key material %q: %s", name, fragment, text)
+			}
+		}
+	}
+	if !strings.Contains(apiErr.Message, "Bad request") || !strings.Contains(apiErr.Message, "[REDACTED]") {
+		t.Errorf("message should keep the reason and mark the redaction: %q", apiErr.Message)
+	}
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("status: got %d", apiErr.Status)
 	}
 }
