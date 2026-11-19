@@ -40,7 +40,8 @@ func (c *Client) sendWithRateLimitRetry(req *http.Request, attempt func(*http.Re
 			wait = backoff
 			backoff *= 2
 		}
-		if waited+wait > rateLimitMaxWait {
+		// Written as a subtraction so a huge Retry-After cannot overflow.
+		if wait > rateLimitMaxWait-waited {
 			return resp, nil
 		}
 		waited += wait
@@ -83,18 +84,26 @@ func sleepContext(ctx context.Context, d time.Duration) error {
 	}
 }
 
+// retryAfterCeiling caps a parsed Retry-After. Nothing waits this long (it
+// is far above rateLimitMaxWait); the cap keeps a hostile or broken header
+// from overflowing time.Duration arithmetic.
+const retryAfterCeiling = 24 * time.Hour
+
 // parseRetryAfter reads a Retry-After header, which is either a number of
 // seconds or an HTTP date. It returns 0 when the header is absent,
-// unparseable, or not in the future.
+// unparseable, or not in the future, and at most retryAfterCeiling.
 func parseRetryAfter(header string, now time.Time) time.Duration {
 	if header == "" {
 		return 0
 	}
-	if seconds, err := strconv.Atoi(header); err == nil {
+	if seconds, err := strconv.ParseInt(header, 10, 64); err == nil {
+		if seconds > int64(retryAfterCeiling/time.Second) {
+			return retryAfterCeiling
+		}
 		return max(time.Duration(seconds)*time.Second, 0)
 	}
 	if at, err := http.ParseTime(header); err == nil {
-		return max(at.Sub(now), 0)
+		return min(max(at.Sub(now), 0), retryAfterCeiling)
 	}
 	return 0
 }

@@ -132,6 +132,27 @@ func TestRateLimit_TotalWaitIsBounded(t *testing.T) {
 	assertWaits(t, *waits, 40*time.Second)
 }
 
+func TestRateLimit_HugeRetryAfterAfterABackoffDoesNotOverflowTheBudget(t *testing.T) {
+	// First 429 has no header (1s backoff); the second asks for an absurd
+	// delay that would wrap a naive waited+wait sum into a negative number.
+	calls := 0
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls > 1 {
+			w.Header().Set("Retry-After", "9223372036")
+		}
+		w.WriteHeader(http.StatusTooManyRequests)
+	})
+	c, waits := newRateLimitClient(t, handler)
+
+	_, err := c.do(context.Background(), "GET", "/x", nil, nil)
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) || apiErr.Status != http.StatusTooManyRequests {
+		t.Fatalf("want a 429 APIError, got %v", err)
+	}
+	assertWaits(t, *waits, 1*time.Second)
+}
+
 func TestRateLimit_WritesAreNeverRetried(t *testing.T) {
 	for _, method := range []string{"POST", "PUT", "DELETE"} {
 		t.Run(method, func(t *testing.T) {
@@ -180,6 +201,9 @@ func TestParseRetryAfter(t *testing.T) {
 		{"garbage is ignored", "soon", 0},
 		{"http date in the future", "Thu, 19 Nov 2026 12:00:30 GMT", 30 * time.Second},
 		{"http date in the past", "Thu, 19 Nov 2026 11:00:00 GMT", 0},
+		{"huge seconds are capped, not overflowed", "9223372036854775807", 24 * time.Hour},
+		{"seconds past int64 are ignored", "99999999999999999999999", 0},
+		{"far-future http date is capped", "Fri, 19 Nov 2476 12:00:00 GMT", 24 * time.Hour},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
