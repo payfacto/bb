@@ -138,7 +138,7 @@ workspace/repo resolution, unchanged).
 Resources are scoped structs returned by the client:
 
 ```go
-client.PRs(workspace, repo).List(ctx, bitbucket.PRListOptions{State, SourceBranch, Sort, Since, Until, Query, Limit})
+client.PRs(workspace, repo).List(ctx, bitbucket.PRListOptions{State, SourceBranch, Sort, Since, Until, Query, Limit, Reviewer, Participant}) // PRs carry Reviewers + Participants
 client.PRs(workspace, repo).MergeabilityChecks(ctx, prID) // PRMergeability{Mergeable, Checks}
 client.PRs(workspace, repo).Conflicts(ctx, prID)          // follows the 302 to file-conflicts
 client.PRs(workspace, repo).Get(ctx, prID)               // PR.Source.Commit / Destination.Commit: head hashes (nil in request bodies)
@@ -174,8 +174,12 @@ Most List methods whose Bitbucket endpoint accepts a `sort=` query parameter tak
 a trailing `sort string` argument. Pass `""` to preserve the endpoint's
 default ordering. The CLI surfaces this via `--sort` on the corresponding
 list command. `PRs.List` is the exception: it takes a `bitbucket.PRListOptions`
-struct (State, SourceBranch, Sort, Since, Until, Query, Limit) because it
-accumulates several optional filters; Since/Until bound `created_on` via BBQL;
+struct (State, SourceBranch, Sort, Since, Until, Query, Limit, Reviewer,
+Participant) because it accumulates several optional filters; Reviewer is a
+BBQL clause (`reviewers.account_id` / `reviewers.uuid`), Participant is matched
+client-side (Bitbucket rejects participant filters; List requests
+`fields=+values.reviewers,+values.participants` so one call carries both);
+Since/Until bound `created_on` via BBQL;
 Query/Limit support `search prs` title/description filtering. List methods follow
 Bitbucket pagination internally and return the full result set.
 
