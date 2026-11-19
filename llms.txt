@@ -93,7 +93,7 @@ On failure, `bb` writes a single JSON object to **stderr** and exits non-zero. s
 {"error": {"code": "not_found", "message": "HTTP 404: ...", "details": {"http_status": 404, "response_body": "..."}}}
 ```
 
-Codes are a fixed enum: `config_missing`, `auth_failed`, `not_found`, `validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`. API-error messages include Bitbucket's `detail` and per-field validation reasons when it sends them.
+Codes are a fixed enum: `config_missing`, `auth_failed`, `not_found`, `validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`. API-error messages include Bitbucket's `detail` and per-field validation reasons when it sends them. On HTTP 429, GET requests are retried up to 3 times (waiting the `Retry-After` delay, otherwise 1s, 2s, 4s; never more than 60s in total per request); writes are never retried. If the limit persists the error code is `rate_limited`, its message says when to retry, and `details.retry_after_seconds` is set when Bitbucket sent a `Retry-After`.
 
 For API errors, `details.response_body` is **redacted by default** (only `details.response_body_redacted: true` appears) because Bitbucket 4xx responses sometimes echo back request fragments. Set `BB_DEBUG=1` to include the raw response body for local troubleshooting. For required-flag failures, `details.missing_flags` is a `[]string` of the flags Cobra is complaining about.
 
@@ -125,7 +125,7 @@ bb pr comment reply -p 42 -c 7 --text-file /tmp/reply.md
 ### Pull Requests
 
 ```
-bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED] [--source-branch BRANCH] [--sort FIELD] [--since TS] [--until TS] [--draft | --no-draft]
+bb pr list [-s OPEN|MERGED|DECLINED|SUPERSEDED] [--source-branch BRANCH] [--sort FIELD] [--since TS] [--until TS] [--draft | --no-draft] [--reviewer me|ACCOUNT_ID|{UUID}] [--participant me|ACCOUNT_ID|{UUID}]
 bb pr get -p ID   # source.commit.hash / destination.commit.hash = branch heads (12-char); merge_commit.hash once merged
 bb pr create -T "..." --from-branch BRANCH --to-branch BRANCH [-d "..." | --description-file PATH] [--close-source-branch] [--draft]
 bb pr update -p ID [-T "..."] [-d "..." | --description-file PATH] [--draft | --ready] [--to-branch BRANCH]   # --to-branch retargets the PR
@@ -460,7 +460,7 @@ Errors are emitted on **stderr** in the active format - see "Error format" above
 - The CLI exits non-zero on errors and writes to stderr in the active format (see "Error format"). With `format=json` the envelope is `{"error": {"code", "message", "details"}}`.
 - Use `bb --describe` to enumerate every command, flag, action class, and JSON Schema in a single call.
 - `--sort` is available on `pr list`, `pipeline list`, `branch list`, `tag list`, `commit list`, `repo list`, and `deployment list`. Note: the deployments endpoint only accepts a limited set of sort attributes (verified valid: `state.name`, `-state.name`; most others return HTTP 400). Other list commands do not accept `--sort` because the underlying Bitbucket endpoint does not - sort their JSON output client-side if you need deterministic ordering.
-- List commands follow Bitbucket pagination and return the **full** result set, not just the first page. For `pr list`, bound large result sets with `--since`/`--until` (ISO-8601 timestamps filtering PR `created_on`). PRs include `created_on`, `updated_on`, `comment_count`, `task_count`, `draft`; comments include `created_on`, `updated_on`.
+- List commands follow Bitbucket pagination and return the **full** result set, not just the first page. For `pr list`, bound large result sets with `--since`/`--until` (ISO-8601 timestamps filtering PR `created_on`). PRs include `created_on`, `updated_on`, `comment_count`, `task_count`, `draft`; comments include `created_on`, `updated_on`. PRs also carry `reviewers` and `participants` in both `pr get` and `pr list` (each participant: `user`, `role` `REVIEWER`/`PARTICIPANT`, `approved`, `state` `approved`/`changes_requested`/null, `participated_on`). `pr list --reviewer` filters formal reviewers on the server; `--participant` (anyone who reviewed, commented, or approved) is filtered client-side from the same single list call, because Bitbucket rejects participant filters. Both accept `me`, an account ID, or a `{uuid}`; together they mean AND. `user me` prints `account_id` and `uuid`.
 - Workspace and repo can be omitted from flags if set in `~/.bbcloud.yaml`, or auto-detected from the current directory's git origin — which takes priority over a `~/.bbcloud.yaml` default (see the workspace/repo inference note above).
 - All long flags have short equivalents: `-p` (pr-id), `-s` (state), `-b` (branch), `-u` (pipeline-uuid), `-c` (comment-id), `-t` (text), `-T` (title), `-d` (description), `-n` (name), `-i` (id), `-k` (key), `-v` (value), `-x` (hash).
 - Pipeline variable UUIDs are returned as strings with `{}` braces (e.g. `{abc-123}`); pass the full UUID including braces to `--uuid`.

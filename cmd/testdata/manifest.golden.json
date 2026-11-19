@@ -4298,8 +4298,18 @@
           "required": false
         },
         {
+          "name": "participant",
+          "type": "string",
+          "required": false
+        },
+        {
           "name": "repo",
           "short": "r",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reviewer",
           "type": "string",
           "required": false
         },

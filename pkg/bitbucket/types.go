@@ -4,21 +4,39 @@ import "encoding/json"
 
 // PR represents a Bitbucket pull request.
 type PR struct {
-	ID           int        `json:"id"`
-	Title        string     `json:"title"`
-	State        string     `json:"state"`
-	Draft        bool       `json:"draft"`
-	Description  string     `json:"description"`
-	Source       Endpoint   `json:"source"`
-	Destination  Endpoint   `json:"destination"`
-	MergeCommit  *CommitRef `json:"merge_commit,omitempty"`
-	Author       Actor      `json:"author"`
-	Reviewers    []Actor    `json:"reviewers"`
-	CommentCount int        `json:"comment_count,omitempty"`
-	TaskCount    int        `json:"task_count,omitempty"`
-	CreatedOn    string     `json:"created_on,omitempty"`
-	UpdatedOn    string     `json:"updated_on,omitempty"`
-	Links        Links      `json:"links"`
+	ID          int        `json:"id"`
+	Title       string     `json:"title"`
+	State       string     `json:"state"`
+	Draft       bool       `json:"draft"`
+	Description string     `json:"description"`
+	Source      Endpoint   `json:"source"`
+	Destination Endpoint   `json:"destination"`
+	MergeCommit *CommitRef `json:"merge_commit,omitempty"`
+	Author      Actor      `json:"author"`
+	Reviewers   []Actor    `json:"reviewers"`
+	// Participants is everyone who has interacted with the PR (commented,
+	// approved, requested changes) plus its formal reviewers. Bitbucket
+	// returns it on single-PR responses and, because List asks for it, on
+	// list responses too.
+	Participants []Participant `json:"participants"`
+	CommentCount int           `json:"comment_count,omitempty"`
+	TaskCount    int           `json:"task_count,omitempty"`
+	CreatedOn    string        `json:"created_on,omitempty"`
+	UpdatedOn    string        `json:"updated_on,omitempty"`
+	Links        Links         `json:"links"`
+}
+
+// Participant is one entry of a pull request's participants list.
+type Participant struct {
+	User     Actor  `json:"user"`
+	Role     string `json:"role"` // REVIEWER or PARTICIPANT
+	Approved bool   `json:"approved"`
+	// State is "approved", "changes_requested", or nil when the participant
+	// has done neither.
+	State *string `json:"state"`
+	// ParticipatedOn is the time of the approval or last comment (ISO-8601);
+	// empty when a reviewer has not acted yet.
+	ParticipatedOn string `json:"participated_on,omitempty"`
 }
 
 // PRListOptions holds the filters for listing pull requests. All fields are
@@ -31,6 +49,14 @@ type PRListOptions struct {
 	Until        string // upper bound on created_on (ISO-8601); empty = no upper bound
 	Query        string // text matched against title/description via BBQL "~"; empty = no text filter
 	Limit        int    // cap on results; <= 0 returns all pages
+	// Reviewer keeps PRs that list this user as a formal reviewer. An account
+	// ID, or a UUID in curly braces. Filtered by Bitbucket.
+	Reviewer string
+	// Participant keeps PRs that have this user among their participants. An
+	// account ID, or a UUID in curly braces. Bitbucket cannot filter on
+	// participants, so List filters the fetched PRs itself; Limit then counts
+	// matching PRs.
+	Participant string
 }
 
 // UpdatePRReviewersInput is the minimal body for adding a reviewer to a PR.
@@ -74,6 +100,7 @@ func NewEndpoint(branchName string) Endpoint {
 // Actor is a Bitbucket user reference.
 type Actor struct {
 	AccountID   string `json:"account_id,omitempty"`
+	UUID        string `json:"uuid,omitempty"` // curly-braced, e.g. {6bae...}
 	DisplayName string `json:"display_name"`
 	Nickname    string `json:"nickname,omitempty"`
 }
@@ -634,6 +661,7 @@ type DefaultReviewer struct {
 
 type User struct {
 	AccountID   string `json:"account_id"`
+	UUID        string `json:"uuid,omitempty"` // curly-braced, e.g. {6bae...}
 	DisplayName string `json:"display_name"`
 	Nickname    string `json:"nickname"`
 	Links       Links  `json:"links"`
