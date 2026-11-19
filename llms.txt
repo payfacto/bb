@@ -93,7 +93,7 @@ On failure, `bb` writes a single JSON object to **stderr** and exits non-zero. s
 {"error": {"code": "not_found", "message": "HTTP 404: ...", "details": {"http_status": 404, "response_body": "..."}}}
 ```
 
-Codes are a fixed enum: `config_missing`, `auth_failed`, `not_found`, `validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`.
+Codes are a fixed enum: `config_missing`, `auth_failed`, `not_found`, `validation_failed`, `conflict`, `rate_limited`, `api_error`, `internal_error`. On HTTP 429, GET requests are retried up to 3 times (waiting the `Retry-After` delay, otherwise 1s, 2s, 4s; never more than 60s in total per request); writes are never retried. If the limit persists the error code is `rate_limited`, its message says when to retry, and `details.retry_after_seconds` is set when Bitbucket sent a `Retry-After`.
 
 For API errors, `details.response_body` is **redacted by default** (only `details.response_body_redacted: true` appears) because Bitbucket 4xx responses sometimes echo back request fragments. Set `BB_DEBUG=1` to include the raw response body for local troubleshooting. For required-flag failures, `details.missing_flags` is a `[]string` of the flags Cobra is complaining about.
 

@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/payfacto/bb/internal/config"
 	"github.com/payfacto/bb/pkg/bitbucket"
@@ -178,5 +180,32 @@ func TestParseQuotedNames(t *testing.T) {
 				t.Errorf("parseQuotedNames(%q) = %v, want %v", c.in, got, c.want)
 			}
 		})
+	}
+}
+
+func TestMapError_RateLimited_ReportsRetryAfter(t *testing.T) {
+	got := mapError(&bitbucket.APIError{Status: 429, Message: "Rate limit exceeded", RetryAfter: 90 * time.Second})
+	if got.Code != ErrCodeRateLimited {
+		t.Fatalf("Code = %q, want %q", got.Code, ErrCodeRateLimited)
+	}
+	if got.Details["retry_after_seconds"] != 90 {
+		t.Errorf("Details.retry_after_seconds = %v, want 90", got.Details["retry_after_seconds"])
+	}
+	for _, want := range []string{"rate limited", "retry after 90s", "Rate limit exceeded"} {
+		if !strings.Contains(got.Message, want) {
+			t.Errorf("Message %q should contain %q", got.Message, want)
+		}
+	}
+}
+
+func TestMapError_RateLimited_UnknownRetryAfter(t *testing.T) {
+	got := mapError(&bitbucket.APIError{Status: 429, Message: "Rate limit exceeded"})
+	if _, present := got.Details["retry_after_seconds"]; present {
+		t.Errorf("retry_after_seconds must be omitted when unknown; details=%v", got.Details)
+	}
+	for _, want := range []string{"rate limited", "limits reset over a rolling hour"} {
+		if !strings.Contains(got.Message, want) {
+			t.Errorf("Message %q should contain %q", got.Message, want)
+		}
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"regexp"
@@ -164,12 +165,30 @@ func mapAPIError(apiErr *bitbucket.APIError) *CLIError {
 	} else {
 		details["response_body_redacted"] = true
 	}
+	message := apiErr.Error()
+	if code == ErrCodeRateLimited {
+		retryAfter := int(math.Ceil(apiErr.RetryAfter.Seconds()))
+		if retryAfter > 0 {
+			// Machine-readable, so scripts can wait without parsing prose.
+			details["retry_after_seconds"] = retryAfter
+		}
+		message = rateLimitedMessage(apiErr.Error(), retryAfter)
+	}
 	return &CLIError{
 		Code:    code,
-		Message: apiErr.Error(),
+		Message: message,
 		Details: details,
 		cause:   apiErr,
 	}
+}
+
+// rateLimitedMessage says the request was rate limited and when to retry.
+// retryAfterSeconds is 0 when Bitbucket gave no delay.
+func rateLimitedMessage(apiMessage string, retryAfterSeconds int) string {
+	if retryAfterSeconds <= 0 {
+		return "rate limited by Bitbucket; no retry time was given (limits reset over a rolling hour): " + apiMessage
+	}
+	return fmt.Sprintf("rate limited by Bitbucket; retry after %ds: %s", retryAfterSeconds, apiMessage)
 }
 
 // emitErrorJSON writes a single JSON object to stderr in the shape
