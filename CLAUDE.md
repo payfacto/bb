@@ -174,6 +174,7 @@ client.PipelineCaches(workspace, repo).DeleteByName(ctx, name)
 client.PipelineSSHKey(workspace, repo).Set(ctx, privateKey, publicKey) // Get / Delete; results never hold the private key
 client.PipelineKnownHosts(workspace, repo).Add(ctx, bitbucket.AddKnownHostInput{Hostname, PublicKey: bitbucket.KnownHostKey{KeyType, Key}}) // List / Delete(uuid)
 client.DefaultReviewers(workspace, repo).Effective(ctx) // or .List(ctx)
+client.Stats() // RequestStats{Requests, RateLimited, RateLimitHeaders}; every send goes through roundTrip
 ```
 
 Most List methods whose Bitbucket endpoint accepts a `sort=` query parameter take
@@ -205,6 +206,12 @@ callers (`cmd/errors.go`) can map them to stable CLI error codes.
 1s/2s/4s, and never more than 60s in total per request. Writes are never retried. A 429 that survives carries
 `APIError.RetryAfter`, surfaced as `details.retry_after_seconds` on the
 `rate_limited` CLI error.
+
+`BB_REQUEST_LOG=PATH` makes `cmd.Execute` append one JSON line per invocation
+(`cmd/request_log.go`): command, version, workspace/repo, duration, exit code,
+plus `client.Stats()`. `Execute` uses `rootCmd.ExecuteC` and exits only after
+logging, so new exit paths must go through `exitCode`, not `os.Exit`. Any new
+HTTP send in `pkg/bitbucket` must call `c.roundTrip`, or it is not counted.
 
 ### Configuration precedence (low → high)
 

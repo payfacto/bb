@@ -48,6 +48,9 @@ type Client struct {
 	// sleep waits between rate-limit retries; nil means sleepContext. Tests
 	// replace it to record the waits instead of sleeping.
 	sleep func(ctx context.Context, d time.Duration) error
+
+	// recorder counts the requests sent; read through Stats.
+	recorder requestRecorder
 }
 
 // New creates a Client from cfg using the live Bitbucket API.
@@ -130,7 +133,7 @@ func (c *Client) sendAuthenticated(req *http.Request) (*http.Response, error) {
 	tokenUsed, refresher := c.authState()
 
 	c.setAuth(req)
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.roundTrip(req)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +152,7 @@ func (c *Client) sendAuthenticated(req *http.Request) (*http.Response, error) {
 
 	resp.Body.Close()
 	c.setAuth(retry)
-	return c.httpClient.Do(retry)
+	return c.roundTrip(retry)
 }
 
 // refresh obtains a new access token via refresher, serialised on refreshMu so

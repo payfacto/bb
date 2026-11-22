@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -138,12 +139,16 @@ var exitCode int
 func Execute() {
 	rootCmd.SilenceErrors = true
 	rootCmd.SilenceUsage = true
-	if err := rootCmd.Execute(); err != nil {
+	start := time.Now()
+	executed, err := rootCmd.ExecuteC()
+	code := exitCode
+	if err != nil {
 		renderError(mapError(err))
-		os.Exit(1)
+		code = 1
 	}
-	if exitCode != 0 {
-		os.Exit(exitCode)
+	logRequests(executed, start, code)
+	if code != 0 {
+		os.Exit(code)
 	}
 }
 
